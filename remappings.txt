@@ -16,3 +16,7 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 @token/=src/token/
 @voting/=src/voting/
 @utils/=src/utils/
+
+@lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
+@lz-oft/=lib/LayerZero-v2/oapp/contracts/oft/
+@layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
