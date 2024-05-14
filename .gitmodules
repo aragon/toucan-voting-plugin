@@ -11,7 +11,7 @@
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 [submodule "lib/osx"]
 	path = lib/osx
-	url = https://github.com/aragon/osx
+	url = https://github.com/@aragon/osx
 [submodule "lib/openzeppelin-contracts-upgradeable"]
 	branch = "release-v4.9"
 	path = lib/openzeppelin-contracts-upgradeable
@@ -19,3 +19,6 @@
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
+[submodule "lib/osx-commons"]
+	path = lib/osx-commons
+	url = https://github.com/aragon/osx-commons
