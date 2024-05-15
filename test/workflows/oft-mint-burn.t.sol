@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {SendParam, OFTLimit, OFTFeeDetail, OFTReceipt, MessagingFee} from "@lz-oft/interfaces/IOFT.sol";
-import {OFTAdapter} from "@lz-oft/OFTAdapter.sol";
 import {OptionsBuilder} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 
 // aragon contracts
@@ -17,6 +16,7 @@ import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
 import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
+import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 
 /**
  * This test covers the creation of a governance ERC20 token that is then locked inside an OFT container, bridged
@@ -30,7 +30,7 @@ contract TestXChainMintBurn is TestHelper {
     address dao;
     GovernanceERC20 token;
 
-    SimpleOFTAdapter adapter;
+    GovernanceOFTAdapter adapter;
     OAppMockReceiver receiver;
 
     uint32 constant EID_EXECUTION_CHAIN = 1;
@@ -130,10 +130,10 @@ contract TestXChainMintBurn is TestHelper {
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
         // 2. deploy the OFTAdapter connected to the first endpoint
-        adapter = new SimpleOFTAdapter({
+        adapter = new GovernanceOFTAdapter({
             _token: address(token),
             _lzEndpoint: endpointExecutionChain,
-            _delegate: dao
+            _dao: dao
         });
 
         // 3. deploy the mock reciever oapp connected to the second endpoint
@@ -179,17 +179,4 @@ contract OAppMockReceiver is OApp {
     }
 
     constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) {}
-}
-
-/// simple OFT Adapter that overrides the lower decimals
-contract SimpleOFTAdapter is OFTAdapter {
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _delegate
-    ) OFTAdapter(_token, _lzEndpoint, _delegate) {}
-
-    function sharedDecimals() public pure override returns (uint8) {
-        return 18;
-    }
 }
