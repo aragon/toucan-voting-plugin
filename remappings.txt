@@ -18,5 +18,13 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 @utils/=src/utils/
 
 @lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
+@lz-oapp-test/=lib/LayerZero-v2/oapp/test/
 @lz-oft/=lib/LayerZero-v2/oapp/contracts/oft/
 @layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
+@layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
+
+@layerzerolabs/lz-evm-oapp-v2/=lib/LayerZero-v2/oapp/
+@layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
+@layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
+@layerzerolabs/lz-evm-v1-0.7/=lib/LayerZero/
+solidity-bytes-utils/=lib/solidity-bytes-utils/
