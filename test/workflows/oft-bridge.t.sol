@@ -20,11 +20,9 @@ import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 
 /**
  * This test covers the creation of a governance ERC20 token that is then locked inside an OFT container, bridged
- * and the a destination OApp mints a corresponding OFT on the destination.
- * We then test the reverse.
+ * and the a destination Oapp simply receives it
  */
-
-contract TestXChainMintBurn is TestHelper {
+contract TestXChainOFTBridge is TestHelper {
     using OptionsBuilder for bytes;
 
     address dao;
@@ -94,10 +92,17 @@ contract TestXChainMintBurn is TestHelper {
         assertEq(token.balanceOf(address(adapter)), 10 ether, "adapter should have 10 tokens");
 
         // send it
-        verifyPackets(EID_VOTING_CHAIN, address(receiver));
+        _bridgeMessages(EID_VOTING_CHAIN, address(receiver));
 
         // should have received the message
         assertEq(receiver.received(), true, "receiver should have received the message");
+    }
+
+    // utilities
+
+    /// @dev this is a bit more descriptive IMO
+    function _bridgeMessages(uint32 _eid, address _oapp) internal {
+        verifyPackets(_eid, _oapp);
     }
 
     // shared setups
