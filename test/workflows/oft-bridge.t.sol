@@ -11,12 +11,15 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 // external test utils
 import "forge-std/console2.sol";
-import "utils/converters.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
 import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
+
+// internal test utils
+import {MockIDAO} from "test/mocks/MockDAO.sol";
+import "utils/converters.sol";
 
 /**
  * This test covers the creation of a governance ERC20 token that is then locked inside an OFT container, bridged
@@ -155,18 +158,6 @@ contract TestXChainOFTBridge is TestHelper {
 }
 
 /** MOCKS */
-
-/// mocks IDAO for the governanceERC20 auth modifier
-contract MockIDAO {
-    function hasPermission(address, address, bytes32, bytes calldata) public view {
-        // always pass
-    }
-
-    function executeOne(address _to, bytes calldata _data) public payable {
-        (bool success, ) = _to.call{value: msg.value}(_data);
-        require(success, "executeOne: failed");
-    }
-}
 
 /// Uber simple OApp that just sets a flag when it receives a message
 /// useful for testing messages make it across, nothing else
