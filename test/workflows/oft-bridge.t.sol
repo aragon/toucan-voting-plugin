@@ -19,6 +19,7 @@ import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 
 // internal test utils
 import {MockIDAO} from "test/mocks/MockDAO.sol";
+import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
 import "utils/converters.sol";
 
 /**
@@ -32,7 +33,7 @@ contract TestXChainOFTBridge is TestHelper {
     GovernanceERC20 token;
 
     GovernanceOFTAdapter adapter;
-    OAppMockReceiver receiver;
+    MockOAppReceiver receiver;
 
     uint32 constant EID_EXECUTION_CHAIN = 1;
     uint32 constant EID_VOTING_CHAIN = 2;
@@ -145,7 +146,7 @@ contract TestXChainOFTBridge is TestHelper {
         });
 
         // 3. deploy the mock reciever oapp connected to the second endpoint
-        receiver = new OAppMockReceiver(endpointVotingChain, dao);
+        receiver = new MockOAppReceiver(endpointVotingChain, dao);
 
         // 4. wire both contracts to each other
         uint32 eidAdapter = (adapter.endpoint()).eid();
@@ -155,24 +156,4 @@ contract TestXChainOFTBridge is TestHelper {
         adapter.setPeer(eidReceiver, addressToBytes32(address(receiver)));
         receiver.setPeer(eidAdapter, addressToBytes32(address(adapter)));
     }
-}
-
-/** MOCKS */
-
-/// Uber simple OApp that just sets a flag when it receives a message
-/// useful for testing messages make it across, nothing else
-contract OAppMockReceiver is OApp {
-    bool public received;
-
-    function _lzReceive(
-        Origin calldata,
-        bytes32,
-        bytes calldata,
-        address,
-        bytes calldata
-    ) internal override {
-        received = true;
-    }
-
-    constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) {}
 }

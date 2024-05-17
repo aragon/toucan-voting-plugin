@@ -27,6 +27,7 @@ import {OFTTokenBridge} from "src/crosschain/OFTTokenBridge.sol";
 // internal test utils
 import "utils/converters.sol";
 import {MockIDAO} from "test/mocks/MockDAO.sol";
+import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
 
 /**
  * This test covers a destination chain receipt of an OFT transfer
@@ -68,7 +69,7 @@ contract TestOFTTokenBridge is TestHelper {
         });
 
         // 3. deploy the mock reciever oapp connected to the second endpoint
-        OAppMockReceiver receiptContract = new OAppMockReceiver(endpointVotingChain, dao);
+        MockOAppReceiver receiptContract = new MockOAppReceiver(endpointVotingChain, dao);
 
         // 4. wire both contracts to each other
         uint32 eidAdapter = ((sendContract).endpoint()).eid();
@@ -248,24 +249,4 @@ contract TestOFTTokenBridge is TestHelper {
         // deploy the governanceERC20 token
         token = new GovernanceERC20Burnable(IDAO(dao), "MockToken", "MCK", mintSettings);
     }
-}
-
-/** MOCKS */
-
-/// Uber simple OApp that just sets a flag when it receives a message
-/// useful for testing messages make it across, nothing else
-contract OAppMockReceiver is OApp {
-    bool public received;
-
-    function _lzReceive(
-        Origin calldata,
-        bytes32,
-        bytes calldata,
-        address,
-        bytes calldata
-    ) internal override {
-        received = true;
-    }
-
-    constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) {}
 }
