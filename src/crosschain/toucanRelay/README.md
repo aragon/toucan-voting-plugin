@@ -52,3 +52,33 @@ There is always a race condition with immediate execution, namely:
     - Existing votes can be changed
 
 - This doesn't really affect the issue tbh. You still have the period up until the grace period. 
+
+
+# ChainIDs
+
+Should the proposal ID have chain ids in it?
+
+## Yes
+- We need a way to resolve merge conflicts in the event that multiple execution chains exist
+- You could easily create two proposals with the same start and end date on 2 different chains
+- You could also IN THEORY create 2 plugins with the same address on both chains
+- Therefore, without a chainId, this would cause a conflict and the aggregator would get all fucked up:
+    - Create proposal on C1 = (a_C1 ++ t0 ++ tn)
+    - Create proposal on C2 = (a_C2 ++ t0 ++ tn)
+    - if a_C1 == a_C2 (CREATE2 etc) and the proposals start and end at the same time, users voting for different
+        proposals have no way of separating
+
+## No
+- The chain ID is a uint256, you cannot guarantee that it will fit into 32 bits and there are examples where it wont.
+
+
+## A solution:
+- On the toucan relayer, just pass the destination chain id when you vote, the mapping of proposals can be
+```ts
+executionChainId => proposalId => proposal
+```
+
+This is kinda annoying, all votes now must include an executionChainId, and it addresses a very niche issue. 
+
+I think though, the chain Id should be taken out of the proposalId
+

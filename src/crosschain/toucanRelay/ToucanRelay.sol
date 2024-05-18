@@ -3,28 +3,29 @@ pragma solidity ^0.8.20;
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
-/// proposalId is the plugin address + timestamp + chainId
 /// Codec because it makes me feel fancy and layer zero chads do it.
 library ProposalIdCodec {
+    // we have 32 bits of unused space
     function encode(
         address _plugin,
-        /* should we have  close timestamp? */
-        uint32 _timestamp,
-        uint64 _executionChainId
+        uint32 _proposalStartTimestamp,
+        uint32 _proposalEndTimestamp
     ) internal pure returns (uint256 proposalId) {
         uint256 addr = uint256(uint160(_plugin));
-        // the timestamp being 32 bits and chain id being 64 bits makes me wonder if we could have a 32 bit
-        // chain ID and store the close timestamp as well?
-        return (addr << 96) | (uint256(_timestamp) << 64) | uint256(_executionChainId);
+        return
+            (addr << 96) |
+            (uint256(_proposalStartTimestamp) << 64) |
+            ((uint256(_proposalEndTimestamp)) << 32);
+        // 32 bits of unused space
     }
 
     function decode(
         uint256 _proposalId
-    ) internal pure returns (address plugin, uint32 timestamp, uint64 executionChainId) {
+    ) internal pure returns (address plugin, uint32 startTimestamp, uint32 endtimestamp) {
         // shift out the redundant bits then cast to the correct type
         plugin = address(uint160(_proposalId >> 96));
-        timestamp = uint32(_proposalId >> 64);
-        executionChainId = uint64(_proposalId);
+        startTimestamp = uint32(_proposalId >> 64);
+        endtimestamp = uint32(_proposalId >> 32);
     }
 }
 
@@ -40,20 +41,18 @@ interface Token {
  *
  * 1. It stores vote data until such data can be dispatched cross chain
  * 2. It validates the data it stores, checking that the timestamp passed is valid
- * 3. It can receive a proposal timestamp for additional validation
  *
  * On L2 voting we have a few requirements:
  * 1. User can vote and this will be aggregated.
  * 2. We can dispatch the votes to the canonical chain
  * 3. User can change their vote (if the proposal has not ended)
  * 4. We can split a user's vote across y/n/a
- * 5. Users
+ * 5. Users can partial vote
  *
  *
  * Allowing them to change & split votes requires storing the history so we can revert the past vote
  * and apply the new one.
  *
- * We also need to store WHEN the vote was cast so we can see if the vote has been dispatched
  */
 contract ToucanRelay is OApp {
     /// placeholder will be a governance ERC20 token
@@ -63,6 +62,8 @@ contract ToucanRelay is OApp {
     bool public received;
 
     /// @notice A mapping between proposal IDs and proposal information.
+    /// @dev I think we might need to go one level deeper and store it as
+    /// mapping(uint chainId => mapping(uint256 proposalId => Proposal) proposals;
     mapping(uint256 proposalId => Proposal) public proposals;
 
     /// @notice A container for the proposal vote tally
@@ -92,14 +93,15 @@ contract ToucanRelay is OApp {
     }
 
     function canVote(uint256 _proposalId, address _voter, uint _total) public view returns (bool) {
-        (, uint32 timestamp, ) = ProposalIdCodec.decode(_proposalId);
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
 
-        require(timestamp < block.timestamp, "u can't vote in the future");
+        require(startTimestamp < block.timestamp, "u can't vote in the future");
+        require(endTimestamp > block.timestamp, "u can't vote in the past");
         // here we will need to do a proper "canVote" check
         // I think it can be largely lifted from TokenVoting
         // the thing to check is how we are computing the historical balance
         // as the timestamp of the proposal is the value that has meaning across chains
-        require(_total <= token.balanceAt(_voter, timestamp), "u messin?");
+        require(_total <= token.balanceAt(_voter, startTimestamp), "u messin?");
 
         return true;
     }
@@ -142,10 +144,12 @@ contract ToucanRelay is OApp {
         Proposal storage proposal = proposals[_proposalId];
 
         // get the proposal data
-        (address plugin, uint32 timestamp, uint64 chainId) = ProposalIdCodec.decode(_proposalId);
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
 
         // check the timestamp
-        require(timestamp < block.timestamp, "u can't vote in the future");
+        require(startTimestamp < block.timestamp, "u can't vote in the future");
+
+        require(endTimestamp > block.timestamp, "u can't vote in the past");
 
         // check the proposal has some data
         require(proposal.tally.abstain + proposal.tally.yes + proposal.tally.no > 0, "u stupid?");
