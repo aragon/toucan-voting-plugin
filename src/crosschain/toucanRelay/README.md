@@ -38,6 +38,10 @@ The relay contract should be aware of all votes coming in from each chain. Assum
 
 This requires that the locked contract has a mechanism for allowing the locked votes to be updated. This can also be permissionless.
 
+We can do this in a few ways:
+
+1. Add a delegation function on the OFTAdapter. This allows the OFTAdapter to delegate its voting power to a periphery contract. 
+
 
 
 # A race condition
@@ -104,3 +108,27 @@ we should provide a way to map this at runtime
 - Our data becomes coupled to layer zero
 - We can easily deploy an oracle contract that the DAO can add EID mappings at runtime
 - It's hard to do this trustlessly
+
+We could also ask the user to provide the foreign chain selector and the evm.chainId but this is fiddly...
+
+
+# Airdrops
+
+It'd potentially be a real value unlock to distribute the tokens on the remote chain, we should ask if this is something people want. This would allow folks to keep a DAO on mainnet and not have users bridge.
+
+To do this now you'd have to do:
+
+Tx1: mint (a+b+c) tokens to distributor
+Tx2: for loop from receiver to OFTAdapter.send
+    - a to recipient _a
+    - b to recipient _b
+    - c to recipient _c
+
+A `bulk send` option would be nice, this would be one cross chain message vs. N, then on the destination you send.
+
+For larger communities maybe a merkle distributor would be better:
+- Mint a load of tokens
+- forward to a distributor contract
+- encode the root in the message
+
+This is probably a bit complex as you need to build the tree

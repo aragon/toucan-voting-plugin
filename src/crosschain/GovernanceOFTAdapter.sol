@@ -41,6 +41,7 @@ contract GovernanceOFTAdapter is OFTAdapter {
     }
 
     /// @notice overrides the default behavior of 6 decimals as we only use EVM chains
+    /// @dev check carefully the implications of this
     function sharedDecimals() public pure override returns (uint8) {
         return 18;
     }
