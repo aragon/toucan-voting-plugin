@@ -82,3 +82,25 @@ This is kinda annoying, all votes now must include an executionChainId, and it a
 
 I think though, the chain Id should be taken out of the proposalId
 
+### Should we use the LayerZero chain ids as the mapping key?
+
+Basically all the main vendors use a custom chain pointer to compact the uint256 block.chainID somewhat
+
+- LayerZero use a 32bit `eid`
+- Wormhole use a 16bit `targetChain`
+- CCIP uses a 64bit `chainSelector`
+
+We don't need to go crazy here but I think we should try and avoid coupling the things we can't change easily
+(data) to things we can change (implementation)
+
+Ergo I think we should store the evm block.chainId if we store anything, which is a 256bit uint, then I think
+we should provide a way to map this at runtime
+
+## Yes
+- Our application is a layerzero Oapp - we are already coupled to it
+- We don't need to provide a mapping library or Oracle
+
+## No
+- Our data becomes coupled to layer zero
+- We can easily deploy an oracle contract that the DAO can add EID mappings at runtime
+- It's hard to do this trustlessly

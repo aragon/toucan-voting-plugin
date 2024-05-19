@@ -11,12 +11,9 @@ import {GovernanceERC20} from "../ERC20/governance/GovernanceERC20.sol";
 /// @notice A test GovernanceERC20 that can be minted and burned by everyone.
 /// @dev DO NOT USE IN PRODUCTION!
 contract TestGovernanceERC20 is GovernanceERC20 {
-    constructor(
-        IDAO _dao,
-        string memory _name,
-        string memory _symbol,
-        MintSettings memory _mintSettings
-    ) GovernanceERC20(_dao, _name, _symbol, _mintSettings) {}
+    constructor(IDAO _dao, string memory _name, string memory _symbol, MintSettings memory _mintSettings)
+        GovernanceERC20(_dao, _name, _symbol, _mintSettings)
+    {}
 
     // sets the balance of the address
     // this mints/burns the amount depending on the current balance

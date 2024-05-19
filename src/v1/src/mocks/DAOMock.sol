@@ -10,19 +10,10 @@ contract DAOMock is IDAO {
     address internal constant NO_CONDITION = address(0);
 
     event Granted(
-        bytes32 indexed permissionId,
-        address indexed here,
-        address where,
-        address indexed who,
-        address condition
+        bytes32 indexed permissionId, address indexed here, address where, address indexed who, address condition
     );
 
-    event Revoked(
-        bytes32 indexed permissionId,
-        address indexed here,
-        address where,
-        address indexed who
-    );
+    event Revoked(bytes32 indexed permissionId, address indexed here, address where, address indexed who);
 
     bool public hasPermissionReturnValueMock;
 
@@ -30,20 +21,18 @@ contract DAOMock is IDAO {
         hasPermissionReturnValueMock = _hasPermissionReturnValueMock;
     }
 
-    function hasPermission(
-        address _where,
-        address _who,
-        bytes32 _permissionId,
-        bytes memory _data
-    ) external view override returns (bool) {
+    function hasPermission(address _where, address _who, bytes32 _permissionId, bytes memory _data)
+        external
+        view
+        override
+        returns (bool)
+    {
         (_where, _who, _permissionId, _data);
         return hasPermissionReturnValueMock;
     }
 
-    function applyMultiTargetPermissions(
-        PermissionLib.MultiTargetPermission[] calldata _items
-    ) external {
-        for (uint256 i; i < _items.length; ) {
+    function applyMultiTargetPermissions(PermissionLib.MultiTargetPermission[] calldata _items) external {
+        for (uint256 i; i < _items.length;) {
             PermissionLib.MultiTargetPermission memory item = _items[i];
 
             if (item.operation == PermissionLib.Operation.Grant) {
@@ -68,13 +57,7 @@ contract DAOMock is IDAO {
     function grant(address _where, address _who, bytes32 _permissionId) public {
         (_where, _who, _permissionId);
 
-        emit Granted({
-            permissionId: _permissionId,
-            here: msg.sender,
-            where: _where,
-            who: _who,
-            condition: NO_CONDITION
-        });
+        emit Granted({permissionId: _permissionId, here: msg.sender, where: _where, who: _who, condition: NO_CONDITION});
     }
 
     function revoke(address _where, address _who, bytes32 _permissionId) public {
@@ -83,12 +66,9 @@ contract DAOMock is IDAO {
         emit Revoked({permissionId: _permissionId, here: msg.sender, where: _where, who: _who});
     }
 
-    function grantWithCondition(
-        address _where,
-        address _who,
-        bytes32 _permissionId,
-        IPermissionCondition _condition
-    ) public {
+    function grantWithCondition(address _where, address _who, bytes32 _permissionId, IPermissionCondition _condition)
+        public
+    {
         emit Granted({
             permissionId: _permissionId,
             here: msg.sender,
@@ -110,19 +90,15 @@ contract DAOMock is IDAO {
         (_metadata);
     }
 
-    function execute(
-        bytes32 callId,
-        Action[] memory _actions,
-        uint256 allowFailureMap
-    ) external override returns (bytes[] memory execResults, uint256 failureMap) {
+    function execute(bytes32 callId, Action[] memory _actions, uint256 allowFailureMap)
+        external
+        override
+        returns (bytes[] memory execResults, uint256 failureMap)
+    {
         emit Executed(msg.sender, callId, _actions, allowFailureMap, failureMap, execResults);
     }
 
-    function deposit(
-        address _token,
-        uint256 _amount,
-        string calldata _reference
-    ) external payable override {
+    function deposit(address _token, uint256 _amount, string calldata _reference) external payable override {
         (_token, _amount, _reference);
     }
 
@@ -130,19 +106,16 @@ contract DAOMock is IDAO {
         (_signatureValidator);
     }
 
-    function isValidSignature(
-        bytes32 _hash,
-        bytes memory _signature
-    ) external pure override returns (bytes4) {
+    function isValidSignature(bytes32 _hash, bytes memory _signature) external pure override returns (bytes4) {
         (_hash, _signature);
         return 0x0;
     }
 
-    function registerStandardCallback(
-        bytes4 _interfaceId,
-        bytes4 _callbackSelector,
-        bytes4 _magicNumber
-    ) external pure override {
+    function registerStandardCallback(bytes4 _interfaceId, bytes4 _callbackSelector, bytes4 _magicNumber)
+        external
+        pure
+        override
+    {
         (_interfaceId, _callbackSelector, _magicNumber);
     }
 }

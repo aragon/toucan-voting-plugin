@@ -17,103 +17,6 @@ import {IMajorityVoting} from "./IMajorityVoting.sol";
 
 /* solhint-enable max-line-length */
 
-/// @title MajorityVotingBase
-/// @author Aragon X - 2022-2023
-/// @notice The abstract implementation of majority voting plugins.
-///
-/// ### Parameterization
-///
-/// We define two parameters
-/// $$\texttt{support} = \frac{N_\text{yes}}{N_\text{yes} + N_\text{no}} \in [0,1]$$
-/// and
-/// $$\texttt{participation} = \frac{N_\text{yes} + N_\text{no} + N_\text{abstain}}{N_\text{total}} \in [0,1],$$
-/// where $N_\text{yes}$, $N_\text{no}$, and $N_\text{abstain}$ are the yes, no, and abstain votes that have been
-/// cast and $N_\text{total}$ is the total voting power available at proposal creation time.
-///
-/// #### Limit Values: Support Threshold & Minimum Participation
-///
-/// Two limit values are associated with these parameters and decide if a proposal execution should be possible:
-/// $\texttt{supportThreshold} \in [0,1)$ and $\texttt{minParticipation} \in [0,1]$.
-///
-/// For threshold values, $>$ comparison is used. This **does not** include the threshold value.
-/// E.g., for $\texttt{supportThreshold} = 50\%$,
-/// the criterion is fulfilled if there is at least one more yes than no votes ($N_\text{yes} = N_\text{no} + 1$).
-/// For minimum values, $\ge{}$ comparison is used. This **does** include the minimum participation value.
-/// E.g., for $\texttt{minParticipation} = 40\%$ and $N_\text{total} = 10$,
-/// the criterion is fulfilled if 4 out of 10 votes were casted.
-///
-/// Majority voting implies that the support threshold is set with
-/// $$\texttt{supportThreshold} \ge 50\% .$$
-/// However, this is not enforced by the contract code and developers can make unsafe parameters and
-/// only the frontend will warn about bad parameter settings.
-///
-/// ### Execution Criteria
-///
-/// After the vote is closed, two criteria decide if the proposal passes.
-///
-/// #### The Support Criterion
-///
-/// For a proposal to pass, the required ratio of yes and no votes must be met:
-/// $$(1- \texttt{supportThreshold}) \cdot N_\text{yes} > \texttt{supportThreshold} \cdot N_\text{no}.$$
-/// Note, that the inequality yields the simple majority voting condition for $\texttt{supportThreshold}=\frac{1}{2}$.
-///
-/// #### The Participation Criterion
-///
-/// For a proposal to pass, the minimum voting power must have been cast:
-/// $$N_\text{yes} + N_\text{no} + N_\text{abstain} \ge \texttt{minVotingPower},$$
-/// where $\texttt{minVotingPower} = \texttt{minParticipation} \cdot N_\text{total}$.
-///
-/// ### Vote Replacement
-///
-/// The contract allows votes to be replaced. Voters can vote multiple times
-/// and only the latest voteOption is tallied.
-///
-/// ### Early Execution
-///
-/// This contract allows a proposal to be executed early,
-/// iff the vote outcome cannot change anymore by more people voting.
-/// Accordingly, vote replacement and early execution are mutually exclusive options.
-/// The outcome cannot change anymore
-/// iff the support threshold is met even if all remaining votes are no votes.
-/// We call this number the worst-case number of no votes and define it as
-///
-/// $$N_\text{no, worst-case} = N_\text{no} + \texttt{remainingVotes}$$
-///
-/// where
-///
-/// $$\texttt{remainingVotes} =
-/// N_\text{total}-\underbrace{(N_\text{yes}+N_\text{no}+N_\text{abstain})}_{\text{turnout}}.$$
-///
-/// We can use this quantity to calculate the worst-case support that would be obtained
-/// if all remaining votes are casted with no:
-///
-/// $$
-/// \begin{align*}
-///   \texttt{worstCaseSupport}
-///   &= \frac{N_\text{yes}}{N_\text{yes} + (N_\text{no, worst-case})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{yes} + (N_\text{no} + \texttt{remainingVotes})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{yes} +  N_\text{no} + N_\text{total}
-///      - (N_\text{yes} + N_\text{no} + N_\text{abstain})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{total} - N_\text{abstain}}
-/// \end{align*}
-/// $$
-///
-/// In analogy, we can modify [the support criterion](#the-support-criterion)
-/// from above to allow for early execution:
-///
-/// $$
-/// \begin{align*}
-///   (1 - \texttt{supportThreshold}) \cdot N_\text{yes}
-///   &> \texttt{supportThreshold} \cdot  N_\text{no, worst-case} \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{no} + \texttt{remainingVotes}) \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{no}
-///     + N_\text{total}-(N_\text{yes}+N_\text{no}+N_\text{abstain})) \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{total} - N_\text{yes} - N_\text{abstain})
-/// \end{align*}
-/// $$
-///
-/// Accordingly, early execution is possible when the vote is open,
-/// the modified support criterion, and the particicpation criterion are met.
 /// @dev This contract implements the `IMajorityVoting` interface.
 /// @custom:security-contact sirt@aragon.org
 abstract contract MajorityVotingBase is
@@ -171,6 +74,7 @@ abstract contract MajorityVotingBase is
         bool executed;
         ProposalParameters parameters;
         Tally tally;
+        /// @dev - storage slot here might need to point to a new struct with the first word as a _deprecated slot
         mapping(address => IMajorityVoting.VoteOption) voters;
         IDAO.Action[] actions;
         uint256 allowFailureMap;

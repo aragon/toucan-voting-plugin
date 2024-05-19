@@ -2,32 +2,7 @@ pragma solidity ^0.8.20;
 
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-
-/// Codec because it makes me feel fancy and layer zero chads do it.
-library ProposalIdCodec {
-    // we have 32 bits of unused space
-    function encode(
-        address _plugin,
-        uint32 _proposalStartTimestamp,
-        uint32 _proposalEndTimestamp
-    ) internal pure returns (uint256 proposalId) {
-        uint256 addr = uint256(uint160(_plugin));
-        return
-            (addr << 96) |
-            (uint256(_proposalStartTimestamp) << 64) |
-            ((uint256(_proposalEndTimestamp)) << 32);
-        // 32 bits of unused space
-    }
-
-    function decode(
-        uint256 _proposalId
-    ) internal pure returns (address plugin, uint32 startTimestamp, uint32 endtimestamp) {
-        // shift out the redundant bits then cast to the correct type
-        plugin = address(uint160(_proposalId >> 96));
-        startTimestamp = uint32(_proposalId >> 64);
-        endtimestamp = uint32(_proposalId >> 32);
-    }
-}
+import {ProposalIdCodec} from "./ProposalIdCodec.sol";
 
 // placeholder, we need a proper governance erc20
 interface Token {
@@ -62,9 +37,8 @@ contract ToucanRelay is OApp {
     bool public received;
 
     /// @notice A mapping between proposal IDs and proposal information.
-    /// @dev I think we might need to go one level deeper and store it as
-    /// mapping(uint chainId => mapping(uint256 proposalId => Proposal) proposals;
-    mapping(uint256 proposalId => Proposal) public proposals;
+    /// IDEA: set a default chainID and use that if you don't pass one
+    mapping(uint executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
 
     /// @notice A container for the proposal vote tally
     /// @dev Used in aggregate across a proposal as well as per user
@@ -107,7 +81,11 @@ contract ToucanRelay is OApp {
     }
 
     /// vote on the L2
-    function vote(Tally calldata _voteOptions, uint256 _proposalId) external {
+    function vote(
+        Tally calldata _voteOptions,
+        uint256 _proposalId,
+        uint256 _executionChainId
+    ) external {
         uint256 abstentions = _voteOptions.abstain;
         uint256 yays = _voteOptions.yes;
         uint256 nays = _voteOptions.no;
@@ -117,7 +95,7 @@ contract ToucanRelay is OApp {
         require(canVote(_proposalId, msg.sender, total), "u can't vote");
 
         // get the proposal data
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal storage proposal = proposals[_executionChainId][_proposalId];
         Tally storage lastVote = proposal.voters[msg.sender];
 
         // revert the last vote
@@ -139,9 +117,9 @@ contract ToucanRelay is OApp {
     }
 
     /// This function will take the votes for a given proposal ID and dispatch them to the canonical chain
-    function dispatchVotes(uint256 _proposalId) external {
+    function dispatchVotes(uint256 _proposalId, uint _executionChainId) external {
         // get the proposal data
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal storage proposal = proposals[_executionChainId][_proposalId];
 
         // get the proposal data
         (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
