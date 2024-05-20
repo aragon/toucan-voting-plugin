@@ -132,3 +132,41 @@ For larger communities maybe a merkle distributor would be better:
 - encode the root in the message
 
 This is probably a bit complex as you need to build the tree
+
+
+# Parameters for dispatching lzSend in the Toucan Relay
+
+We need to get the following params 
+
+eid
+- The EID is covered above, either it needs to be manually passed or retrieved from somewhere
+
+message
+- On receipt, we need to do the following:
+    - Store the votes
+    - Store the chainId
+- Thus, the message needs to encode both as bytes data
+
+
+options
+
+Will be an ExecutorLzReceiveOption.
+
+Should probably allow l0 overrides
+
+```js
+Options.newOptions().addExecutorLzReceiveOption(50000, 0);
+```
+
+**fee**
+
+Probably expose the quote
+
+**refundAddress**
+
+Destination peer probably but needs to have a sweep
+
+
+
+
+## Comparing to OFT

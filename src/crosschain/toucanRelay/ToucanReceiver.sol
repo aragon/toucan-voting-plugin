@@ -7,16 +7,25 @@ import {ProposalIdCodec} from "./ProposalIdCodec.sol";
 // todo replace this guy with standard iface
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import {IMajorityVoting} from "src/voting/IMajorityVoting.sol";
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {IToucanRelayMessage} from "src/crosschain/toucanRelay/ToucanRelay.sol";
+
+import "forge-std/console2.sol";
 
 interface IMajorityVotingV2 is IMajorityVoting {
     function vote(
         uint256 proposalId,
-        ToucanReciever.Tally memory votes,
+        IVoteContainer.Tally memory votes,
         bool tryEarlyExecution
     ) external;
 }
 
-contract ToucanReciever is OApp {
+interface ILayerZeroEndpointV2Delegate {
+    // mapping(address oapp => address delegate) public delegates;
+    function delegates(address oapp) external view returns (address delegate);
+}
+
+contract ToucanReceiver is OApp, IVoteContainer {
     address public governanceToken;
 
     /// this allows votes coming from a chain Id to be accepted after the end date
@@ -29,20 +38,12 @@ contract ToucanReciever is OApp {
         _;
     }
 
-    // this needs to be in an ITally interface as we use it everywhere
-    // probably should rename it because anthony might kill himself
-    struct Tally {
-        uint256 abstain;
-        uint256 yes;
-        uint256 no;
-    }
-
     struct AggregateTally {
         mapping(uint256 chainId => Tally) votesByChain;
         Tally aggregateVotes;
     }
 
-    mapping(uint256 proposalId => AggregateTally) votes;
+    mapping(uint256 proposalId => AggregateTally) public votes;
 
     function setLateVotes(
         bool _allowLateVotes,
@@ -59,7 +60,18 @@ contract ToucanReciever is OApp {
         governanceToken = _governanceToken;
     }
 
-    function adjustVote(uint _votingChainId, uint _proposalId, Tally memory _votes) public {
+    function getVotesByChain(
+        uint _proposalId,
+        uint _votingChainId
+    ) public view returns (Tally memory) {
+        return votes[_proposalId].votesByChain[_votingChainId];
+    }
+
+    function getAggregateVotes(uint _proposalId) public view returns (Tally memory) {
+        return votes[_proposalId].aggregateVotes;
+    }
+
+    function _adjustVote(uint _votingChainId, uint _proposalId, Tally memory _votes) internal {
         (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
 
         require(startTimestamp <= block.timestamp, "u can't vote in the future");
@@ -111,14 +123,37 @@ contract ToucanReciever is OApp {
 
     /// @dev placeholder for the lzReceive function
     function _lzReceive(
-        Origin calldata,
-        bytes32,
-        bytes calldata,
-        address,
-        bytes calldata
+        Origin calldata _origin,
+        bytes32 _guid,
+        bytes calldata _message,
+        address _executor,
+        bytes calldata _extraData
     ) internal override {
         // deserialize inbound data
+        IToucanRelayMessage.ToucanVoteMessage memory decoded = abi.decode(
+            _message,
+            (IToucanRelayMessage.ToucanVoteMessage)
+        );
+
+        uint srcChainId = decoded.srcChainId;
+        uint proposalId = decoded.proposalId;
+        Tally memory receivedVotes = decoded.votes;
+
         // adjust vote
+        _adjustVote(srcChainId, proposalId, receivedVotes);
+
         // try/catch to send to proxy
+    }
+
+    /// if this contract was set as the refund address, prevents locked funds
+    /// funds are sent to the delegate
+    function collectRefunds() external auth(keccak256("REFUND_COLLECTOR_ID")) {
+        address delegate = ILayerZeroEndpointV2Delegate(address(endpoint)).delegates(address(this));
+        (bool success, ) = payable(delegate).call{value: address(this).balance}("");
+        require(success, "refund failed");
+    }
+
+    function collectRefunds(address _lzToken) external auth(keccak256("REFUND_COLLECTOR_ID")) {
+        // transfer to DAO
     }
 }

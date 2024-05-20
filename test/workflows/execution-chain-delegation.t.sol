@@ -7,7 +7,7 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 // project
 import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
-import {ToucanReciever} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
+import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
 
 /// test imports
 import "forge-std/Test.sol";
@@ -26,7 +26,7 @@ contract TestExecutionChainDelegation is Test {
     GovernanceERC20 public token;
     GovernanceOFTAdapter public adapter;
     MockLzEndpointMinimal public lzEndpoint;
-    ToucanReciever public receiver;
+    ToucanReceiver public receiver;
     IDAO public dao;
 
     function setUp() public {
@@ -56,7 +56,7 @@ contract TestExecutionChainDelegation is Test {
         });
 
         // deploy the receiver contract
-        receiver = new ToucanReciever({
+        receiver = new ToucanReceiver({
             _governanceToken: address(token),
             _lzEndpoint: address(lzEndpoint),
             _delegate: address(this)

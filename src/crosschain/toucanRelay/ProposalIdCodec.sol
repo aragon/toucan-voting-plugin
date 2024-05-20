@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-/// Codec because it makes me feel fancy and layer zero chads do it.
+/// at the moment this is the same as abi.encodePacked but we're thinking through the problem
 library ProposalIdCodec {
     // we have 32 bits of unused space
     function encode(
