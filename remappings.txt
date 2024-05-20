@@ -16,6 +16,7 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 @token/=src/token/
 @voting/=src/voting/
 @utils/=src/utils/
+@mocks/=test/mocks/
 
 @lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
 @lz-oapp-test/=lib/LayerZero-v2/oapp/test/
@@ -28,3 +29,5 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 @layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
 @layerzerolabs/lz-evm-v1-0.7/=lib/LayerZero/
 solidity-bytes-utils/=lib/solidity-bytes-utils/
+
+

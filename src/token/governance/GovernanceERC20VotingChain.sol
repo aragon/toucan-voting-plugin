@@ -4,13 +4,15 @@ pragma solidity ^0.8.8;
 
 import {GovernanceERC20} from "./GovernanceERC20.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IERC20Burnable} from "./IERC20Burnable.sol";
 
-/// @title GovernanceERC20Burnable
+/// @title GovernanceERC20Voting chain
 /// @author Aragon Association
 /// @notice Extends the Aragon GovernanceERC20 to allow for reducing the total supply of tokens
 ///         by burning them. This has implications for quorums and proposal thresholds.
+///         Also uses timestamp based voting. MORE INFO TO COME
 /// @custom:security-contact sirt@aragon.org
-contract GovernanceERC20Burnable is GovernanceERC20 {
+contract GovernanceERC20VotingChain is GovernanceERC20, IERC20Burnable {
     /// @notice Calls the burn function in the parent contract.
     bytes32 internal constant BURN_PERMISSION_ID = keccak256("BURN_PERMISSION");
 
@@ -36,5 +38,16 @@ contract GovernanceERC20Burnable is GovernanceERC20 {
     /// @notice Burns a specific amount of tokens from a specific account, decreasing the total supply.
     function burn(address _account, uint256 _amount) external auth(BURN_PERMISSION_ID) {
         _burn(_account, _amount);
+    }
+
+    /// override the clock to use block.timestamp as syncing blocks
+    /// between chains is a hard problem
+    /// https://docs.openzeppelin.com/contracts/4.x/governance#timestamp_based_governance
+    function clock() public view override returns (uint48) {
+        return uint48(block.timestamp);
+    }
+
+    function CLOCK_MODE() public pure override returns (string memory) {
+        return "mode=timestamp";
     }
 }

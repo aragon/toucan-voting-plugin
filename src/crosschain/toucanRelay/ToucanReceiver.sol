@@ -6,7 +6,7 @@ import {ProposalIdCodec} from "./ProposalIdCodec.sol";
 
 // todo replace this guy with standard iface
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import {IMajorityVoting} from "src/v1/src/IMajorityVoting.sol";
+import {IMajorityVoting} from "src/voting/IMajorityVoting.sol";
 
 interface IMajorityVotingV2 is IMajorityVoting {
     function vote(
@@ -95,10 +95,14 @@ contract ToucanReciever is OApp {
         return ERC20Votes(governanceToken).delegates(_tokenBridge) == address(this);
     }
 
-    // you realistically want anyone to be able to call this, in case
+    // you potentially want anyone to be able to call this to prevent a DoS
     function updateVote(uint _proposalId, bool _tryEarlyExecution) public {
         // get the current aggregate
         Tally memory aggregate = votes[_proposalId].aggregateVotes;
+
+        uint total = aggregate.abstain + aggregate.yes + aggregate.no;
+
+        require(total > 0, "no votes, check the proposal");
 
         (address plugin, , ) = ProposalIdCodec.decode(_proposalId);
 

@@ -54,4 +54,8 @@ contract GovernanceOFTAdapter is OFTAdapter {
     function _delegate(address _to) internal {
         ERC20Votes(address(innerToken)).delegate(_to);
     }
+
+    // todo: should we add a sweep function here:
+    // wrong tokens sent to the adapter?
+    // tokens transferred but not locked via the send mechanism?
 }

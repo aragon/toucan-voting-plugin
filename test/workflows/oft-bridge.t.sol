@@ -18,7 +18,7 @@ import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 
 // internal test utils
-import {MockIDAO} from "test/mocks/MockDAO.sol";
+import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
 import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
 import "utils/converters.sol";
 
@@ -42,7 +42,7 @@ contract TestXChainOFTBridge is TestHelper {
         // no need to super the testHelper as it does nothing in its own setup
 
         // deploy the DAO
-        dao = address(new MockIDAO());
+        dao = address(new MockDAO());
     }
 
     function test_canSetupTheGovernanceERC20() public {
@@ -141,6 +141,7 @@ contract TestXChainOFTBridge is TestHelper {
         // 2. deploy the OFTAdapter connected to the first endpoint
         adapter = new GovernanceOFTAdapter({
             _token: address(token),
+            _voteProxy: address(0),
             _lzEndpoint: endpointExecutionChain,
             _dao: dao
         });

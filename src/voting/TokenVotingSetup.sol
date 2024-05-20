@@ -8,9 +8,9 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import {GovernanceERC20} from "./ERC20/governance/GovernanceERC20.sol";
-import {IGovernanceWrappedERC20} from "./ERC20/governance/IGovernanceWrappedERC20.sol";
-import {GovernanceWrappedERC20} from "./ERC20/governance/GovernanceWrappedERC20.sol";
+import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
+import {IGovernanceWrappedERC20} from "src/token/governance/IGovernanceWrappedERC20.sol";
+import {GovernanceWrappedERC20} from "src/token/governance/GovernanceWrappedERC20.sol";
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";

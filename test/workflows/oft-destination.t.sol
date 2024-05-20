@@ -20,13 +20,13 @@ import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
 import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
-import {GovernanceERC20Burnable} from "src/token/governance/GovernanceERC20Burnable.sol";
+import {GovernanceERC20VotingChain as GovernanceERC20Burnable} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 import {OFTTokenBridge} from "src/crosschain/OFTTokenBridge.sol";
 
 // internal test utils
 import "utils/converters.sol";
-import {MockIDAO} from "test/mocks/MockDAO.sol";
+import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
 import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
 
 /**
@@ -47,7 +47,7 @@ contract TestOFTTokenBridge is TestHelper {
         // no need to super the testHelper as it does nothing in its own setup
 
         // deploy the DAO
-        dao = address(new MockIDAO());
+        dao = address(new MockDAO());
     }
 
     /// we test the use of the sending packets on a single chain
@@ -64,6 +64,7 @@ contract TestOFTTokenBridge is TestHelper {
         // 2. deploy the OFTAdapter connected to the first endpoint
         GovernanceOFTAdapter sendContract = new GovernanceOFTAdapter({
             _token: address(token),
+            _voteProxy: address(0),
             _lzEndpoint: endpointExecutionChain,
             _dao: dao
         });
@@ -125,6 +126,7 @@ contract TestOFTTokenBridge is TestHelper {
         // 2. deploy the OFTAdapter connected to the first endpoint
         GovernanceOFTAdapter sendContract = new GovernanceOFTAdapter({
             _token: address(token),
+            _voteProxy: address(0),
             _lzEndpoint: endpointExecutionChain,
             _dao: dao
         });
