@@ -7,7 +7,7 @@ Line by line changes for Toucan Voting
 
 - Add a `VotingMode`: `PartialWithReplacement` allows partial voting with replacement
     - Side note: it's super weird that the voting mode is setup as an enum instead of allowing combinations of settings
-    - Maybe we can improve this as it kinda sucks atm
+    - Maybe we can improve this as it's tough to work with for combinations of voting settings
 
 ### Updating the Proposal Struct
 - We need to store the vote history as a 3 word tally. This is a net 40k gas increase for each voter in the worst case (but no increase in the base case)
