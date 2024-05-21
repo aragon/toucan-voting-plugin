@@ -33,6 +33,9 @@ contract ToucanReceiver is OApp, IVoteContainer {
     /// however we have to trust the source to enforce the end date
     mapping(uint256 votingChainId => bool allowed) public allowLateVotes;
 
+    /// need to check this...
+    mapping(address plugin => bool allowed) public authorizedPlugins;
+
     /// this will get replaced with OSx permissions
     modifier auth(bytes32) {
         _;
@@ -117,6 +120,7 @@ contract ToucanReceiver is OApp, IVoteContainer {
         require(total > 0, "no votes, check the proposal");
 
         (address plugin, , ) = ProposalIdCodec.decode(_proposalId);
+        require(authorizedPlugins[plugin], "plugin not authorized");
 
         IMajorityVotingV2(plugin).vote(_proposalId, aggregate, _tryEarlyExecution);
     }

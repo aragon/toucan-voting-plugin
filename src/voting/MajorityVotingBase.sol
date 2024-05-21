@@ -65,19 +65,20 @@ abstract contract MajorityVotingBase is
     /// @param executed Whether the proposal is executed or not.
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param tally The vote tally of the proposal.
-    /// @param voters The votes casted by the voters.
+    /// @param _deprecated represents the previous version where a voter could only vote with a single option
     /// @param actions The actions to be executed when the proposal passes.
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert.
+    /// @param lastVotes The most recent vote combinations of votes for each voter.
     /// If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts.
     /// A failure map value of 0 requires every action to not revert.
     struct Proposal {
         bool executed;
         ProposalParameters parameters;
         Tally tally;
-        /// @dev - storage slot here might need to point to a new struct with the first word as a _deprecated slot
-        mapping(address => IMajorityVoting.VoteOption) voters;
+        mapping(address => IMajorityVoting.VoteOption) _deprecated;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
+        mapping(address => Tally) lastVotes;
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
@@ -97,16 +98,6 @@ abstract contract MajorityVotingBase is
         uint256 minVotingPower;
     }
 
-    /// @notice A container for the proposal vote tally.
-    /// @param abstain The number of abstain votes casted.
-    /// @param yes The number of yes votes casted.
-    /// @param no The number of no votes casted.
-    struct Tally {
-        uint256 abstain;
-        uint256 yes;
-        uint256 no;
-    }
-
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
     bytes4 internal constant MAJORITY_VOTING_BASE_INTERFACE_ID =
         this.minDuration.selector ^
@@ -115,7 +106,13 @@ abstract contract MajorityVotingBase is
             this.totalVotingPower.selector ^
             this.getProposal.selector ^
             this.updateVotingSettings.selector ^
-            this.createProposal.selector;
+            /* check nested structs definition in the selector */
+            // we also probably need the other selector for the Tally version
+            bytes4(
+                keccak256(
+                    "createProposal(bytes,IDAO.Action[],uint256,uint64,uint64,VoteOption,bool)"
+                )
+            );
 
     /// @notice The ID of the permission required to call the `updateVotingSettings` function.
     bytes32 public constant UPDATE_VOTING_SETTINGS_PERMISSION_ID =
@@ -152,9 +149,15 @@ abstract contract MajorityVotingBase is
     /// @param voteOption The chosen vote option.
     error VoteCastForbidden(uint256 proposalId, address account, VoteOption voteOption);
 
+    /// @dev TODO
+    error VoteMultipleForbidden(uint256 proposalId, address account, Tally voteOptions);
+
     /// @notice Thrown if the proposal execution is forbidden.
     /// @param proposalId The ID of the proposal.
     error ProposalExecutionForbidden(uint256 proposalId);
+
+    /// @notice Thrown when a user submits a vote with an invalid option.
+    error InvalidVoteOption(VoteOption voteOption);
 
     /// @notice Emitted when the voting settings are updated.
     /// @param votingMode A parameter to select the vote mode.
@@ -208,15 +211,33 @@ abstract contract MajorityVotingBase is
         bool _tryEarlyExecution
     ) public virtual {
         address account = _msgSender();
+        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption);
 
-        if (!_canVote(_proposalId, account, _voteOption)) {
+        if (!_canVote(_proposalId, account, voteOptions)) {
             revert VoteCastForbidden({
                 proposalId: _proposalId,
                 account: account,
                 voteOption: _voteOption
             });
         }
-        _vote(_proposalId, _voteOption, account, _tryEarlyExecution);
+        _vote(_proposalId, voteOptions, account, _tryEarlyExecution);
+    }
+
+    function vote(
+        uint256 _proposalId,
+        Tally memory _voteOptions,
+        bool _tryEarlyExecution
+    ) public virtual {
+        address account = _msgSender();
+
+        if (!_canVote(_proposalId, account, _voteOptions)) {
+            revert VoteMultipleForbidden({
+                proposalId: _proposalId,
+                account: account,
+                voteOptions: _voteOptions
+            });
+        }
+        _vote(_proposalId, _voteOptions, account, _tryEarlyExecution);
     }
 
     /// @inheritdoc IMajorityVoting
@@ -232,7 +253,15 @@ abstract contract MajorityVotingBase is
         uint256 _proposalId,
         address _voter
     ) public view virtual returns (VoteOption) {
-        return proposals[_proposalId].voters[_voter];
+        return proposals[_proposalId]._deprecated[_voter];
+    }
+
+    /// @inheritdoc IMajorityVoting
+    function getVoteOptions(
+        uint256 _proposalId,
+        address _voter
+    ) public view virtual returns (Tally memory) {
+        return proposals[_proposalId].lastVotes[_voter];
     }
 
     /// @inheritdoc IMajorityVoting
@@ -241,7 +270,16 @@ abstract contract MajorityVotingBase is
         address _voter,
         VoteOption _voteOption
     ) public view virtual returns (bool) {
-        return _canVote(_proposalId, _voter, _voteOption);
+        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption);
+        return _canVote(_proposalId, _voter, voteOptions);
+    }
+
+    function canVote(
+        uint256 _proposalId,
+        address _voter,
+        Tally memory _voteOptions
+    ) public view virtual returns (bool) {
+        return _canVote(_proposalId, _voter, _voteOptions);
     }
 
     /// @inheritdoc IMajorityVoting
@@ -375,10 +413,23 @@ abstract contract MajorityVotingBase is
     /// If 0, the current timestamp is used and the vote starts immediately.
     /// @param _endDate The end date of the proposal vote.
     /// If 0, `_startDate + minDuration` is used.
-    /// @param _voteOption The chosen vote option to be casted on proposal creation.
+    /// @param _voteOptions The choice of vote options to be cast alongside proposal creation.
+    /// @dev   a valid option is (0, 0, 0) but depending on the vote setting this might not be changeable.
     /// @param _tryEarlyExecution If `true`,  early execution is tried after the vote cast.
     /// The call does not revert if early execution is not possible.
     /// @return proposalId The ID of the proposal.
+    function createProposal(
+        bytes calldata _metadata,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap,
+        uint64 _startDate,
+        uint64 _endDate,
+        Tally memory _voteOptions,
+        bool _tryEarlyExecution
+    ) external virtual returns (uint256 proposalId);
+
+    /// @notice Creates a new majority voting proposal with the legacy vote option.
+    /// @param _voteOption single choice voting option.
     function createProposal(
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
@@ -389,14 +440,24 @@ abstract contract MajorityVotingBase is
         bool _tryEarlyExecution
     ) external virtual returns (uint256 proposalId);
 
+    /// @notice Internal function to create the proposal without the vote option.
+    /// @return proposalId The ID of the proposal.
+    function _createProposal(
+        bytes calldata _metadata,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap,
+        uint64 _startDate,
+        uint64 _endDate
+    ) internal virtual returns (uint256 proposalId);
+
     /// @notice Internal function to cast a vote. It assumes the queried vote exists.
     /// @param _proposalId The ID of the proposal.
-    /// @param _voteOption The chosen vote option to be casted on the proposal vote.
+    /// @param _voteOptions The chosen allocation of vote options to be casted on the proposal vote.
     /// @param _tryEarlyExecution If `true`,  early execution is tried after the vote cast.
     /// The call does not revert if early execution is not possible.
     function _vote(
         uint256 _proposalId,
-        VoteOption _voteOption,
+        Tally memory _voteOptions,
         address _voter,
         bool _tryEarlyExecution
     ) internal virtual;
@@ -417,12 +478,12 @@ abstract contract MajorityVotingBase is
     /// @notice Internal function to check if a voter can vote. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
     /// @param _voter The address of the voter to check.
-    /// @param  _voteOption Whether the voter abstains, supports or opposes the proposal.
+    /// @param  _voteOptions Degree to which the voter abstains, supports or opposes the proposal.
     /// @return Returns `true` if the given voter can vote on a certain proposal and `false` otherwise.
     function _canVote(
         uint256 _proposalId,
         address _voter,
-        VoteOption _voteOption
+        Tally memory _voteOptions
     ) internal view virtual returns (bool);
 
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
@@ -542,6 +603,21 @@ abstract contract MajorityVotingBase is
                 revert DateOutOfBounds({limit: earliestEndDate, actual: endDate});
             }
         }
+    }
+
+    /// @notice If a user passes one of the legacy vote options, this creates a tally
+    ///         with all their voting power in that option.
+    /// @param  _voteOption The legacy vote option.
+    /// @return The tally with the user's voting power in the given option.
+    function _convertVoteOptionToTally(
+        VoteOption _voteOption
+    ) internal view virtual returns (Tally memory);
+
+    /// @notice Sums all the votes in a Tally to a single number.
+    /// @param _voteOptions The Tally to calculate the total voting power.
+    /// @return The total voting power of the given Tally.
+    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
+        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add

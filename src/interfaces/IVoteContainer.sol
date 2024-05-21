@@ -11,3 +11,10 @@ interface IVoteContainer {
         uint256 no;
     }
 }
+
+library VoteAggregator {
+    // can revert if votes are all above type(uint256).max / 3
+    function sum(IVoteContainer.Tally memory votes) internal pure returns (uint256) {
+        return votes.abstain + votes.yes + votes.no;
+    }
+}

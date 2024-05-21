@@ -44,4 +44,3 @@ This project is licensed under AGPL-3.0-or-later.
 Support 💬
 For support, join our Discord server or open an issue in the repository.
 
-

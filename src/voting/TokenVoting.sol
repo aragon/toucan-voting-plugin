@@ -82,6 +82,42 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         VoteOption _voteOption,
         bool _tryEarlyExecution
     ) external override returns (uint256 proposalId) {
+        proposalId = _createProposal(_metadata, _actions, _allowFailureMap, _startDate, _endDate);
+
+        if (_voteOption != VoteOption.None) {
+            vote(proposalId, _voteOption, _tryEarlyExecution);
+        }
+
+        return proposalId;
+    }
+
+    /// @inheritdoc MajorityVotingBase
+    function createProposal(
+        bytes calldata _metadata,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap,
+        uint64 _startDate,
+        uint64 _endDate,
+        Tally memory _voteOptions,
+        bool _tryEarlyExecution
+    ) external override returns (uint256 proposalId) {
+        proposalId = _createProposal(_metadata, _actions, _allowFailureMap, _startDate, _endDate);
+
+        if (_voteOptions.yes + _voteOptions.no + _voteOptions.abstain > 0) {
+            vote(proposalId, _voteOptions, _tryEarlyExecution);
+        }
+
+        return proposalId;
+    }
+
+    /// @inheritdoc MajorityVotingBase
+    function _createProposal(
+        bytes calldata _metadata,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap,
+        uint64 _startDate,
+        uint64 _endDate
+    ) internal override returns (uint256 proposalId) {
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
@@ -148,9 +184,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
             }
         }
 
-        if (_voteOption != VoteOption.None) {
-            vote(proposalId, _voteOption, _tryEarlyExecution);
-        }
+        return proposalId;
     }
 
     /// @inheritdoc IMembership
@@ -164,42 +198,30 @@ contract TokenVoting is IMembership, MajorityVotingBase {
     /// @inheritdoc MajorityVotingBase
     function _vote(
         uint256 _proposalId,
-        VoteOption _voteOption,
+        Tally memory _voteOptions,
         address _voter,
         bool _tryEarlyExecution
     ) internal override {
         Proposal storage proposal_ = proposals[_proposalId];
-
-        // This could re-enter, though we can assume the governance token is not malicious
-        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock);
-        VoteOption state = proposal_.voters[_voter];
+        Tally memory state = proposal_.lastVotes[_voter];
+        bool hasVoted = _totalVoteWeight(state) != 0;
 
         // If voter had previously voted, decrease count
-        if (state == VoteOption.Yes) {
-            proposal_.tally.yes = proposal_.tally.yes - votingPower;
-        } else if (state == VoteOption.No) {
-            proposal_.tally.no = proposal_.tally.no - votingPower;
-        } else if (state == VoteOption.Abstain) {
-            proposal_.tally.abstain = proposal_.tally.abstain - votingPower;
+        if (hasVoted) {
+            proposal_.tally.abstain -= state.abstain;
+            proposal_.tally.yes -= state.yes;
+            proposal_.tally.no -= state.no;
         }
+
+        // update the votes for the proposal
+        proposal_.tally.abstain += _voteOptions.abstain;
+        proposal_.tally.yes += _voteOptions.yes;
+        proposal_.tally.no += _voteOptions.no;
 
         // write the updated/new vote for the voter.
-        if (_voteOption == VoteOption.Yes) {
-            proposal_.tally.yes = proposal_.tally.yes + votingPower;
-        } else if (_voteOption == VoteOption.No) {
-            proposal_.tally.no = proposal_.tally.no + votingPower;
-        } else if (_voteOption == VoteOption.Abstain) {
-            proposal_.tally.abstain = proposal_.tally.abstain + votingPower;
-        }
+        proposal_.lastVotes[_voter] = _voteOptions;
 
-        proposal_.voters[_voter] = _voteOption;
-
-        emit VoteCast({
-            proposalId: _proposalId,
-            voter: _voter,
-            voteOption: _voteOption,
-            votingPower: votingPower
-        });
+        emit VoteCast({proposalId: _proposalId, voter: _voter, voteOptions: _voteOptions});
 
         if (_tryEarlyExecution && _canExecute(_proposalId)) {
             _execute(_proposalId);
@@ -210,7 +232,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
     function _canVote(
         uint256 _proposalId,
         address _account,
-        VoteOption _voteOption
+        Tally memory _voteOptions
     ) internal view override returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
@@ -219,25 +241,45 @@ contract TokenVoting is IMembership, MajorityVotingBase {
             return false;
         }
 
-        // The voter votes `None` which is not allowed.
-        if (_voteOption == VoteOption.None) {
+        // this could re-enter with a malicious governance token
+        uint votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotBlock);
+
+        // The voter has no voting power.
+        if (votingPower == 0) {
             return false;
         }
 
-        // The voter has no voting power.
-        if (votingToken.getPastVotes(_account, proposal_.parameters.snapshotBlock) == 0) {
+        // the user has insufficient voting power to vote
+        if (_totalVoteWeight(_voteOptions) > votingPower) {
             return false;
         }
 
         // The voter has already voted but vote replacment is not allowed.
         if (
-            proposal_.voters[_account] != VoteOption.None &&
+            _totalVoteWeight(proposal_.lastVotes[_account]) != 0 &&
             proposal_.parameters.votingMode != VotingMode.VoteReplacement
         ) {
             return false;
         }
 
         return true;
+    }
+
+    /// @inheritdoc MajorityVotingBase
+    function _convertVoteOptionToTally(
+        VoteOption _voteOption
+    ) internal view override returns (Tally memory) {
+        // this could re-enter with a malicious governance token
+        uint votingPower = votingToken.getVotes(_msgSender());
+        if (_voteOption == VoteOption.Abstain) {
+            return Tally({abstain: votingPower, yes: 0, no: 0});
+        } else if (_voteOption == VoteOption.Yes) {
+            return Tally({abstain: 0, yes: votingPower, no: 0});
+        } else if (_voteOption == VoteOption.No) {
+            return Tally({abstain: 0, yes: 0, no: votingPower});
+        } else {
+            revert InvalidVoteOption(_voteOption);
+        }
     }
 
     /// @dev This empty reserved space is put in place to allow future versions to add new

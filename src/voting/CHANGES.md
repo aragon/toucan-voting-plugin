@@ -5,9 +5,17 @@ Line by line changes for Toucan Voting
 
 ## MajorityVotingBase
 
-- Add a `VotingMode`: `PartialWithReplacement` allows partial voting with replacement
-    - Side note: it's super weird that the voting mode is setup as an enum instead of allowing combinations of settings
-    - Maybe we can improve this as it's tough to work with for combinations of voting settings
+- If we are, globally, adding the feature of partial voting, then potentially we don't need a new  vote setting:
+- In `Standard` Mode: you can partially vote, but you can't change your vote later
+    - Maybe better that you vote once, with full voting power
+- In `EarlyExecution` Mode: 
+    - Same as standard
+- In `VoteReplacement`:
+    - Change your vote
+
+The question is, should we allow for partial votes in `VoteReplacement`?
+- For now, sure, maybe we restrict it later
+
 
 ### Updating the Proposal Struct
 - We need to store the vote history as a 3 word tally. This is a net 40k gas increase for each voter in the worst case (but no increase in the base case)
@@ -93,3 +101,55 @@ So if you split your vote on the L2, you have to pay for 6 slots, and the DAO ha
 ## Setup
 
 TBC
+
+
+# Builds versus releases
+
+TokenVoting inherits from MajorityVoting which is UUPSUpgradeable. This means we can create a build and preserve the storage. The main challenges as I see it that `VotingMode` is incompatible with split voting.
+
+What we therefore need to adhere to the build rules. 
+
+- We can *add* external functions and storage variables but we cannot *change* or *remove* them.
+
+On `vote`:
+
+```js
+    function vote(
+        uint256 _proposalId,
+        VoteOption _voteOption,
+        bool _tryEarlyExecution
+    ) public;
+
+// add an overload
+
+    function vote(
+        uint256 _proposalId,
+        Tally _voteOptions,
+        bool _tryEarlyExecution
+    ) public;
+```
+Internally, vote needs to write to the tally storage variable
+
+On `getVoteOption`:
+
+This is tricky. I'd be tempted to leave it as-is and update the storage variable to point to deprecated. We can update the natspec to say this shouldn't be used but can be checked for historical votes.
+
+
+Then we can add `getVoteOptions` which will return the tally
+
+We also need to deprecate the VoteCast event and create VotesCast as a new event
+
+On `_canVote`, it's an internal function so we can change it
+
+
+On `createProposal`:
+
+This, annoyingly, has a voting option. I think we just keep as is and set it to "deprecated" and add an overload that doesn't have any vote data. We can opt to revert the use of createProposal in this way or, alternatively, just add an overload to vote with the tally. 
+
+
+TODO: natspec, iface
+
+
+## Security risk-reentrancy:
+
+- `votingToken.getVotes` has the potential for read-only reentrancy. Need to be careful about mitigations. 
