@@ -25,6 +25,7 @@ interface ILayerZeroEndpointV2Delegate {
     function delegates(address oapp) external view returns (address delegate);
 }
 
+/// TODO: what if toucan receiver gets manually delegated? Wonder if that will break things?
 contract ToucanReceiver is OApp, IVoteContainer {
     address public governanceToken;
 

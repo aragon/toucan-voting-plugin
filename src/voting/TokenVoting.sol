@@ -11,6 +11,8 @@ import {_applyRatioCeiled} from "@aragon/osx-commons-contracts/src/utils/math/Ra
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {MajorityVotingBase} from "./MajorityVotingBase.sol";
 
+import "forge-std/console2.sol";
+
 /// @title TokenVoting
 /// @author Aragon X - 2021-2023
 /// @notice The majority voting implementation using an
@@ -101,6 +103,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         Tally memory _voteOptions,
         bool _tryEarlyExecution
     ) external override returns (uint256 proposalId) {
+        console2.log("start: %s, end: %s", _startDate, _endDate);
         proposalId = _createProposal(_metadata, _actions, _allowFailureMap, _startDate, _endDate);
 
         if (_voteOptions.yes + _voteOptions.no + _voteOptions.abstain > 0) {
@@ -149,6 +152,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         }
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
+        console2.log("start: %s, end: %s", _startDate, _endDate);
 
         proposalId = _createProposal({
             _creator: _msgSender(),

@@ -26,6 +26,7 @@ contract GovernanceOFTAdapter is OFTAdapter {
         address _token,
         address _voteProxy,
         address _lzEndpoint,
+        /* todo rename to delegate to be consistent */
         address _dao
     ) OFTAdapter(_token, _lzEndpoint, _dao) {
         // self delegate if no vote proxy is set
@@ -40,11 +41,11 @@ contract GovernanceOFTAdapter is OFTAdapter {
         _;
     }
 
-    /// @notice overrides the default behavior of 6 decimals as we only use EVM chains
-    /// @dev check carefully the implications of this
-    function sharedDecimals() public pure override returns (uint8) {
-        return 18;
-    }
+    // /// @notice overrides the default behavior of 6 decimals as we only use EVM chains
+    // /// @dev check carefully the implications of this
+    // function sharedDecimals() public pure override returns (uint8) {
+    //     return 18;
+    // }
 
     /// here we can allow delegation to a vote proxy contract
     function delegate(address _to) public auth(keccak256("SET_CROSSCHAIN_DELEGATE_ID")) {

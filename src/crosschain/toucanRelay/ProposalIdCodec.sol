@@ -23,5 +23,17 @@ library ProposalIdCodec {
         startTimestamp = uint32(_proposalId >> 32);
         endtimestamp = uint32(_proposalId);
     }
+
+    function plugin(uint _proposalId) internal pure returns (address) {
+        return address(uint160(_proposalId >> 64));
+    }
+
+    function startTimestamp(uint _proposalId) internal pure returns (uint32) {
+        return uint32(_proposalId >> 32);
+    }
+
+    function endTimestamp(uint _proposalId) internal pure returns (uint32) {
+        return uint32(_proposalId);
+    }
 }
 // Let's explore a delay

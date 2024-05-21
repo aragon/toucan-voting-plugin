@@ -99,15 +99,19 @@ interface IMajorityVoting {
     /// @return True if the proposal can be executed, false otherwise.
     function canExecute(uint256 _proposalId) external view returns (bool);
 
+    // BELOW INTERFACE DEFINITIONS ARE CAUSING SELECTOR CLASHES
+    // THIS IS SOLIDITY BEING ANNOYING AND NEEDS A PROPER FIX
+    // FOR NOW COMMENTING TO IGNORE THE ERROR
+
     /// @notice Votes for a set of vote options and, optionally, executes the proposal.
     /// @param _proposalId The ID of the proposal.
     /// @param _voteOptions The chosen vote options.
     /// @param _tryEarlyExecution If `true`,  early execution is tried after the vote cast.
     /// The call does not revert if early execution is not possible.
-    function vote(uint256 _proposalId, Tally memory _voteOptions, bool _tryEarlyExecution) external;
+    // function vote(uint256 _proposalId, Tally memory _voteOptions, bool _tryEarlyExecution) public;
 
     /// @notice Supports voting for a single vote options with full voting power using legacy voting
-    function vote(uint256 _proposalId, VoteOption _voteOption, bool _tryEarlyExecution) external;
+    // function vote(uint256 _proposalId, VoteOption _voteOption, bool _tryEarlyExecution) public;
 
     /// @notice Executes a proposal.
     /// @param _proposalId The ID of the proposal to be executed.

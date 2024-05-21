@@ -19,7 +19,6 @@ contract OFTTokenBridge is OFTCore {
     using SafeERC20 for IERC20;
 
     IERC20MintableBurnable internal immutable underlyingToken_;
-    uint8 internal decimals_;
 
     /// @param _token The address of the ERC-20 token to be adapted.
     /// @param _lzEndpoint The LayerZero endpoint address.
@@ -30,14 +29,13 @@ contract OFTTokenBridge is OFTCore {
         address _delegate
     ) OFTCore(IERC20Metadata(_token).decimals(), _lzEndpoint, _delegate) {
         underlyingToken_ = IERC20MintableBurnable(_token);
-        decimals_ = IERC20Metadata(_token).decimals();
     }
 
-    /// @dev overrides the default behavior of 6 decimals as we only use EVM chains
-    /// TODO some weirdness with trying to return the decimals as the override function is pure
-    function sharedDecimals() public pure override returns (uint8) {
-        return 18;
-    }
+    // /// @dev overrides the default behavior of 6 decimals as we only use EVM chains
+    // /// TODO some weirdness with trying to return the decimals as the override function is pure
+    // function sharedDecimals() public pure override returns (uint8) {
+    //     return 18;
+    // }
 
     /// needed for a non abstract but not yet implemented function
     function oftVersion() external pure virtual returns (bytes4, uint64) {

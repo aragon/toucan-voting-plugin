@@ -15,6 +15,11 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 import {IMajorityVoting} from "./IMajorityVoting.sol";
 
+/// todo: this needs a proper home maybe in the child contract
+import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
+
+import "forge-std/console2.sol";
+
 /* solhint-enable max-line-length */
 
 /// @dev This contract implements the `IMajorityVoting` interface.
@@ -27,6 +32,7 @@ abstract contract MajorityVotingBase is
     ProposalUpgradeable
 {
     using SafeCastUpgradeable for uint256;
+    using SafeCastUpgradeable for uint64;
 
     /// @notice The different voting modes available.
     /// @param Standard In standard mode, early execution and vote replacement are disabled.
@@ -204,7 +210,7 @@ abstract contract MajorityVotingBase is
             super.supportsInterface(_interfaceId);
     }
 
-    /// @inheritdoc IMajorityVoting
+    // / @inheritdoc IMajorityVoting
     function vote(
         uint256 _proposalId,
         VoteOption _voteOption,
@@ -450,6 +456,46 @@ abstract contract MajorityVotingBase is
         uint64 _endDate
     ) internal virtual returns (uint256 proposalId);
 
+    /// @notice Internal function to create a proposal.
+    /// @param _metadata The proposal metadata.
+    /// @param _startDate The start date of the proposal in seconds.
+    /// @param _endDate The end date of the proposal in seconds.
+    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param _actions The actions that will be executed after the proposal passes.
+    /// @return proposalId The ID of the proposal.
+    function _createProposal(
+        address _creator,
+        bytes calldata _metadata,
+        uint64 _startDate,
+        uint64 _endDate,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap
+    ) internal virtual override returns (uint256 proposalId) {
+        proposalId = _createProposalId(_startDate, _endDate);
+
+        emit ProposalCreated({
+            proposalId: proposalId,
+            creator: _creator,
+            metadata: _metadata,
+            startDate: _startDate,
+            endDate: _endDate,
+            actions: _actions,
+            allowFailureMap: _allowFailureMap
+        });
+    }
+
+    function _createProposalId(
+        uint64 _startDate,
+        uint64 _endDate
+    ) internal view virtual returns (uint256 proposalId) {
+        return
+            ProposalIdCodec.encode({
+                _proposalStartTimestamp: _startDate.toUint32(),
+                _proposalEndTimestamp: _endDate.toUint32(),
+                _plugin: address(this)
+            });
+    }
+
     /// @notice Internal function to cast a vote. It assumes the queried vote exists.
     /// @param _proposalId The ID of the proposal.
     /// @param _voteOptions The chosen allocation of vote options to be casted on the proposal vote.
@@ -579,6 +625,10 @@ abstract contract MajorityVotingBase is
         uint64 _end
     ) internal view virtual returns (uint64 startDate, uint64 endDate) {
         uint64 currentTimestamp = block.timestamp.toUint64();
+
+        console2.log("currentTimestamp: %s", currentTimestamp);
+        console2.log("start: %s", _start);
+        console2.log("end: %s", _end);
 
         if (_start == 0) {
             startDate = currentTimestamp;

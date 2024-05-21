@@ -249,6 +249,6 @@ contract TestOFTTokenBridge is TestHelper {
         mintSettings.receivers[0] = address(this);
 
         // deploy the governanceERC20 token
-        token = new GovernanceERC20Burnable(IDAO(dao), "MockToken", "MCK", mintSettings);
+        token = new GovernanceERC20Burnable(IDAO(dao), "MockToken", "MCK");
     }
 }

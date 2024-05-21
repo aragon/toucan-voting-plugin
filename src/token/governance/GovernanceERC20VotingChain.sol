@@ -20,13 +20,12 @@ contract GovernanceERC20VotingChain is GovernanceERC20, IERC20Burnable {
     /// @param _dao The managing DAO.
     /// @param _name The name of the [ERC-20](https://eips.ethereum.org/EIPS/eip-20) governance token.
     /// @param _symbol The symbol of the [ERC-20](https://eips.ethereum.org/EIPS/eip-20) governance token.
-    /// @param _mintSettings The token mint settings struct containing the `receivers` and `amounts`.
+    /// @dev Mint settings must be empty on deployment as all tokens are expected to be minted via a cross-chain bridge.
     constructor(
         IDAO _dao,
         string memory _name,
-        string memory _symbol,
-        MintSettings memory _mintSettings
-    ) GovernanceERC20(_dao, _name, _symbol, _mintSettings) {}
+        string memory _symbol
+    ) GovernanceERC20(_dao, _name, _symbol, MintSettings(new address[](0), new uint256[](0))) {}
 
     /// @notice Burns a specific amount of tokens, decreasing the total supply.
     /// @dev    For voting, this has signifance for quorums and proposals.
