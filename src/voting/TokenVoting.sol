@@ -103,7 +103,6 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         Tally memory _voteOptions,
         bool _tryEarlyExecution
     ) external override returns (uint256 proposalId) {
-        console2.log("start: %s, end: %s", _startDate, _endDate);
         proposalId = _createProposal(_metadata, _actions, _allowFailureMap, _startDate, _endDate);
 
         if (_voteOptions.yes + _voteOptions.no + _voteOptions.abstain > 0) {
@@ -152,7 +151,6 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         }
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
-        console2.log("start: %s, end: %s", _startDate, _endDate);
 
         proposalId = _createProposal({
             _creator: _msgSender(),
@@ -225,6 +223,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         // write the updated/new vote for the voter.
         proposal_.lastVotes[_voter] = _voteOptions;
 
+        // here we could emit the old event as well
         emit VoteCast({proposalId: _proposalId, voter: _voter, voteOptions: _voteOptions});
 
         if (_tryEarlyExecution && _canExecute(_proposalId)) {
@@ -240,6 +239,7 @@ contract TokenVoting is IMembership, MajorityVotingBase {
     ) internal view override returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
+        console2.log("cp1");
         // The proposal vote hasn't started or has already ended.
         if (!_isProposalOpen(proposal_)) {
             return false;
@@ -248,16 +248,29 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         // this could re-enter with a malicious governance token
         uint votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotBlock);
 
+        console2.log("cp2");
         // The voter has no voting power.
         if (votingPower == 0) {
             return false;
         }
 
+        uint totalVoteWeight = _totalVoteWeight(_voteOptions);
+
+        console2.log("cp3");
+        console2.log("totalVoteWeight", totalVoteWeight);
+        console2.log("votingPower", votingPower);
         // the user has insufficient voting power to vote
-        if (_totalVoteWeight(_voteOptions) > votingPower) {
+        if (totalVoteWeight > votingPower) {
             return false;
         }
 
+        console2.log("cp4");
+        // we reject zero votes
+        if (totalVoteWeight == 0) {
+            return false;
+        }
+
+        console2.log("cp5");
         // The voter has already voted but vote replacment is not allowed.
         if (
             _totalVoteWeight(proposal_.lastVotes[_account]) != 0 &&
@@ -271,10 +284,15 @@ contract TokenVoting is IMembership, MajorityVotingBase {
 
     /// @inheritdoc MajorityVotingBase
     function _convertVoteOptionToTally(
-        VoteOption _voteOption
+        VoteOption _voteOption,
+        uint256 _proposalId
     ) internal view override returns (Tally memory) {
         // this could re-enter with a malicious governance token
-        uint votingPower = votingToken.getVotes(_msgSender());
+        Proposal storage proposal_ = proposals[_proposalId];
+        uint votingPower = votingToken.getPastVotes(
+            _msgSender(),
+            proposal_.parameters.snapshotBlock
+        );
         if (_voteOption == VoteOption.Abstain) {
             return Tally({abstain: votingPower, yes: 0, no: 0});
         } else if (_voteOption == VoteOption.Yes) {

@@ -5,13 +5,11 @@ import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OAppSender, OAppCore} from "@lz-oapp/OAppSender.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ProposalIdCodec} from "./ProposalIdCodec.sol";
 import "utils/converters.sol";
-
-// placeholder, we need a proper governance erc20
-interface Token {
-    function balanceAt(address account, uint timestamp) external view returns (uint256);
-}
+import "forge-std/console2.sol";
 
 interface IToucanRelayMessage {
     struct ToucanVoteMessage {
@@ -44,8 +42,9 @@ interface IToucanRelayMessage {
  */
 contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
     using OptionsBuilder for bytes;
+    using SafeCast for uint256;
     /// placeholder will be a governance ERC20 token
-    Token public token;
+    IVotes public token;
 
     /// IDEA: set a default chainID and use that if you don't pass one
     /// this is a layerZero app, so maybe we can use the eid on layer zero...
@@ -69,28 +68,74 @@ contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
         address _lzEndpoint,
         address _delegate
     ) OAppCore(_lzEndpoint, _delegate) {
-        token = Token(_token);
+        token = IVotes(_token);
     }
 
-    function canVote(uint256 _proposalId, address _voter, uint _total) public view returns (bool) {
+    function canVote(
+        uint256 _proposalId,
+        address _voter,
+        Tally memory _voteOptions
+    ) public view returns (bool) {
+        return _canVote(_proposalId, _voter, _voteOptions);
+    }
+
+    function _canVote(
+        uint256 _proposalId,
+        address _account,
+        Tally memory _voteOptions
+    ) internal view returns (bool) {
         (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
 
-        require(startTimestamp < block.timestamp, "u can't vote in the future");
-        require(endTimestamp > block.timestamp, "u can't vote in the past");
-        // here we will need to do a proper "canVote" check
-        // I think it can be largely lifted from TokenVoting
-        // the thing to check is how we are computing the historical balance
-        // as the timestamp of the proposal is the value that has meaning across chains
-        require(_total <= token.balanceAt(_voter, startTimestamp), "u messin?");
+        // The proposal vote hasn't started or has already ended.
+        if (!_isProposalOpen({_startTs: startTimestamp, _endTs: endTimestamp})) {
+            return false;
+        }
+
+        // this could re-enter with a malicious governance token
+        uint votingPower = token.getPastVotes(_account, startTimestamp);
+
+        // The voter has no voting power.
+        if (votingPower == 0) {
+            return false;
+        }
+
+        // the user has insufficient voting power to vote
+        if (_totalVoteWeight(_voteOptions) > votingPower) {
+            return false;
+        }
+
+        // At the moment, we always allow vote replacement. This could be changed in the future.
 
         return true;
     }
 
+    function getVotes(
+        uint256 _executionChainId,
+        uint256 _proposalId,
+        address _voter
+    ) external view returns (Tally memory) {
+        return proposals[_executionChainId][_proposalId].voters[_voter];
+    }
+
+    // there is no way of knowing if the proposal has been executed in this implementation
+    // without receipt from the L1. Maybe we should deploy the OApp as a receveier to anticipate this functionality
+    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
+        // somewhat redundant check on ts overflow but these are L2s so who knows what crazy shit they do
+        uint32 currentTime = block.timestamp.toUint32();
+
+        // ERC20 votes requires > _startTs - I think this is different to the block but need to check
+        return _startTs < currentTime && currentTime < _endTs;
+    }
+
+    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
+        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
+    }
+
     /// vote on the L2
     function vote(
-        Tally calldata _voteOptions,
         uint256 _proposalId,
-        uint256 _executionChainId
+        uint256 _executionChainId,
+        Tally calldata _voteOptions
     ) external {
         uint256 abstentions = _voteOptions.abstain;
         uint256 yays = _voteOptions.yes;
@@ -98,7 +143,7 @@ contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
         uint256 total = abstentions + yays + nays;
 
         require(total > 0, "u stupid?");
-        require(canVote(_proposalId, msg.sender, total), "u can't vote");
+        require(canVote(_proposalId, msg.sender, _voteOptions), "u can't vote");
 
         // get the proposal data
         Proposal storage proposal = proposals[_executionChainId][_proposalId];
@@ -164,13 +209,14 @@ contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
         uint _executionChainId,
         uint32 _dstEid,
         uint128 _gasLimit
-    ) external view returns (MessagingFee memory fee) {
+    ) external view returns (LzSendParams memory params) {
         Proposal storage proposal = proposals[_executionChainId][_proposalId];
         bytes memory message = abi.encode(
             ToucanVoteMessage(_chainId(), _proposalId, proposal.tally)
         );
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(_gasLimit, 0);
-        return _quote(_dstEid, message, options, false);
+        MessagingFee memory fee = _quote(_dstEid, message, options, false);
+        return LzSendParams({dstEid: _dstEid, gasLimit: _gasLimit, fee: fee});
     }
 
     /// if you're on a chain that doesn't support 155 you can override this

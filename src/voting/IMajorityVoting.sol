@@ -24,6 +24,7 @@ interface IMajorityVoting {
     /// @param Abstain This option does not influence the support but counts towards participation.
     /// @param Yes This option increases the support and counts towards participation.
     /// @param No This option decreases the support and counts towards participation.
+    /// @param Mixed This option is used to indicate that the voter has split their votes across multiple options.
     enum VoteOption {
         None,
         Abstain,

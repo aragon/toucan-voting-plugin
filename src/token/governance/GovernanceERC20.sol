@@ -15,6 +15,8 @@ import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/perm
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IERC20MintableUpgradeable} from "./IERC20MintableUpgradeable.sol";
 
+import "forge-std/console2.sol";
+
 /* solhint-enable max-line-length */
 
 /// @title GovernanceERC20

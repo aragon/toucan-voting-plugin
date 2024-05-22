@@ -217,7 +217,7 @@ abstract contract MajorityVotingBase is
         bool _tryEarlyExecution
     ) public virtual {
         address account = _msgSender();
-        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption);
+        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption, _proposalId);
 
         if (!_canVote(_proposalId, account, voteOptions)) {
             revert VoteCastForbidden({
@@ -276,7 +276,7 @@ abstract contract MajorityVotingBase is
         address _voter,
         VoteOption _voteOption
     ) public view virtual returns (bool) {
-        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption);
+        Tally memory voteOptions = _convertVoteOptionToTally(_voteOption, _proposalId);
         return _canVote(_proposalId, _voter, voteOptions);
     }
 
@@ -360,6 +360,11 @@ abstract contract MajorityVotingBase is
     /// @return The vote mode parameter.
     function votingMode() public view virtual returns (VotingMode) {
         return votingSettings.votingMode;
+    }
+
+    /// TODO: understand why this wasn't included before
+    function currentTally(uint256 _proposalId) public view virtual returns (Tally memory) {
+        return proposals[_proposalId].tally;
     }
 
     /// @notice Returns the total voting power checkpointed for a specific block number.
@@ -625,11 +630,6 @@ abstract contract MajorityVotingBase is
         uint64 _end
     ) internal view virtual returns (uint64 startDate, uint64 endDate) {
         uint64 currentTimestamp = block.timestamp.toUint64();
-
-        console2.log("currentTimestamp: %s", currentTimestamp);
-        console2.log("start: %s", _start);
-        console2.log("end: %s", _end);
-
         if (_start == 0) {
             startDate = currentTimestamp;
         } else {
@@ -658,9 +658,11 @@ abstract contract MajorityVotingBase is
     /// @notice If a user passes one of the legacy vote options, this creates a tally
     ///         with all their voting power in that option.
     /// @param  _voteOption The legacy vote option.
+    /// @param  _proposalId The ID of the proposal.
     /// @return The tally with the user's voting power in the given option.
     function _convertVoteOptionToTally(
-        VoteOption _voteOption
+        VoteOption _voteOption,
+        uint256 _proposalId
     ) internal view virtual returns (Tally memory);
 
     /// @notice Sums all the votes in a Tally to a single number.

@@ -58,23 +58,17 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         );
 
         // fetch a fee quote
-        MessagingFee memory fee = relay.quote(
+        ToucanRelay.LzSendParams memory params = relay.quote(
             proposalId,
             EVM_EXECUTION_CHAIN,
             EID_EXECUTION_CHAIN,
             gasLimit
         );
-        ToucanRelay.LzSendParams memory sendParams = ToucanRelay.LzSendParams({
-            dstEid: EID_EXECUTION_CHAIN,
-            gasLimit: gasLimit,
-            fee: fee
-        });
-
         // move to ts 1
         vm.warp(1);
 
         // send the message
-        relay.dispatchVotes{value: fee.nativeFee}(proposalId, EVM_EXECUTION_CHAIN, sendParams);
+        relay.dispatchVotes{value: params.fee.nativeFee}(proposalId, EVM_EXECUTION_CHAIN, params);
 
         // check the votes on the dst
         Tally memory aggregateVotes = receiver.getAggregateVotes(proposalId);

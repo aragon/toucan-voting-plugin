@@ -148,6 +148,10 @@ contract ToucanReceiver is OApp, IVoteContainer {
         _adjustVote(srcChainId, proposalId, receivedVotes);
 
         // try/catch to send to proxy
+        // TODO: do we want this
+        try this.updateVote(proposalId, false) {} catch (bytes memory reason) {
+            console2.logBytes(reason);
+        }
     }
 
     /// if this contract was set as the refund address, prevents locked funds
@@ -160,5 +164,12 @@ contract ToucanReceiver is OApp, IVoteContainer {
 
     function collectRefunds(address _lzToken) external auth(keccak256("REFUND_COLLECTOR_ID")) {
         // transfer to DAO
+    }
+
+    function setAuthorizedPlugin(
+        address _plugin,
+        bool _authorized
+    ) public auth(keccak256("RECEIVER_ADMIN_ROLE")) {
+        authorizedPlugins[_plugin] = _authorized;
     }
 }

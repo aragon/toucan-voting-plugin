@@ -27,6 +27,7 @@ import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
 import {TokenVoting as ToucanVoting} from "src/voting/TokenVoting.sol";
 import {MajorityVotingBase, IMajorityVoting} from "src/voting/MajorityVotingBase.sol";
 import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 // internal test utils
 import "utils/converters.sol";
@@ -88,6 +89,9 @@ contract TestE2EToucan is TestHelper {
     uint PROPOSAL_START_DATE = 10;
 
     function setUp() public override {
+        // warp to genesis
+        vm.warp(1);
+        vm.roll(1);
         super.setUp();
         _initializeLzEndpoints();
         _deployExecutionChain();
@@ -95,10 +99,6 @@ contract TestE2EToucan is TestHelper {
         _connectOApps();
         _addLabels();
         _grantLambos();
-    }
-
-    function test_itWorks() public {
-        // blank test that validates the setup
     }
 
     function test_itAllBaby() public {
@@ -111,7 +111,6 @@ contract TestE2EToucan is TestHelper {
 
         // send it
         verifyBridge();
-
         assertEq(
             tokenVotingChain.balanceOf(votingVoter),
             50 ether,
@@ -176,7 +175,112 @@ contract TestE2EToucan is TestHelper {
             "proposal should have the correct end timestamp"
         );
 
-        // now we can try a vote on the voting chain
+        // now we can try a vote on each chain
+        vm.startPrank(executionVoter);
+        {
+            uint balance = tokenExecutionChain.balanceOf(executionVoter);
+            plugin.vote(proposal, IMajorityVoting.Tally({abstain: 0, yes: balance, no: 0}), false);
+        }
+        vm.stopPrank();
+
+        // need to move the ts forward by one second to activate the vote
+        vm.warp(block.timestamp + 1);
+
+        vm.startPrank(votingVoter);
+        {
+            uint balance = tokenVotingChain.balanceOf(votingVoter);
+            relay.vote(
+                proposal,
+                EVM_EXECUTION_CHAIN,
+                IVoteContainer.Tally({abstain: 0, yes: balance, no: 0})
+            );
+        }
+        vm.stopPrank();
+
+        // check the voting state
+        // on the L1:
+        {
+            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            assertEq(p.yes, 100 ether, "proposal should have 100 votes");
+            assertEq(p.no, 0, "proposal should have 0 no votes");
+            assertEq(p.abstain, 0, "proposal should have 0 abstentions");
+        }
+
+        // on the L2 relayer
+        {
+            IVoteContainer.Tally memory p = relay.proposals(EVM_EXECUTION_CHAIN, proposal);
+            assertEq(p.yes, 50 ether, "proposal should have 50 votes");
+            assertEq(p.no, 0, "proposal should have 0 no votes");
+            assertEq(p.abstain, 0, "proposal should have 0 abstentions");
+        }
+
+        // send it cross chain
+        {
+            uint128 gasLimit = 200_000;
+            ToucanRelay.LzSendParams memory params = relay.quote(
+                proposal,
+                EVM_EXECUTION_CHAIN,
+                EID_EXECUTION_CHAIN,
+                gasLimit
+            );
+            relay.dispatchVotes{value: params.fee.nativeFee}(proposal, EVM_EXECUTION_CHAIN, params);
+        }
+
+        // process it inside the recevier
+        verifyReceiver();
+
+        // check that the state in the receiver is updated correctly
+        {
+            IVoteContainer.Tally memory p = receiver.getAggregateVotes(proposal);
+            assertEq(p.yes, 50 ether, "proposal should have 50 votes");
+            assertEq(p.no, 0, "proposal should have 0 no votes");
+            assertEq(p.abstain, 0, "proposal should have 0 abstentions");
+        }
+
+        // check the voting state is as expected
+        {
+            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            assertEq(p.yes, 150 ether, "proposal should have 100 votes");
+            assertEq(p.no, 0, "proposal should have 0 no votes");
+            assertEq(p.abstain, 0, "proposal should have 0 abstentions");
+        }
+
+        // send the tokens back to l1
+        vm.startPrank(votingVoter);
+        {
+            _bridgeTokensToL1(50 ether, 250_000, votingVoter);
+        }
+        vm.stopPrank();
+
+        verifyAdapter();
+
+        {
+            assertEq(
+                tokenVotingChain.balanceOf(votingVoter),
+                0,
+                "voting voter should have 0 tokens on the voting chain"
+            );
+            assertEq(
+                tokenExecutionChain.balanceOf(votingVoter),
+                100 ether,
+                "voting voter should have 100 tokens on the execution chain"
+            );
+        }
+
+        // attempting to vote on the L1 will only increase the total by 50
+        vm.startPrank(votingVoter);
+        {
+            plugin.vote(proposal, IMajorityVoting.VoteOption.Yes, false);
+        }
+        vm.stopPrank();
+
+        // voting state should be exactly 200
+        {
+            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            assertEq(p.yes, 200 ether, "proposal should have 200 votes");
+            assertEq(p.no, 0, "proposal should have 0 no votes");
+            assertEq(p.abstain, 0, "proposal should have 0 abstentions");
+        }
     }
 
     function createProposal(uint _votesFor) public returns (uint256 proposalId) {
@@ -217,6 +321,26 @@ contract TestE2EToucan is TestHelper {
 
     function verifyReceiver() public {
         verifyPackets(EID_EXECUTION_CHAIN, address(receiver));
+    }
+
+    function _bridgeTokensToL1(uint _quantity, uint128 _gas, address _who) public {
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(_gas, 0);
+        SendParam memory sendParams = SendParam({
+            dstEid: EID_EXECUTION_CHAIN,
+            to: addressToBytes32(_who),
+            amountLD: _quantity,
+            minAmountLD: _quantity,
+            extraOptions: options,
+            composeMsg: bytes(""),
+            oftCmd: bytes("")
+        });
+
+        // fetch a quote
+        MessagingFee memory msgFee = bridge.quoteSend(sendParams, false);
+
+        // send the message
+        tokenVotingChain.approve(address(bridge), _quantity);
+        bridge.send{value: msgFee.nativeFee}(sendParams, msgFee, address(this));
     }
 
     function _bridgeTokensToL2(uint _quantity, uint128 _gas, address _who) public {
@@ -332,6 +456,9 @@ contract TestE2EToucan is TestHelper {
         });
 
         plugin = _deployPlugin(settings);
+
+        // authorize the receiver to send to the plugin
+        receiver.setAuthorizedPlugin(address(plugin), true);
     }
 
     function _deployVotingChain() internal {
