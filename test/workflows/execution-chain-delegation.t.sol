@@ -59,7 +59,8 @@ contract TestExecutionChainDelegation is Test {
         receiver = new ToucanReceiver({
             _governanceToken: address(token),
             _lzEndpoint: address(lzEndpoint),
-            _delegate: address(this)
+            _dao: address(this),
+            _votingPlugin: address(0)
         });
 
         assertEq(receiver.isDelegate(address(adapter)), false, "receiver should not be a delegate");

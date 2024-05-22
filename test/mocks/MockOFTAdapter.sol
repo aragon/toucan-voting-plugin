@@ -15,14 +15,14 @@ contract MockOFTAdapter is GovernanceOFTAdapter {
 
     // override this to avoid actually sending the message
     function _lzSend(
-        uint32 _dstEid,
-        bytes memory _message,
-        bytes memory _options,
+        uint32, // _dstEid,
+        bytes memory, // _message,
+        bytes memory, // _options,
         MessagingFee memory _fee,
-        address _refundAddress
+        address //_refundAddress
     ) internal virtual override returns (MessagingReceipt memory receipt) {
         // @dev Push corresponding fees to the endpoint, any excess is sent back to the _refundAddress from the endpoint.
-        uint256 messageValue = _payNative(_fee.nativeFee);
+        _payNative(_fee.nativeFee);
         if (_fee.lzTokenFee > 0) _payLzToken(_fee.lzTokenFee);
 
         /// here we would otherwise call lz send

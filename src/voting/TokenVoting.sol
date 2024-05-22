@@ -239,7 +239,6 @@ contract TokenVoting is IMembership, MajorityVotingBase {
     ) internal view override returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        console2.log("cp1");
         // The proposal vote hasn't started or has already ended.
         if (!_isProposalOpen(proposal_)) {
             return false;
@@ -248,7 +247,6 @@ contract TokenVoting is IMembership, MajorityVotingBase {
         // this could re-enter with a malicious governance token
         uint votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotBlock);
 
-        console2.log("cp2");
         // The voter has no voting power.
         if (votingPower == 0) {
             return false;
@@ -256,21 +254,16 @@ contract TokenVoting is IMembership, MajorityVotingBase {
 
         uint totalVoteWeight = _totalVoteWeight(_voteOptions);
 
-        console2.log("cp3");
-        console2.log("totalVoteWeight", totalVoteWeight);
-        console2.log("votingPower", votingPower);
         // the user has insufficient voting power to vote
         if (totalVoteWeight > votingPower) {
             return false;
         }
 
-        console2.log("cp4");
         // we reject zero votes
         if (totalVoteWeight == 0) {
             return false;
         }
 
-        console2.log("cp5");
         // The voter has already voted but vote replacment is not allowed.
         if (
             _totalVoteWeight(proposal_.lastVotes[_account]) != 0 &&

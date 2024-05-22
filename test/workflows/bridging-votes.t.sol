@@ -104,7 +104,12 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
         relay = new MockToucanRelay(address(0), endpointVotingChain, address(this));
-        receiver = new MockToucanReceiver(address(0), endpointExecutionChain, address(this));
+        receiver = new MockToucanReceiver(
+            address(0),
+            endpointExecutionChain,
+            address(this),
+            address(0)
+        );
 
         // format is {localOApp}.setPeer({remoteOAppEID}, {remoteOAppAddress})
         relay.setPeer(EID_EXECUTION_CHAIN, addressToBytes32(address(receiver)));
@@ -116,8 +121,8 @@ contract MockToucanRelay is ToucanRelay {
     constructor(
         address _token,
         address _lzEndpoint,
-        address _delegate
-    ) ToucanRelay(_token, _lzEndpoint, _delegate) {}
+        address _dao
+    ) ToucanRelay(_token, _lzEndpoint, _dao) {}
 
     /// update global state before sending
     function setProposalVote(
@@ -139,6 +144,7 @@ contract MockToucanReceiver is ToucanReceiver {
     constructor(
         address _governanceToken,
         address _lzEndpoint,
-        address _delegate
-    ) ToucanReceiver(_governanceToken, _lzEndpoint, _delegate) {}
+        address _dao,
+        address _votingPlugin
+    ) ToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
 }

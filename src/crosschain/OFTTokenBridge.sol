@@ -6,6 +6,8 @@ import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "../token/governance/IERC20MintableBurnable.sol";
+import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 /// @title OFTTokenBridge
 /// @author Aragon Association
@@ -15,19 +17,19 @@ import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "../to
 ///         which will mint new tokens while the others are locked.
 ///         This implementation uses layer zero as the messaging layer between chains,
 ///         But the underlying token can be any ERC20 token.
-contract OFTTokenBridge is OFTCore {
+contract OFTTokenBridge is OFTCore, DaoAuthorizable {
     using SafeERC20 for IERC20;
 
     IERC20MintableBurnable internal immutable underlyingToken_;
 
     /// @param _token The address of the ERC-20 token to be adapted.
     /// @param _lzEndpoint The LayerZero endpoint address.
-    /// @param _delegate The delegate capable of making OApp configurations inside of the endpoint.
+    /// @param _dao The delegate capable of making OApp configurations inside of the endpoint.
     constructor(
         address _token,
         address _lzEndpoint,
-        address _delegate
-    ) OFTCore(IERC20Metadata(_token).decimals(), _lzEndpoint, _delegate) {
+        address _dao
+    ) OFTCore(IERC20Metadata(_token).decimals(), _lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
         underlyingToken_ = IERC20MintableBurnable(_token);
     }
 

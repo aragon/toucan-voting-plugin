@@ -10,6 +10,7 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 
 // aragon contracts
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 
 // external test utils
@@ -34,6 +35,7 @@ import "utils/converters.sol";
 import "forge-std/console2.sol";
 
 import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
+import {AragonTest} from "test/base/AragonTest.sol";
 
 uint256 constant _EVM_VOTING_CHAIN = 420;
 
@@ -47,7 +49,7 @@ uint256 constant _EVM_VOTING_CHAIN = 420;
  *
  * Note: we haven't (yet) setup the OSx infrastructure such as plugin setups and DAOs
  */
-contract TestE2EToucan is TestHelper {
+contract TestE2EToucan is TestHelper, AragonTest {
     using OptionsBuilder for bytes;
     using ProxyLib for address;
     using ProposalIdCodec for uint256;
@@ -423,7 +425,7 @@ contract TestE2EToucan is TestHelper {
 
     function _deployExecutionChain() internal {
         // setup the dao
-        daoExecutionChain = address(new MockDAO());
+        daoExecutionChain = address(createMockDAO());
 
         // setup the token
         tokenExecutionChain = new GovernanceERC20(
@@ -434,19 +436,6 @@ contract TestE2EToucan is TestHelper {
         );
 
         // initalize the adapter, receiver and plugin
-        receiver = new ToucanReceiver({
-            _governanceToken: address(tokenExecutionChain),
-            _lzEndpoint: layerZeroEndpointExecutionChain,
-            _delegate: daoExecutionChain
-        });
-
-        adapter = new GovernanceOFTAdapter({
-            _token: address(tokenExecutionChain),
-            _voteProxy: address(receiver),
-            _lzEndpoint: layerZeroEndpointExecutionChain,
-            _dao: daoExecutionChain
-        });
-
         ToucanVoting.VotingSettings memory settings = MajorityVotingBase.VotingSettings({
             votingMode: MODE,
             supportThreshold: SUPPORT_THRESHOLD,
@@ -457,12 +446,31 @@ contract TestE2EToucan is TestHelper {
 
         plugin = _deployPlugin(settings);
 
+        receiver = new ToucanReceiver({
+            _governanceToken: address(tokenExecutionChain),
+            _lzEndpoint: layerZeroEndpointExecutionChain,
+            _dao: daoExecutionChain,
+            _votingPlugin: address(plugin)
+        });
+
+        adapter = new GovernanceOFTAdapter({
+            _token: address(tokenExecutionChain),
+            _voteProxy: address(receiver),
+            _lzEndpoint: layerZeroEndpointExecutionChain,
+            _dao: daoExecutionChain
+        });
+
         // authorize the receiver to send to the plugin
+        DAO(payable(daoExecutionChain)).grant({
+            _where: address(receiver),
+            _who: address(this),
+            _permissionId: receiver.RECEIVER_ADMIN_ID()
+        });
         receiver.setAuthorizedPlugin(address(plugin), true);
     }
 
     function _deployVotingChain() internal {
-        daoVotingChain = address(new MockDAO());
+        daoVotingChain = address(createMockDAO());
 
         // setup the token
         tokenVotingChain = new GovernanceERC20VotingChain({
@@ -481,7 +489,21 @@ contract TestE2EToucan is TestHelper {
         bridge = new OFTTokenBridge({
             _token: address(tokenVotingChain),
             _lzEndpoint: layerZeroEndpointVotingChain,
-            _delegate: daoVotingChain
+            _dao: daoVotingChain
+        });
+
+        // we need to allow the bridge to mint and burn tokens
+        // todo - these should be done in the setup contracts.
+        DAO(payable(daoVotingChain)).grant({
+            _where: address(tokenVotingChain),
+            _who: address(bridge),
+            _permissionId: tokenVotingChain.MINT_PERMISSION_ID()
+        });
+
+        DAO(payable(daoVotingChain)).grant({
+            _where: address(tokenVotingChain),
+            _who: address(bridge),
+            _permissionId: tokenVotingChain.BURN_PERMISSION_ID()
         });
     }
 

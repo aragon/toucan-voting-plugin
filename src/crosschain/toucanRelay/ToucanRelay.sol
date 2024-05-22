@@ -4,6 +4,8 @@ import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OAppSender, OAppCore} from "@lz-oapp/OAppSender.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
+import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -40,15 +42,9 @@ interface IToucanRelayMessage {
  *
  * NOTE: the relay as it currently stands is an OAppSender, so cannot currently receive messages
  */
-contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
+contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage, DaoAuthorizable {
     using OptionsBuilder for bytes;
     using SafeCast for uint256;
-    /// placeholder will be a governance ERC20 token
-    IVotes public token;
-
-    /// IDEA: set a default chainID and use that if you don't pass one
-    /// this is a layerZero app, so maybe we can use the eid on layer zero...
-    mapping(uint executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
 
     /// Voting chain only needs a subset of the data on the main plugin
     struct Proposal {
@@ -62,74 +58,27 @@ contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
         MessagingFee fee;
     }
 
+    /// ---------- STATE ----------
+
+    /// placeholder will be a governance ERC20 token
+    IVotes public token;
+
+    /// IDEA: set a default chainID and use that if you don't pass one
+    /// this is a layerZero app, so maybe we can use the eid on layer zero...
+    mapping(uint executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
+
+    /// --------- CONSTRUCTOR ---------
+
     /// OApp but also tracks the voting token
     constructor(
         address _token,
         address _lzEndpoint,
-        address _delegate
-    ) OAppCore(_lzEndpoint, _delegate) {
+        address _dao
+    ) OAppCore(_lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
         token = IVotes(_token);
     }
 
-    function canVote(
-        uint256 _proposalId,
-        address _voter,
-        Tally memory _voteOptions
-    ) public view returns (bool) {
-        return _canVote(_proposalId, _voter, _voteOptions);
-    }
-
-    function _canVote(
-        uint256 _proposalId,
-        address _account,
-        Tally memory _voteOptions
-    ) internal view returns (bool) {
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
-
-        // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen({_startTs: startTimestamp, _endTs: endTimestamp})) {
-            return false;
-        }
-
-        // this could re-enter with a malicious governance token
-        uint votingPower = token.getPastVotes(_account, startTimestamp);
-
-        // The voter has no voting power.
-        if (votingPower == 0) {
-            return false;
-        }
-
-        // the user has insufficient voting power to vote
-        if (_totalVoteWeight(_voteOptions) > votingPower) {
-            return false;
-        }
-
-        // At the moment, we always allow vote replacement. This could be changed in the future.
-
-        return true;
-    }
-
-    function getVotes(
-        uint256 _executionChainId,
-        uint256 _proposalId,
-        address _voter
-    ) external view returns (Tally memory) {
-        return proposals[_executionChainId][_proposalId].voters[_voter];
-    }
-
-    // there is no way of knowing if the proposal has been executed in this implementation
-    // without receipt from the L1. Maybe we should deploy the OApp as a receveier to anticipate this functionality
-    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
-        // somewhat redundant check on ts overflow but these are L2s so who knows what crazy shit they do
-        uint32 currentTime = block.timestamp.toUint32();
-
-        // ERC20 votes requires > _startTs - I think this is different to the block but need to check
-        return _startTs < currentTime && currentTime < _endTs;
-    }
-
-    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
-        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
-    }
+    /// -------- STATE MODIFYING FUNCTIONS --------
 
     /// vote on the L2
     function vote(
@@ -202,6 +151,67 @@ contract ToucanRelay is OAppSender, IVoteContainer, IToucanRelayMessage {
 
         // dispatch the votes
         _lzSend(_params.dstEid, message, options, _params.fee, refundAddress);
+    }
+
+    /// -------- VIEW FUNCTIONS --------
+
+    function canVote(
+        uint256 _proposalId,
+        address _voter,
+        Tally memory _voteOptions
+    ) public view returns (bool) {
+        return _canVote(_proposalId, _voter, _voteOptions);
+    }
+
+    function _canVote(
+        uint256 _proposalId,
+        address _account,
+        Tally memory _voteOptions
+    ) internal view returns (bool) {
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+
+        // The proposal vote hasn't started or has already ended.
+        if (!_isProposalOpen({_startTs: startTimestamp, _endTs: endTimestamp})) {
+            return false;
+        }
+
+        // this could re-enter with a malicious governance token
+        uint votingPower = token.getPastVotes(_account, startTimestamp);
+
+        // The voter has no voting power.
+        if (votingPower == 0) {
+            return false;
+        }
+
+        // the user has insufficient voting power to vote
+        if (_totalVoteWeight(_voteOptions) > votingPower) {
+            return false;
+        }
+
+        // At the moment, we always allow vote replacement. This could be changed in the future.
+        return true;
+    }
+
+    function getVotes(
+        uint256 _executionChainId,
+        uint256 _proposalId,
+        address _voter
+    ) external view returns (Tally memory) {
+        return proposals[_executionChainId][_proposalId].voters[_voter];
+    }
+
+    // there is no way of knowing if the proposal has been executed in this implementation
+    // without receipt from the L1. Maybe we should deploy the OApp as a receveier to anticipate this functionality
+    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
+        // somewhat redundant check on ts overflow but these are L2s so who knows what crazy shit they do
+        uint32 currentTime = block.timestamp.toUint32();
+
+        // ERC20 votes requires > _startTs - I think this is different to the block but need to check
+        return _startTs < currentTime && currentTime < _endTs;
+    }
+
+    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
+        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
     }
 
     function quote(

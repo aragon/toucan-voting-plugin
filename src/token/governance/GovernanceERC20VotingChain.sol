@@ -14,7 +14,7 @@ import {IERC20Burnable} from "./IERC20Burnable.sol";
 /// @custom:security-contact sirt@aragon.org
 contract GovernanceERC20VotingChain is GovernanceERC20, IERC20Burnable {
     /// @notice Calls the burn function in the parent contract.
-    bytes32 internal constant BURN_PERMISSION_ID = keccak256("BURN_PERMISSION");
+    bytes32 public constant BURN_PERMISSION_ID = keccak256("BURN_PERMISSION");
 
     /// @notice Calls the initialize function in the parent contract.
     /// @param _dao The managing DAO.
