@@ -2,15 +2,15 @@
 
 This is a quick primer on the scope of the Audit of Aragon's ToucanVoting plugin.
 
-> Please note: there might be a few change
+> Please note: there might be a few changes in the final design but below should be broadly indicative
 
 ## System Overview
 
-[Add excalidraw diagram here]
+![image](https://github.com/aragon/toucan-voting-plugin/assets/45881807/4e6e2543-6b88-4ac8-ad76-b8ba029ffc73)
 
 ## Contracts
 
-- Diff indicates that a previously audited contract has been modified. A full audit is not needed.
+- Diff indicates that a previously audited contract has been modified and parts of the contract are unchanged.
 - New indicates that the contract is new and needs a full audit.
 
 | Contract                      | New/Diff | Info                                                                                  |
@@ -26,5 +26,7 @@ This is a quick primer on the scope of the Audit of Aragon's ToucanVoting plugin
 | OFTTokenBridge                | New      | Extends layerZero OFT contract to call mint of underlying token on L2                 |
 | ToucanRelaySetup              | New      | Aragon OSx setup contract for ToucanRelay                                             |
 | ToucanReceiverSetup           | New      | Aragon OSx setup contract for ToucanReceiver                                          |
-| CrossChainExecutor (TBC)      | Diff     | Modifications to Aragon Admin plugin to receive cross chain messages                  |
-| CrossChainExecutorSetup (TBC) | Diff     | Modifications to Aragon OSx setup contract for CrossChainExecutor                     |
+| CrossChainExecutor (TBC)      | Diff     | Modifications to Aragon Admin plugin to receive cross chain messages*                 |
+| CrossChainExecutorSetup (TBC) | Diff     | Modifications to Aragon OSx setup contract for CrossChainExecutor*                    |
+
+*These are unconfirmed
