@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.8;
 
-import {GovernanceERC20} from "./GovernanceERC20.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IERC20Burnable} from "./IERC20Burnable.sol";
+import {IERC20Burnable} from "@interfaces/IERC20Burnable.sol";
+
+import {GovernanceERC20} from "./GovernanceERC20.sol";
 
 /// @title GovernanceERC20Voting chain
 /// @author Aragon Association

@@ -2,32 +2,32 @@
 
 pragma solidity ^0.8.8;
 
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
-import {IGovernanceWrappedERC20} from "src/token/governance/IGovernanceWrappedERC20.sol";
-import {GovernanceWrappedERC20} from "src/token/governance/GovernanceWrappedERC20.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
+import {IGovernanceWrappedERC20} from "@interfaces/IGovernanceWrappedERC20.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
 import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
-
-import {MajorityVotingBase} from "./MajorityVotingBase.sol";
-import {TokenVoting} from "./TokenVoting.sol";
 
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
+import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
 
-/// @title TokenVotingSetup
+import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from "src/token/governance/GovernanceWrappedERC20.sol";
+import {MajorityVotingBase} from "./MajorityVotingBase.sol";
+import {ToucanVoting} from "./ToucanVoting.sol";
+
+/// @title ToucanVotingSetup
 /// @author Aragon X - 2022-2023
-/// @notice The setup contract of the `TokenVoting` plugin.
+/// @notice The setup contract of the `ToucanVoting` plugin.
 /// @dev v1.3 (Release 1, Build 3)
 /// @custom:security-contact sirt@aragon.org
-contract TokenVotingSetup is PluginUpgradeableSetup {
+contract ToucanVotingSetup is PluginUpgradeableSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
@@ -37,9 +37,9 @@ contract TokenVotingSetup is PluginUpgradeableSetup {
     /// @dev TODO: Migrate this constant to a common library that can be shared across plugins.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
-    /// @notice The address of the `TokenVoting` base contract.
+    /// @notice The address of the `ToucanVoting` base contract.
     // solhint-disable-next-line immutable-vars-naming
-    TokenVoting private immutable tokenVotingBase;
+    ToucanVoting private immutable tokenVotingBase;
 
     /// @notice The address of the `GovernanceERC20` base contract.
     // solhint-disable-next-line immutable-vars-naming
@@ -79,8 +79,8 @@ contract TokenVotingSetup is PluginUpgradeableSetup {
     constructor(
         GovernanceERC20 _governanceERC20Base,
         GovernanceWrappedERC20 _governanceWrappedERC20Base
-    ) PluginUpgradeableSetup(address(new TokenVoting())) {
-        tokenVotingBase = TokenVoting(IMPLEMENTATION);
+    ) PluginUpgradeableSetup(address(new ToucanVoting())) {
+        tokenVotingBase = ToucanVoting(IMPLEMENTATION);
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
     }
@@ -90,7 +90,7 @@ contract TokenVotingSetup is PluginUpgradeableSetup {
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-        // Decode `_data` to extract the params needed for deploying and initializing `TokenVoting` plugin,
+        // Decode `_data` to extract the params needed for deploying and initializing `ToucanVoting` plugin,
         // and the required helpers
         (
             MajorityVotingBase.VotingSettings memory votingSettings,
@@ -155,7 +155,7 @@ contract TokenVotingSetup is PluginUpgradeableSetup {
         // Prepare and deploy plugin proxy.
         plugin = address(tokenVotingBase).deployUUPSProxy(
             abi.encodeCall(
-                TokenVoting.initialize,
+                ToucanVoting.initialize,
                 (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
             )
         );

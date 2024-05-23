@@ -25,7 +25,7 @@ import {OFTTokenBridge} from "src/crosschain/OFTTokenBridge.sol";
 
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
-import {TokenVoting as ToucanVoting} from "src/voting/TokenVoting.sol";
+import {ToucanVoting} from "src/voting/ToucanVoting.sol";
 import {MajorityVotingBase, IMajorityVoting} from "src/voting/MajorityVotingBase.sol";
 import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";

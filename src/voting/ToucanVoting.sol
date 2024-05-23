@@ -20,7 +20,7 @@ import "forge-std/console2.sol";
 /// compatible governance token.
 /// @dev v1.3 (Release 1, Build 3)
 /// @custom:security-contact sirt@aragon.org
-contract TokenVoting is IMembership, MajorityVotingBase {
+contract ToucanVoting is IMembership, MajorityVotingBase {
     using SafeCastUpgradeable for uint256;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.

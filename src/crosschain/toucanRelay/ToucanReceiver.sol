@@ -108,7 +108,6 @@ contract ToucanReceiver is OApp, IVoteContainer, DaoAuthorizable {
 
     /// ----------- LZ RECEIVE --------
 
-    /// @dev placeholder for the lzReceive function
     function _lzReceive(
         Origin calldata /* _origin */,
         bytes32 /* _guid */,

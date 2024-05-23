@@ -1,13 +1,15 @@
 pragma solidity ^0.8.20;
 
+import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+
 import {OApp} from "@lz-oapp/OApp.sol";
 import {OFTCore} from "@lz-oft/OFTCore.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "../token/governance/IERC20MintableBurnable.sol";
 import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+
+import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "@interfaces/IERC20MintableBurnable.sol";
 
 /// @title OFTTokenBridge
 /// @author Aragon Association
