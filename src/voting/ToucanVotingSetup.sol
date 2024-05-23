@@ -12,6 +12,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {IGovernanceWrappedERC20} from "@interfaces/IGovernanceWrappedERC20.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
 
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
@@ -39,7 +40,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
 
     /// @notice The address of the `ToucanVoting` base contract.
     // solhint-disable-next-line immutable-vars-naming
-    ToucanVoting private immutable tokenVotingBase;
+    ToucanVoting private immutable toucanVotingBase;
 
     /// @notice The address of the `GovernanceERC20` base contract.
     // solhint-disable-next-line immutable-vars-naming
@@ -80,7 +81,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         GovernanceERC20 _governanceERC20Base,
         GovernanceWrappedERC20 _governanceWrappedERC20Base
     ) PluginUpgradeableSetup(address(new ToucanVoting())) {
-        tokenVotingBase = ToucanVoting(IMPLEMENTATION);
+        toucanVotingBase = ToucanVoting(IMPLEMENTATION);
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
     }
@@ -96,10 +97,16 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             MajorityVotingBase.VotingSettings memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20(token is not passed)
-            GovernanceERC20.MintSettings memory mintSettings
+            GovernanceERC20.MintSettings memory mintSettings,
+            bool skipInterfaceCheck
         ) = abi.decode(
                 _data,
-                (MajorityVotingBase.VotingSettings, TokenSettings, GovernanceERC20.MintSettings)
+                (
+                    MajorityVotingBase.VotingSettings,
+                    TokenSettings,
+                    GovernanceERC20.MintSettings,
+                    bool
+                )
             );
 
         address token = tokenSettings.addr;
@@ -117,18 +124,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
                 revert TokenNotERC20(token);
             }
 
-            // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
-            bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-            if (
-                // If token supports none of them
-                // it's simply ERC20 which gets checked by _isERC20
-                // Currently, not a satisfiable check.
-                (!supportedIds[0] && !supportedIds[1] && !supportedIds[2]) ||
-                // If token supports IERC20, but neither
-                // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
-                (supportedIds[0] && !supportedIds[1] && !supportedIds[2])
-            ) {
+            if (!skipInterfaceCheck && _needsWrapper(token)) {
                 token = governanceWrappedERC20Base.clone();
                 // User already has a token. We need to wrap it in
                 // GovernanceWrappedERC20 in order to make the token
@@ -141,6 +137,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             }
         } else {
             // Clone a `GovernanceERC20`.
+            // will not work with zkSync needs 1967 proxy
             token = governanceERC20Base.clone();
             GovernanceERC20(token).initialize(
                 IDAO(_dao),
@@ -153,7 +150,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         helpers[0] = token;
 
         // Prepare and deploy plugin proxy.
-        plugin = address(tokenVotingBase).deployUUPSProxy(
+        plugin = address(toucanVotingBase).deployUUPSProxy(
             abi.encodeCall(
                 ToucanVoting.initialize,
                 (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
@@ -173,7 +170,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             where: plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: tokenVotingBase.UPDATE_VOTING_SETTINGS_PERMISSION_ID()
+            permissionId: toucanVotingBase.UPDATE_VOTING_SETTINGS_PERMISSION_ID()
         });
 
         // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.
@@ -202,7 +199,10 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
     }
 
     /// @inheritdoc IPluginSetup
-    /// @dev Revoke the upgrade plugin permission to the DAO for all builds prior the current one (3).
+    /// @dev check that there's no existing proposal open as this will fuck with the results.
+    /// specifically: we are changing from VoteOptions to a Tally.
+    /// so updating midway through a proposal is no bueno
+    /// We may also want to set the vote to VoteReplacement
     function prepareUpdate(
         address _dao,
         uint16 _fromBuild,
@@ -211,48 +211,21 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         external
         view
         override
-        returns (bytes memory /* initData */, PreparedSetupData memory preparedSetupData)
+        returns (bytes memory initData, PreparedSetupData memory preparedSetupData)
     {
-        /**
-         * in the second build, DAO could call `upgradePlugin` to upgrade the plugin.
-         * but this is unneccessary as the plugin is upgraded by the PSP.
-         */
-        if (_fromBuild < 3) {
-            PermissionLib.MultiTargetPermission[]
-                memory permissions = new PermissionLib.MultiTargetPermission[](1);
+        address plugin = abi.decode(_payload.data, (address));
+        require(!_hasActiveProposal(plugin), "bad idea");
 
-            permissions[0] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Revoke,
-                where: _payload.plugin,
-                who: _dao,
-                condition: PermissionLib.NO_CONDITION,
-                permissionId: tokenVotingBase.UPGRADE_PLUGIN_PERMISSION_ID()
-            });
-
-            preparedSetupData.permissions = permissions;
-        }
+        // we could default to VoteReplacement but that's not technically necessary
     }
 
     /// @inheritdoc IPluginSetup
+    /// @dev we don't need to remove mint permission as per tokenVotingSetup the dao owns the token
     function prepareUninstallation(
         address _dao,
         SetupPayload calldata _payload
     ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        // Prepare permissions.
-        uint256 helperLength = _payload.currentHelpers.length;
-        if (helperLength != 1) {
-            revert WrongHelpersArrayLength({length: helperLength});
-        }
-
-        // token can be either GovernanceERC20, GovernanceWrappedERC20, or IVotesUpgradeable, which
-        // does not follow the GovernanceERC20 and GovernanceWrappedERC20 standard.
-        address token = _payload.currentHelpers[0];
-
-        bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-        bool isGovernanceERC20 = supportedIds[0] && supportedIds[1] && !supportedIds[2];
-
-        permissions = new PermissionLib.MultiTargetPermission[](isGovernanceERC20 ? 3 : 2);
+        permissions = new PermissionLib.MultiTargetPermission[](2);
 
         // Set permissions to be Revoked.
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -260,7 +233,7 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             where: _payload.plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: tokenVotingBase.UPDATE_VOTING_SETTINGS_PERMISSION_ID()
+            permissionId: toucanVotingBase.UPDATE_VOTING_SETTINGS_PERMISSION_ID()
         });
 
         permissions[1] = PermissionLib.MultiTargetPermission({
@@ -270,25 +243,6 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             condition: PermissionLib.NO_CONDITION,
             permissionId: EXECUTE_PERMISSION_ID
         });
-
-        // Revocation of permission is necessary only if the deployed token is GovernanceERC20,
-        // as GovernanceWrapped does not possess this permission. Only return the following
-        // if it's type of GovernanceERC20, otherwise revoking this permission wouldn't have any effect.
-
-        /// TODO: we need to re-add minting because the DAO still owns it
-        /// CLAUDIA did this: get her implementation and use it b/c we will send for audit
-        /// We would need to audit the whole framework to use Claudia's implementation
-        /// check with Carlos to see if we can add the small changes to the Audit of the framework
-        /// branch out from main app can only support version 1.3
-        if (isGovernanceERC20) {
-            permissions[2] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Revoke,
-                where: token,
-                who: _dao,
-                condition: PermissionLib.NO_CONDITION,
-                permissionId: GovernanceERC20(token).MINT_PERMISSION_ID()
-            });
-        }
     }
 
     /// @notice Retrieves the interface identifiers supported by the token contract.
@@ -310,5 +264,49 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
             abi.encodeCall(IERC20Upgradeable.balanceOf, (address(this)))
         );
         return success && data.length == 0x20;
+    }
+
+    function _needsWrapper(address token) private view returns (bool) {
+        // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
+        bool[] memory supportedIds = _getTokenInterfaceIds(token);
+
+        // If token supports none of them
+        // it's simply ERC20 which gets checked by _isERC20
+        // Currently, not a satisfiable check.
+        bool supportsNone = (!supportedIds[0] && !supportedIds[1] && !supportedIds[2]);
+        // If token supports IERC20, but neither
+        // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
+        bool missingGovernance = (supportedIds[0] && !supportedIds[1] && !supportedIds[2]);
+
+        return supportsNone || missingGovernance;
+    }
+
+    function _hasActiveProposal(address _plugin) private view returns (bool) {
+        // untrusted call
+        uint nextProposalId = IProposal(_plugin).proposalCount();
+        for (uint i = 0; i < nextProposalId; i++) {
+            // untrusted call
+            (
+                bool open,
+                ,
+                MajorityVotingBase.ProposalParameters memory parameters,
+                ,
+                ,
+
+            ) = MajorityVotingBase(_plugin).getProposal(i);
+
+            // check if proposal is open
+            if (open) {
+                return true;
+            }
+
+            // maybe not necessary but if a scheduled proposal is due to happen
+            // probably not wise to update the plugin
+            // although it needs to be voted on in the next proposal so idk...
+            if (parameters.startDate > block.timestamp) {
+                return true;
+            }
+        }
+        return false;
     }
 }

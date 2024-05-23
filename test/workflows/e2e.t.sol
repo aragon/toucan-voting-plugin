@@ -18,8 +18,8 @@ import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/Proxy
 import "forge-std/console2.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
-// internal contracts
-import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
+// interGovernanceOFTAdapter
+import {GovernanceOFTAdapterm "src/token/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {OFTTokenBridge} from "src/crosschain/OFTTokenBridge.sol";
@@ -58,9 +58,9 @@ contract TestE2EToucan is TestHelper, AragonTest {
     // execution chain
     uint32 constant EID_EXECUTION_CHAIN = 1;
     uint256 constant EVM_EXECUTION_CHAIN = 137;
-
-    address daoExecutionChain;
-    GovernanceERC20 tokenExecutionChain;
+GovernanceOFTAdapter
+    GovernanceOFTAdapterChain;
+    GovernanceOFTAdapternExecutionChain;
     GovernanceOFTAdapter adapter;
     OFTTokenBridge bridge;
     ToucanReceiver receiver;
@@ -440,7 +440,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
             minDuration: MIN_DURATION,
             minProposerVotingPower: MIN_PROPOSER_VOTING_POWER
         });
-
+GovernanceOFTAdapter
         plugin = _deployPlugin(settings);
 
         receiver = new ToucanReceiver({
@@ -449,11 +449,11 @@ contract TestE2EToucan is TestHelper, AragonTest {
             _dao: daoExecutionChain,
             _votingPlugin: address(plugin)
         });
-
+GovernanceOFTAdapter
         adapter = new GovernanceOFTAdapter({
             _token: address(tokenExecutionChain),
-            _voteProxy: address(receiver),
-            _lzEndpoint: layerZeroEndpointExecutionChain,
+            _voteProxyGovernanceOFTAdapter
+            _lzEndpoinGovernanceOFTAdapterExecutionChain,
             _dao: daoExecutionChain
         });
 

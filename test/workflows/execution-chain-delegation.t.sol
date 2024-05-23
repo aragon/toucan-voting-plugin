@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 // project
-import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
+import {GovernanceOFTAdapterm "src/token/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
 import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
 
@@ -24,7 +24,7 @@ import {MockDAOSimplePermission as MockDAO} from "@mocks/MockDAO.sol";
  * - We do a quick vote to ensure the delegated votes are correctly accounted for in the voting power of the receiver contract Y.
  */
 contract TestExecutionChainDelegation is Test {
-    GovernanceERC20 public token;
+    GovernanceOFTAdapteric token;
     GovernanceOFTAdapter public adapter;
     MockLzEndpointMinimal public lzEndpoint;
     ToucanReceiver public receiver;
@@ -48,7 +48,7 @@ contract TestExecutionChainDelegation is Test {
         );
         token = new GovernanceERC20(dao, "TestToken", "TT", mintSettings);
 
-        // deploy the adapter with no voteProxy, we can set it in the next tx
+        // deploy the GovernanceOFTAdapterProxy, we can set it in the next tx
         adapter = new GovernanceOFTAdapter({
             _token: address(token),
             _voteProxy: address(0),
