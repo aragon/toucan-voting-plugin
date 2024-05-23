@@ -4,19 +4,18 @@ pragma solidity ^0.8.8;
 
 /* solhint-disable max-line-length */
 
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+
+import {IMajorityVoting} from "@interfaces/IMajorityVoting.sol";
+
 import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-
 import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx-commons-contracts/src/utils/math/Ratio.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
-import {IMajorityVoting} from "./IMajorityVoting.sol";
-
-/// todo: this needs a proper home maybe in the child contract
-import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 import "forge-std/console2.sol";
 

@@ -27,7 +27,7 @@ import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
 import {ToucanVoting} from "src/voting/ToucanVoting.sol";
 import {MajorityVotingBase, IMajorityVoting} from "src/voting/MajorityVotingBase.sol";
-import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 // internal test utils
@@ -181,7 +181,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         vm.startPrank(executionVoter);
         {
             uint balance = tokenExecutionChain.balanceOf(executionVoter);
-            plugin.vote(proposal, IMajorityVoting.Tally({abstain: 0, yes: balance, no: 0}), false);
+            plugin.vote(proposal, IVoteContainer.Tally({abstain: 0, yes: balance, no: 0}), false);
         }
         vm.stopPrank();
 
@@ -202,7 +202,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         // check the voting state
         // on the L1:
         {
-            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
             assertEq(p.yes, 100 ether, "proposal should have 100 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -241,7 +241,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         // check the voting state is as expected
         {
-            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
             assertEq(p.yes, 150 ether, "proposal should have 100 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -278,7 +278,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         // voting state should be exactly 200
         {
-            IMajorityVoting.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
             assertEq(p.yes, 200 ether, "proposal should have 200 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -292,11 +292,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
             value: 0,
             data: abi.encodeWithSignature("test_itWorks()")
         });
-        ToucanVoting.Tally memory tally = IMajorityVoting.Tally({
-            abstain: 0,
-            yes: _votesFor,
-            no: 0
-        });
+        ToucanVoting.Tally memory tally = IVoteContainer.Tally({abstain: 0, yes: _votesFor, no: 0});
         return
             plugin.createProposal({
                 _metadata: bytes("0x"),

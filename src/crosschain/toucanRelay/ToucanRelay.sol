@@ -1,25 +1,21 @@
 pragma solidity ^0.8.20;
 
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
+
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OAppSender, OAppCore} from "@lz-oapp/OAppSender.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
-import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {ProposalIdCodec} from "./ProposalIdCodec.sol";
+
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+
 import "utils/converters.sol";
 import "forge-std/console2.sol";
-
-interface IToucanRelayMessage {
-    struct ToucanVoteMessage {
-        uint256 srcChainId;
-        uint256 proposalId;
-        IVoteContainer.Tally votes;
-    }
-}
 
 /**
  * the relay contract serves as the bridge back to the canonical chain.

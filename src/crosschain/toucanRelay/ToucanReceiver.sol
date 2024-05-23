@@ -1,27 +1,18 @@
 pragma solidity ^0.8.20;
 
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {ProposalIdCodec} from "./ProposalIdCodec.sol";
 import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
-// todo replace this guy with standard iface
-import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IMajorityVoting} from "src/voting/IMajorityVoting.sol";
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {IMajorityVotingV2} from "@interfaces/IMajorityVoting.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 
 import "forge-std/console2.sol";
-
-interface IMajorityVotingV2 is IMajorityVoting {
-    function vote(
-        uint256 proposalId,
-        IVoteContainer.Tally memory votes,
-        bool tryEarlyExecution
-    ) external;
-}
 
 interface ILayerZeroEndpointV2Delegate {
     // mapping(address oapp => address delegate) public delegates;
@@ -179,6 +170,6 @@ contract ToucanReceiver is OApp, IVoteContainer, DaoAuthorizable {
 
     // check that we've received delegation from the tokenBridge
     function isDelegate(address _tokenBridge) public view returns (bool) {
-        return ERC20Votes(governanceToken).delegates(_tokenBridge) == address(this);
+        return IVotes(governanceToken).delegates(_tokenBridge) == address(this);
     }
 }

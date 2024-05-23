@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
 // aragon contracts
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
-import {ProposalIdCodec} from "src/crosschain/toucanRelay/ProposalIdCodec.sol";
-import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 // test utils
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";

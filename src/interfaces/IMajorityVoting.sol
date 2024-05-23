@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 pragma solidity ^0.8.8;
 
@@ -6,17 +7,7 @@ pragma solidity ^0.8.8;
 /// @author Aragon X - 2022-2023
 /// @notice The interface of majority voting plugin.
 /// @custom:security-contact sirt@aragon.org
-interface IMajorityVoting {
-    /// @notice A container for the proposal vote tally.
-    /// @param abstain The number of abstain votes casted.
-    /// @param yes The number of yes votes casted.
-    /// @param no The number of no votes casted.
-    struct Tally {
-        uint256 abstain;
-        uint256 yes;
-        uint256 no;
-    }
-
+interface IMajorityVoting is IVoteContainer {
     /// @notice Vote options that a voter can chose from.
     /// @dev Voters can now choose to split their votes across multiple options.
     /// @param None The default option state of a voter indicating the absence from the vote.
@@ -130,4 +121,14 @@ interface IMajorityVoting {
     /// @notice DEPRECATED: PLEASE USE `getVoteOptions` INSTEAD.
     /// @dev supports legacy queries for backwards compatibility and historical state.
     function getVoteOption(uint256, address) external view returns (VoteOption);
+}
+
+/// @dev we can't delete this just yet due to unresolved
+/// bug with the interface not allowing overloads
+interface IMajorityVotingV2 is IMajorityVoting {
+    function vote(
+        uint256 proposalId,
+        IVoteContainer.Tally memory votes,
+        bool tryEarlyExecution
+    ) external;
 }
