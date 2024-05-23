@@ -169,4 +169,10 @@ Destination peer probably but needs to have a sweep
 
 
 
-## Comparing to OFT
+# Install
+
+- Create 2 prepareInstallation steps
+- You have all the addresses, helpers and permissions
+- Apply update is a single step comprising 2 actions
+    - applyUpdate on the tokenVoting/ToucanVoting 
+    - applySetup on the ToucanReceiver

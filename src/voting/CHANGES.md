@@ -100,7 +100,16 @@ So if you split your vote on the L2, you have to pay for 6 slots, and the DAO ha
 
 ## Setup
 
-TBC
+The setup contract for TokenVoting does the following:
+- Stores the bytecode of the governance tokens and the tokenVoting plugin
+- Checks to see if you've brought your own token
+- Deploys or wraps your token
+- Deploys the plugin
+- Creates the permissions the plugin will need
+- Returns the helpers and permissions
+
+## Update
+
 
 
 # Builds versus releases

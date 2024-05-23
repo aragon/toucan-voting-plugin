@@ -211,9 +211,12 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         external
         view
         override
-        returns (bytes memory initData, PreparedSetupData memory preparedSetupData)
+        returns (bytes memory /* initData */, PreparedSetupData memory preparedSetupData)
     {
-        (initData);
+        /**
+         * in the second build, DAO could call `upgradePlugin` to upgrade the plugin.
+         * but this is unneccessary as the plugin is upgraded by the PSP.
+         */
         if (_fromBuild < 3) {
             PermissionLib.MultiTargetPermission[]
                 memory permissions = new PermissionLib.MultiTargetPermission[](1);
@@ -271,6 +274,12 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         // Revocation of permission is necessary only if the deployed token is GovernanceERC20,
         // as GovernanceWrapped does not possess this permission. Only return the following
         // if it's type of GovernanceERC20, otherwise revoking this permission wouldn't have any effect.
+
+        /// TODO: we need to re-add minting because the DAO still owns it
+        /// CLAUDIA did this: get her implementation and use it b/c we will send for audit
+        /// We would need to audit the whole framework to use Claudia's implementation
+        /// check with Carlos to see if we can add the small changes to the Audit of the framework
+        /// branch out from main app can only support version 1.3
         if (isGovernanceERC20) {
             permissions[2] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Revoke,
