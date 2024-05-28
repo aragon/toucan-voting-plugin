@@ -10,8 +10,8 @@ import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
 
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
@@ -33,9 +33,14 @@ import "forge-std/console2.sol";
 /// 3. User can change their vote (if the proposal has not ended)
 /// 4. We can split a user's vote across y/n/a
 /// 5. Users can partial vote
-contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizable {
+/// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
+contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     using OptionsBuilder for bytes;
     using SafeCast for uint256;
+
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /// ---------- STATE ----------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Subset of proposal data seen required to dispatch votes cross chain.
     /// @param tally Aggregated votes for the proposal.
@@ -57,27 +62,32 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         bytes options;
     }
 
+    /// @notice The voting token used by the relay. Must use a timestamp based clock on the voting chain.
+    IVotes public token;
+
+    /// @notice The proposals are stored in a nested mapping by execution chain and proposal ID.
+    /// @dev TODO: whether or not we should store against the layerZero EID instead of the execution chain ID.
+    mapping(uint256 executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
+
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Thrown if this OAapp cannot receive messages.
     error CannotReceive();
 
-    /// @notice Thrown if the voter tries to cast a vote with zero voting weight.
-    error CannotVoteZero(uint executionChainId, uint256 proposalId, address voter);
-
     /// @notice Thrown if the voter fails the `canVote` check during the voting process.
     error CannotVote(uint executionChainId, uint256 proposalId, address voter, Tally voteOptions);
 
-    /// @notice Thrown if the proposal has no votes assosciated with it.
-    error NoVotesToDispatch(uint256 executionChainId, uint256 proposalId);
+    /// @notice Thrown if the votes cannot be dispatched according to `canDispatch`.
+    error CannotDispatch(uint256 executionChainId, uint256 proposalId);
 
-    /// @notice Thrown if the proposal start time indicates that it is not open for voting.
-    error ProposalNotOpen(uint256 executionChainId, uint256 proposalId, uint32 openAt);
+    /// @notice Thrown if the token address is zero.
+    error InvalidToken();
 
-    /// @notice Thrown if the proposal end time indicates that it is already closed for voting.
-    error ProposalAlreadyClosed(uint256 executionChainId, uint256 proposalId, uint32 closedAt);
-
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- EVENTS --------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Emitted when a voter successfully casts a vote on a proposal.
     event VoteCast(
@@ -94,16 +104,9 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         Tally votes
     );
 
-    /// ---------- STATE ----------
-
-    /// @notice The voting token used by the relay. Must use a timestamp based clock on the voting chain.
-    IVotes public token;
-
-    /// @notice The proposals are stored in a nested mapping by execution chain and proposal ID.
-    /// @dev TODO: whether or not we should store against the layerZero EID instead of the execution chain ID.
-    mapping(uint256 executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
-
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- MODIFIERS --------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @dev can probably replace this with OZ
     bool public guard = false;
@@ -115,7 +118,9 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         guard = false;
     }
 
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// --------- CONSTRUCTOR ---------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @param _token The voting token used by the relay. Should be a timestamp based voting token.
     /// @param _lzEndpoint The LayerZero endpoint address for the relay on this chain.
@@ -124,11 +129,14 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         address _token,
         address _lzEndpoint,
         address _dao
-    ) OApp(_lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
+    ) OApp(_lzEndpoint, _dao) Plugin(IDAO(_dao)) {
+        if (_token == address(0)) revert InvalidToken();
         token = IVotes(_token);
     }
 
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- STATE MODIFYING FUNCTIONS --------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Anyone with a voting token that has voting power can vote on a proposal.
     /// @param _executionChainId The chain ID where the proposal will be executed.
@@ -140,20 +148,6 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         uint256 _proposalId,
         Tally calldata _voteOptions
     ) external noReentrant {
-        uint256 abstentions = _voteOptions.abstain;
-        uint256 yays = _voteOptions.yes;
-        uint256 nays = _voteOptions.no;
-
-        // for extremely large voting totals, we will revert on overflow trying to sum the votes
-        // so better to check each weight individually
-        if (abstentions == 0 && yays == 0 && nays == 0) {
-            revert ToucanRelay.CannotVoteZero({
-                executionChainId: _executionChainId,
-                proposalId: _proposalId,
-                voter: msg.sender
-            });
-        }
-
         // check that the user can actually vote given their voting power and the proposal
         if (!canVote(_proposalId, msg.sender, _voteOptions)) {
             revert CannotVote({
@@ -168,20 +162,20 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         Proposal storage proposal = proposals[_executionChainId][_proposalId];
         Tally storage lastVote = proposal.voters[msg.sender];
 
-        // revert the last vote
+        // revert the last vote, doesn't matter if user hasn't voted before
         proposal.tally.abstain -= lastVote.abstain;
         proposal.tally.yes -= lastVote.yes;
         proposal.tally.no -= lastVote.no;
 
         // update the last vote
-        lastVote.abstain = abstentions;
-        lastVote.yes = yays;
-        lastVote.no = nays;
+        lastVote.abstain = _voteOptions.abstain;
+        lastVote.yes = _voteOptions.yes;
+        lastVote.no = _voteOptions.no;
 
         // update the total vote
-        proposal.tally.abstain += abstentions;
-        proposal.tally.yes += yays;
-        proposal.tally.no += nays;
+        proposal.tally.abstain += _voteOptions.abstain;
+        proposal.tally.yes += _voteOptions.yes;
+        proposal.tally.no += _voteOptions.no;
 
         emit VoteCast({
             executionChainId: _executionChainId,
@@ -202,40 +196,18 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         uint256 _proposalId,
         LzSendParams memory _params
     ) external payable noReentrant {
-        // get the proposal data and slice the timestamps
-        Proposal storage proposal = proposals[_executionChainId][_proposalId];
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
-
-        // check the timestamp
-        if (block.timestamp <= startTimestamp) {
-            revert ProposalNotOpen({
-                executionChainId: _executionChainId,
-                proposalId: _proposalId,
-                openAt: startTimestamp
-            });
+        // check if we can dispatch the votes
+        if (!canDispatch({_executionChainId: _executionChainId, _proposalId: _proposalId})) {
+            revert CannotDispatch({executionChainId: _executionChainId, proposalId: _proposalId});
         }
 
-        if (block.timestamp > endTimestamp) {
-            revert ProposalAlreadyClosed({
-                executionChainId: _executionChainId,
-                proposalId: _proposalId,
-                closedAt: endTimestamp
-            });
-        }
-
-        // check the proposal has some data
-        if (proposal.tally.abstain == 0 && proposal.tally.yes == 0 && proposal.tally.no == 0) {
-            revert NoVotesToDispatch({
-                executionChainId: _executionChainId,
-                proposalId: _proposalId
-            });
-        }
-
+        // get the votes and encode the message
+        Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
                 proposalId: _proposalId,
-                votes: proposal.tally
+                votes: proposalVotes
             })
         );
 
@@ -248,71 +220,13 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         emit VotesDispatched({
             executionChainId: _executionChainId,
             proposalId: _proposalId,
-            votes: proposal.tally
+            votes: proposalVotes
         });
     }
 
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- VIEW FUNCTIONS --------
-
-    /// @notice Checks if a voter can vote on a proposal.
-    /// @param _proposalId The proposal ID to check, will be decoded to get the start and end timestamps.
-    /// @param _voter The address of the voter to check.
-    /// @param _voteOptions The vote options to check against the voter's voting power.
-    function canVote(
-        uint256 _proposalId,
-        address _voter,
-        Tally memory _voteOptions
-    ) public view returns (bool) {
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
-
-        // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen({_startTs: startTimestamp, _endTs: endTimestamp})) {
-            return false;
-        }
-
-        // this could re-enter with a malicious governance token
-        uint votingPower = token.getPastVotes(_voter, startTimestamp);
-
-        // The voter has no voting power.
-        if (votingPower == 0) {
-            return false;
-        }
-
-        // the user has insufficient voting power to vote
-        if (_totalVoteWeight(_voteOptions) > votingPower) {
-            return false;
-        }
-
-        // At the moment, we always allow vote replacement. This could be changed in the future.
-        return true;
-    }
-
-    /// @return Vote data for a given execution chain, proposal and voter.
-    /// @dev Required due to nested mappings in the proposal struct.
-    function getVotes(
-        uint256 _executionChainId,
-        uint256 _proposalId,
-        address _voter
-    ) external view returns (Tally memory) {
-        return proposals[_executionChainId][_proposalId].voters[_voter];
-    }
-
-    /// @dev Checks the timestamps passed by destructuring the proposal ID to see if the proposal is open.
-    /// Note that we do not have any information in this implementation that validates if the proposal has already
-    /// been executed. This remains the responsibility of the DAO and User.
-    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
-        // overflow check seems redundant but L2s sometimes have unique rules and edge cases
-        uint32 currentTime = block.timestamp.toUint32();
-
-        // TODO: ERC20 votes requires > _startTs - I think this is different to the block but need to check
-        return _startTs < currentTime && currentTime < _endTs;
-    }
-
-    /// @return The sums of the votes in a Voting Tally.
-    /// @dev Can revert if combined weights exceed the max 256 bit integer.
-    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
-        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
-    }
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Quotes the total gas fee to dispatch the votes cross chain.
     /// @param _executionChainId The EVM chain ID of the destination chain.
@@ -349,6 +263,76 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         return LzSendParams({dstEid: _dstEid, gasLimit: _gasLimit, fee: fee, options: options});
     }
 
+    /// @notice Checks if a voter can vote on a proposal.
+    /// @param _proposalId The proposal ID to check, will be decoded to get the start and end timestamps.
+    /// @param _voter The address of the voter to check.
+    /// @param _voteOptions The vote options to check against the voter's voting power.
+    function canVote(
+        uint256 _proposalId,
+        address _voter,
+        Tally memory _voteOptions
+    ) public view returns (bool) {
+        // Check the proposal is open as defined by the timestamps in the proposal ID
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+        if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
+
+        uint totalVoteWeight = _totalVoteWeight(_voteOptions);
+
+        // the user is trying to vote with zero votes
+        if (totalVoteWeight == 0) return false;
+
+        // this could re-enter with a malicious governance token
+        uint votingPower = token.getPastVotes(_voter, startTimestamp);
+
+        // the user has insufficient voting power to vote
+        if (totalVoteWeight > votingPower) return false;
+
+        // At the moment, we always allow vote replacement. This could be changed in the future.
+        return true;
+    }
+
+    /// @notice Checks if the votes for a proposal can be dispatched cross chain.
+    /// @param _executionChainId The chain ID where the proposal will be executed.
+    /// @param _proposalId The proposal ID to check.
+    /// @return Whether a proposal is open and has votes to dispatch.
+    function canDispatch(
+        uint256 _executionChainId,
+        uint256 _proposalId
+    ) public view returns (bool) {
+        // Check the proposal is open as defined by the timestamps in the proposal ID
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+        if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
+
+        // check that there are votes to dispatch
+        Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
+        if (_totalVoteWeight(proposalVotes) == 0) return false;
+
+        return true;
+    }
+
+    /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal ID.
+    /// Note that we do not have any information in this implementation that validates if the proposal has already
+    /// been executed. This remains the responsibility of the DAO and User.
+    function isProposalOpen(uint256 _proposalId) external view returns (bool) {
+        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+        return _isProposalOpen(startTimestamp, endTimestamp);
+    }
+
+    /// @dev Checks the timestamps passed by destructuring the proposal ID to see if the proposal is open.
+    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
+        // overflow check seems redundant but L2s sometimes have unique rules and edge cases
+        uint32 currentTime = block.timestamp.toUint32();
+
+        // TODO: ERC20 votes requires > _startTs - I think this is different to the block but need to check
+        return _startTs < currentTime && currentTime < _endTs;
+    }
+
+    /// @return The sums of the votes in a Voting Tally.
+    /// @dev Can revert if combined weights exceed the max 256 bit integer.
+    function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
+        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
+    }
+
     /// @notice The chain ID of the current chain, by default this returns block.chainid.
     /// @dev This can be overriden if chains have custom logic for determining the chain ID.
     function _chainId() internal view virtual returns (uint256) {
@@ -364,7 +348,19 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, DaoAuthorizab
         return bytes32ToAddress(peers[_dstEid.toUint32()]);
     }
 
+    /// @return Vote data for a given execution chain, proposal and voter.
+    /// @dev Required due to nested mappings in the proposal struct.
+    function getVotes(
+        uint256 _executionChainId,
+        uint256 _proposalId,
+        address _voter
+    ) external view returns (Tally memory) {
+        return proposals[_executionChainId][_proposalId].voters[_voter];
+    }
+
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- LAYER ZERO RECEIVE --------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Implemented as part of the OApp specifcation, however the relayer cannot receive messages.
     /// @dev This is implemented in the case of upgrades that may require the relayer to receive messages.

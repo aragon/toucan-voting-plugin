@@ -112,7 +112,7 @@ contract ToucanReceiver is OApp, IVoteContainer, DaoAuthorizable {
             (IToucanRelayMessage.ToucanVoteMessage)
         );
 
-        uint srcChainId = decoded.srcChainId;
+        uint srcChainId = decoded.votingChainId;
         uint proposalId = decoded.proposalId;
         Tally memory receivedVotes = decoded.votes;
 
