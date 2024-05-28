@@ -8,6 +8,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import "@libs/Tally.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -18,6 +19,9 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanRelayCanVote is ToucanRelayBaseTest {
+    using ComparisonTally for Tally;
+    using OverflowChecker for Tally;
+
     function setUp() public override {
         super.setUp();
     }
@@ -97,13 +101,13 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions
     ) public {
         // TODO: do we want to explicitly check for this?
-        vm.assume(!overflows(_voteOptions));
+        vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // this is the test case where the user has too little voting power at the startTs
-        vm.assume(addTally(_voteOptions) > _mintQty);
+        vm.assume(_voteOptions.sum() > _mintQty);
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
@@ -126,13 +130,13 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        vm.assume(!overflows(_voteOptions));
+        vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // we want this to be an otherwise valid vote
-        vm.assume(addTally(_voteOptions) <= _mintQty);
+        vm.assume(_voteOptions.sum() <= _mintQty);
 
         // note the order of the calls
         _warpToValidTs(_proposalId, _warpTo);
@@ -155,14 +159,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        vm.assume(!overflows(_voteOptions));
+        vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // we want this to be a valid vote
-        vm.assume(addTally(_voteOptions) <= _mintQty);
-        vm.assume(addTally(_voteOptions) > 0);
+        vm.assume(_voteOptions.sum() <= _mintQty);
+        vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
@@ -184,14 +188,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        vm.assume(!overflows(_voteOptions));
+        vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // we want this to be a valid vote
-        vm.assume(addTally(_voteOptions) <= _mintQty);
-        vm.assume(addTally(_voteOptions) > 0);
+        vm.assume(_voteOptions.sum() <= _mintQty);
+        vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});

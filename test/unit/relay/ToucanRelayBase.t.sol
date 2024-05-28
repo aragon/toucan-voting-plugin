@@ -14,13 +14,10 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 
-import {Arr256Helper} from "utils/arrays.sol";
 import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
 
 /// @dev single chain testing for the relay
 contract ToucanRelayBaseTest is Test, IVoteContainer {
-    using Arr256Helper for uint256[];
-
     GovernanceERC20VotingChain token;
     MockLzEndpointMinimal lzEndpoint;
     MockToucanRelay relay;
@@ -69,19 +66,5 @@ contract ToucanRelayBaseTest is Test, IVoteContainer {
         vm.assume(_endTs > _warpTo);
 
         vm.warp(_warpTo);
-    }
-
-    function overflows(Tally memory tally) internal view returns (bool) {
-        try this.addTally(tally) {} catch Error(string memory) {
-            return true;
-        } catch (bytes memory) {
-            return true;
-        }
-
-        return false;
-    }
-
-    function addTally(Tally memory tally) public pure returns (uint) {
-        return tally.abstain + tally.yes + tally.no;
     }
 }

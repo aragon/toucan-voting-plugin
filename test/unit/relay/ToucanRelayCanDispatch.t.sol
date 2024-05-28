@@ -8,6 +8,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import "@libs/Tally.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -17,6 +18,9 @@ import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 
 contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
+    using ComparisonTally for Tally;
+    using OverflowChecker for Tally;
+
     function setUp() public override {
         super.setUp();
     }
@@ -85,8 +89,8 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         Tally memory _tally
     ) public {
         // check that 0 < sum(tally) < uint256 max
-        vm.assume(!overflows(_tally));
-        vm.assume(addTally(_tally) > 0);
+        vm.assume(!_tally.overflows());
+        vm.assume(_tally.sum() > 0);
 
         // set the proposal state
         relay.setProposalState({
@@ -135,8 +139,8 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         Tally memory _tally
     ) public {
         // check that 0 < sum(tally) < uint256 max
-        vm.assume(!overflows(_tally));
-        vm.assume(addTally(_tally) > 0);
+        vm.assume(!_tally.overflows());
+        vm.assume(_tally.sum() > 0);
 
         // set the proposal state
         relay.setProposalState({
