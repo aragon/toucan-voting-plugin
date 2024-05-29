@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 pragma solidity ^0.8.8;
 
@@ -21,6 +22,35 @@ interface IMajorityVoting is IVoteContainer {
         Abstain,
         Yes,
         No
+    }
+
+    /// @notice The different voting modes available.
+    /// @param Standard In standard mode, early execution and vote replacement are disabled.
+    /// @param EarlyExecution In early execution mode, a proposal can be executed
+    /// early before the end date if the vote outcome cannot mathematically change by more voters voting.
+    /// @param VoteReplacement In vote replacement mode, voters can change their vote
+    /// multiple times and only the latest vote option is tallied.
+    enum VotingMode {
+        Standard,
+        EarlyExecution,
+        VoteReplacement
+    }
+
+    /// @notice A container for the proposal parameters at the time of proposal creation.
+    /// @param votingMode A parameter to select the vote mode.
+    /// @param supportThreshold The support threshold value.
+    /// The value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
+    /// @param startDate The start date of the proposal vote.
+    /// @param endDate The end date of the proposal vote.
+    /// @param snapshotBlock The number of the block prior to the proposal creation.
+    /// @param minVotingPower The minimum voting power needed.
+    struct ProposalParameters {
+        VotingMode votingMode;
+        uint32 supportThreshold;
+        uint64 startDate;
+        uint64 endDate;
+        uint64 snapshotBlock;
+        uint256 minVotingPower;
     }
 
     /// @notice Emitted when votes are cast by a voter.
@@ -131,4 +161,26 @@ interface IMajorityVotingV2 is IMajorityVoting {
         IVoteContainer.Tally memory votes,
         bool tryEarlyExecution
     ) external;
+
+    /// @notice Returns all information for a proposal vote by its ID.
+    /// @param _proposalId The ID of the proposal.
+    /// @return open Whether the proposal is open or not.
+    /// @return executed Whether the proposal is executed or not.
+    /// @return parameters The parameters of the proposal vote.
+    /// @return tally The current tally of the proposal vote.
+    /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
+    /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
+    function getProposal(
+        uint256 _proposalId
+    )
+        external
+        view
+        returns (
+            bool open,
+            bool executed,
+            ProposalParameters memory parameters,
+            Tally memory tally,
+            IDAO.Action[] memory actions,
+            uint256 allowFailureMap
+        );
 }

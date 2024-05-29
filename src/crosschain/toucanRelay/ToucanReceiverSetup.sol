@@ -130,7 +130,7 @@ contract ToucanReceiverSetup is PluginSetup {
             where: plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: receiverBase.REFUND_COLLECTOR_ID()
+            permissionId: receiverBase.SWEEP_COLLECTOR_ID()
         });
 
         // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.
@@ -179,7 +179,7 @@ contract ToucanReceiverSetup is PluginSetup {
             where: _payload.plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: receiverBase.REFUND_COLLECTOR_ID()
+            permissionId: receiverBase.SWEEP_COLLECTOR_ID()
         });
 
         // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.

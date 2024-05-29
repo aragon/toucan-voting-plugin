@@ -8,7 +8,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
-import "@libs/Tally.sol";
+import "@libs/TallyMath.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -19,7 +19,7 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanRelayVote is ToucanRelayBaseTest {
-    using ComparisonTally for Tally;
+    using TallyMath for Tally;
     using OverflowChecker for Tally;
 
     function setUp() public override {
@@ -109,33 +109,24 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         vm.assume(!_stateFirst.voteOptions.overflows());
 
         // avoid overflows when both qtys get added
-        if (_stateFirst.mintQty > type(uint216).max) {
-            _stateFirst.mintQty = type(uint216).max;
-        }
+        vm.assume(_stateFirst.mintQty <= type(uint216).max);
+        vm.assume(_stateFirst.voteOptions.sum() <= _stateFirst.mintQty);
+        vm.assume(_stateFirst.voteOptions.sum() > 0);
 
         // ERC20 prevents minting to zero address
         vm.assume(_stateFirst.voter != address(0));
-        vm.assume(_stateFirst.voteOptions.sum() <= _stateFirst.mintQty);
-        vm.assume(_stateFirst.voteOptions.sum() > 0);
 
         // make the second voter a valid transformation of the first
         State memory _stateSecond;
         {
-            // address is just a hash of the first
-            _stateSecond.voter = address(
-                uint160(uint256(keccak256(abi.encode(_stateFirst.voter))))
-            );
-            // mint half the amount of the first
-            _stateSecond.mintQty = (_stateFirst.mintQty / 2) + 1;
-            // split the mint into 3 for votes, with a minimum of 1 on yes
+            _stateSecond.voter = _hashAddress(_stateFirst.voter);
+            // mint half the amount of the first, but as we will split into 3, add 3 to avoid zero votes
+            _stateSecond.mintQty = (_stateFirst.mintQty / 2) + 3;
             _stateSecond.voteOptions = Tally({
                 yes: _stateSecond.mintQty / 3,
                 no: _stateSecond.mintQty / 3,
                 abstain: _stateSecond.mintQty / 3
             });
-            if (_stateSecond.voteOptions.sum() == 0) {
-                _stateSecond.voteOptions.yes = 1;
-            }
         }
 
         token.mint({to: _stateFirst.voter, amount: _stateFirst.mintQty});
@@ -168,18 +159,12 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         assert(votesB.eq(_stateSecond.voteOptions));
 
         // the proposal should have the sum of the votes
-        Tally memory proposalVotes = relay.proposals(
+        Tally memory actualProposalVotes = relay.proposals(
             _stateFirst.executionChainId,
             _stateFirst.proposalId
         );
-
-        Tally memory expectedProposalVotes = Tally({
-            yes: _stateFirst.voteOptions.yes + _stateSecond.voteOptions.yes,
-            no: _stateFirst.voteOptions.no + _stateSecond.voteOptions.no,
-            abstain: _stateFirst.voteOptions.abstain + _stateSecond.voteOptions.abstain
-        });
-
-        assert(proposalVotes.eq(expectedProposalVotes));
+        Tally memory expectedProposalVotes = _stateFirst.voteOptions.add(_stateSecond.voteOptions);
+        assert(actualProposalVotes.eq(expectedProposalVotes));
     }
 
     // the user can vote against multiple proposals
@@ -204,5 +189,9 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         // note the order of the calls
         token.mint({to: _state.voter, amount: _state.mintQty});
         _warpToValidTs(_state.proposalId, _state.warpTo);
+    }
+
+    function _hashAddress(address _address) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encode(_address)))));
     }
 }

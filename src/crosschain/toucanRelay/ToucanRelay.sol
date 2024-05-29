@@ -14,6 +14,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
 
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {TallyMath} from "@libs/TallyMath.sol";
 
 import "utils/converters.sol";
 import "forge-std/console2.sol";
@@ -36,6 +37,7 @@ import "forge-std/console2.sol";
 /// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
 contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     using OptionsBuilder for bytes;
+    using TallyMath for Tally;
     using SafeCast for uint256;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,7 +79,12 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     error CannotReceive();
 
     /// @notice Thrown if the voter fails the `canVote` check during the voting process.
-    error CannotVote(uint executionChainId, uint256 proposalId, address voter, Tally voteOptions);
+    error CannotVote(
+        uint256 executionChainId,
+        uint256 proposalId,
+        address voter,
+        Tally voteOptions
+    );
 
     /// @notice Thrown if the votes cannot be dispatched according to `canDispatch`.
     error CannotDispatch(uint256 executionChainId, uint256 proposalId);
@@ -110,7 +117,9 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
 
     /// @dev can probably replace this with OZ
     bool public guard = false;
+
     error NoReentrant();
+
     modifier noReentrant() {
         if (guard) revert NoReentrant();
         guard = true;
@@ -163,19 +172,16 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         Tally storage lastVote = proposal.voters[msg.sender];
 
         // revert the last vote, doesn't matter if user hasn't voted before
-        proposal.tally.abstain -= lastVote.abstain;
-        proposal.tally.yes -= lastVote.yes;
-        proposal.tally.no -= lastVote.no;
+        proposal.tally = proposal.tally.sub(lastVote);
+
+        // update the total vote
+        proposal.tally = proposal.tally.add(_voteOptions);
 
         // update the last vote
+        // we have to set by item due to no implicit storage casting
         lastVote.abstain = _voteOptions.abstain;
         lastVote.yes = _voteOptions.yes;
         lastVote.no = _voteOptions.no;
-
-        // update the total vote
-        proposal.tally.abstain += _voteOptions.abstain;
-        proposal.tally.yes += _voteOptions.yes;
-        proposal.tally.no += _voteOptions.no;
 
         emit VoteCast({
             executionChainId: _executionChainId,
@@ -192,7 +198,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @dev _params can be constructed using the `quote` function or defined manually.
     /// @dev This is a payable function. The msg.value should be set to the fee.
     function dispatchVotes(
-        uint _executionChainId,
+        uint256 _executionChainId,
         uint256 _proposalId,
         LzSendParams memory _params
     ) external payable noReentrant {
@@ -237,7 +243,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @return params The additional parameters required to be sent with the cross chain message.
     /// @dev These can be manually constructed but the defaults provided save some boilerplate.
     function quote(
-        uint _executionChainId,
+        uint256 _executionChainId,
         uint256 _proposalId,
         uint32 _dstEid,
         uint128 _gasLimit
@@ -276,16 +282,14 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
         if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
 
-        uint totalVoteWeight = _totalVoteWeight(_voteOptions);
-
         // the user is trying to vote with zero votes
-        if (totalVoteWeight == 0) return false;
+        if (_voteOptions.isZero()) return false;
 
         // this could re-enter with a malicious governance token
-        uint votingPower = token.getPastVotes(_voter, startTimestamp);
+        uint256 votingPower = token.getPastVotes(_voter, startTimestamp);
 
         // the user has insufficient voting power to vote
-        if (totalVoteWeight > votingPower) return false;
+        if (_totalVoteWeight(_voteOptions) > votingPower) return false;
 
         // At the moment, we always allow vote replacement. This could be changed in the future.
         return true;
@@ -305,7 +309,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
 
         // check that there are votes to dispatch
         Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
-        if (_totalVoteWeight(proposalVotes) == 0) return false;
+        if (proposalVotes.isZero()) return false;
 
         return true;
     }
@@ -330,7 +334,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @return The sums of the votes in a Voting Tally.
     /// @dev Can revert if combined weights exceed the max 256 bit integer.
     function _totalVoteWeight(Tally memory _voteOptions) internal pure virtual returns (uint256) {
-        return _voteOptions.yes + _voteOptions.no + _voteOptions.abstain;
+        return _voteOptions.sum();
     }
 
     /// @notice The chain ID of the current chain, by default this returns block.chainid.

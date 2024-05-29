@@ -1,6 +1,7 @@
 pragma solidity ^0.8.20;
 
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
+import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
 contract MockToucanRelay is ToucanRelay {
     constructor(

@@ -33,18 +33,6 @@ abstract contract MajorityVotingBase is
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for uint64;
 
-    /// @notice The different voting modes available.
-    /// @param Standard In standard mode, early execution and vote replacement are disabled.
-    /// @param EarlyExecution In early execution mode, a proposal can be executed
-    /// early before the end date if the vote outcome cannot mathematically change by more voters voting.
-    /// @param VoteReplacement In vote replacement mode, voters can change their vote
-    /// multiple times and only the latest vote option is tallied.
-    enum VotingMode {
-        Standard,
-        EarlyExecution,
-        VoteReplacement
-    }
-
     /// @notice A container for the majority voting settings that will be applied as parameters on proposal creation.
     /// @param votingMode A parameter to select the vote mode.
     /// In standard mode (0), early execution and vote replacement are disabled.
@@ -84,23 +72,6 @@ abstract contract MajorityVotingBase is
         IDAO.Action[] actions;
         uint256 allowFailureMap;
         mapping(address => Tally) lastVotes;
-    }
-
-    /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param votingMode A parameter to select the vote mode.
-    /// @param supportThreshold The support threshold value.
-    /// The value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
-    /// @param startDate The start date of the proposal vote.
-    /// @param endDate The end date of the proposal vote.
-    /// @param snapshotBlock The number of the block prior to the proposal creation.
-    /// @param minVotingPower The minimum voting power needed.
-    struct ProposalParameters {
-        VotingMode votingMode;
-        uint32 supportThreshold;
-        uint64 startDate;
-        uint64 endDate;
-        uint64 snapshotBlock;
-        uint256 minVotingPower;
     }
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.

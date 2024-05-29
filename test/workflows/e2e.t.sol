@@ -463,7 +463,6 @@ contract TestE2EToucan is TestHelper, AragonTest {
             _who: address(this),
             _permissionId: receiver.RECEIVER_ADMIN_ID()
         });
-        receiver.setAuthorizedPlugin(address(plugin), true);
     }
 
     function _deployVotingChain() internal {

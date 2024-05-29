@@ -8,7 +8,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
-import "@libs/Tally.sol";
+import "@libs/TallyMath.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -19,7 +19,7 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanRelayCanVote is ToucanRelayBaseTest {
-    using ComparisonTally for Tally;
+    using TallyMath for Tally;
     using OverflowChecker for Tally;
 
     function setUp() public override {
