@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
 /// TODO: should this be shared with Majority voting?
@@ -11,12 +12,5 @@ interface IVoteContainer {
         uint256 abstain;
         uint256 yes;
         uint256 no;
-    }
-}
-
-library VoteAggregator {
-    // can revert if votes are all above type(uint256).max / 3
-    function sum(IVoteContainer.Tally memory votes) internal pure returns (uint256) {
-        return votes.abstain + votes.yes + votes.no;
     }
 }

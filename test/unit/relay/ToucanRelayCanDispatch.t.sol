@@ -20,6 +20,7 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
     using TallyMath for Tally;
     using OverflowChecker for Tally;
+    using ProposalIdCodec for uint256;
 
     function setUp() public override {
         super.setUp();
@@ -31,7 +32,7 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         uint32 _warpTo
     ) public {
         // decode existing random proposal id
-        (, uint32 _startTs, ) = ProposalIdCodec.decode(_proposalId);
+        uint32 _startTs = _proposalId.getStartTimestamp();
 
         // assume that the startTs is greater than or equal the block ts we will move to
         vm.assume(_startTs >= _warpTo);
@@ -52,7 +53,7 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         uint32 _warpTo
     ) public {
         // decode existing random proposal id
-        (, , uint32 _endTs) = ProposalIdCodec.decode(_proposalId);
+        uint32 _endTs = _proposalId.getEndTimestamp();
 
         // assume that the endTs is less than or equal the block ts we will move to
         vm.assume(_endTs <= _warpTo);

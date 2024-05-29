@@ -459,15 +459,25 @@ abstract contract MajorityVotingBase is
         });
     }
 
+    /// @notice Increases the proposal id without returning the new value
+    /// @dev Used for readability in the code. The actual increment is done in a private function.
+    function _incrementProposalCounter() internal {
+        _createProposalId();
+    }
+
     function _createProposalId(
         uint64 _startDate,
         uint64 _endDate
-    ) internal view virtual returns (uint256 proposalId) {
+    ) internal virtual returns (uint256 proposalId) {
+        _incrementProposalCounter();
         return
             ProposalIdCodec.encode({
                 _proposalStartTimestamp: _startDate.toUint32(),
                 _proposalEndTimestamp: _endDate.toUint32(),
-                _plugin: address(this)
+                _plugin: address(this),
+                // TODO: this needs some care, attention and thought
+                // Just adding -1 for the time being
+                _proposalBlockSnapshotTimestamp: (block.timestamp - 1).toUint32()
             });
     }
 

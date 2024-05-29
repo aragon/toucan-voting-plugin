@@ -87,7 +87,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
     uint32 constant MIN_PARTICIPATION = 1;
     uint64 constant MIN_DURATION = 3600;
     uint constant MIN_PROPOSER_VOTING_POWER = 1;
-    ToucanVoting.VotingMode constant MODE = MajorityVotingBase.VotingMode.VoteReplacement;
+    ToucanVoting.VotingMode constant MODE = IMajorityVoting.VotingMode.VoteReplacement;
 
     uint PROPOSAL_START_DATE = 10;
 
@@ -166,14 +166,14 @@ contract TestE2EToucan is TestHelper, AragonTest {
         }
         vm.stopPrank();
 
-        assertEq(proposal.plugin(), address(plugin), "proposal should have the correct plugin");
+        assertEq(proposal.getPlugin(), address(plugin), "proposal should have the correct plugin");
         assertEq(
-            proposal.startTimestamp(),
+            proposal.getStartTimestamp(),
             PROPOSAL_START_DATE,
             "proposal should have the correct start timestamp"
         );
         assertEq(
-            proposal.endTimestamp(),
+            proposal.getEndTimestamp(),
             1680224400,
             "proposal should have the correct end timestamp"
         );
@@ -523,7 +523,7 @@ contract ToucanRelayVotingChain is ToucanRelay {
         address _delegate
     ) ToucanRelay(_token, _lzEndpoint, _delegate) {}
 
-    function _chainId() internal view override returns (uint) {
+    function _chainId() internal pure override returns (uint) {
         return _EVM_VOTING_CHAIN;
     }
 }

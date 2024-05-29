@@ -57,7 +57,7 @@ contract ToucanRelayBaseTest is Test, IVoteContainer {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~
 
     function _warpToValidTs(uint256 _proposalId, uint256 _warpTo) internal {
-        (, uint32 _startTs, uint32 _endTs) = ProposalIdCodec.decode(_proposalId);
+        (, uint32 _startTs, uint32 _endTs, ) = ProposalIdCodec.decode(_proposalId);
 
         // assume that the startTs is less than the block ts we will move to
         vm.assume(_startTs < _warpTo);

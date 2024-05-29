@@ -19,6 +19,26 @@ import {Sweeper} from "src/crosschain/Sweeper.sol";
 
 import "forge-std/console2.sol";
 
+interface IToucanReceiverEvents {
+    /// @notice Emitted when the voting plugin is updated.
+    event NewVotingPluginSet(address plugin, address caller);
+
+    /// @notice Emitted when votes are received from the ToucanRelay and the local state updated.
+    /// @dev Does not necessarily mean the votes have been submitted to the voting plugin.
+    event VotesReceived(uint256 votingChainId, uint256 proposalId, IVoteContainer.Tally votes);
+
+    /// @notice Emitted when votes are successfully submitted to the voting plugin.
+    event SubmitVoteSuccess(uint256 proposalId, address plugin, IVoteContainer.Tally votes);
+
+    /// @notice Emitted when a vote is successfully received from the ToucanRelay but cannot be submitted to the plugin.
+    event SubmitVoteFailed(
+        uint256 votingChainId,
+        uint256 proposalId,
+        IVoteContainer.Tally votes,
+        bytes reason
+    );
+}
+
 /// @title ToucanReceiver
 /// @author Aragon
 /// @notice Receives votes from the ToucanRelay and aggregates them before sending to the voting plugin.
@@ -28,7 +48,7 @@ import "forge-std/console2.sol";
 /// 2. The relayer correctly validates the voting power on the other chain.
 /// @dev Although this contract is an OApp, it does not have any send functionality.
 /// This is intentional in the event of future upgrades that may mandate sending cross chain data.
-contract ToucanReceiver is OApp, IVoteContainer, Plugin, Sweeper {
+contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, Sweeper {
     using TallyMath for Tally;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -67,23 +87,6 @@ contract ToucanReceiver is OApp, IVoteContainer, Plugin, Sweeper {
 
     /// @notice Thrown if the receiver cannot receive votes for a proposal and thus cannot adjust the vote.
     error CannotReceiveVotes(uint256 votingChainId, uint256 proposalId, Tally votes);
-
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// ---------- EVENTS --------
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    /// @notice Emitted when the voting plugin is updated.
-    event NewVotingPluginSet(address plugin, address caller);
-
-    /// @notice Emitted when votes are received from the ToucanRelay and the local state updated.
-    /// @dev Does not necessarily mean the votes have been submitted to the voting plugin.
-    event VotesReceived(uint256 votingChainId, uint256 proposalId, Tally votes);
-
-    /// @notice Emitted when votes are successfully submitted to the voting plugin.
-    event SubmitVoteSuccess(uint256 proposalId, address plugin, Tally votes);
-
-    /// @notice Emitted when a vote is successfully received from the ToucanRelay but cannot be submitted to the plugin.
-    event SubmitVoteFailed(uint256 votingChainId, uint256 proposalId, Tally votes, bytes reason);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// --------- CONSTRUCTOR ---------
@@ -242,7 +245,7 @@ contract ToucanReceiver is OApp, IVoteContainer, Plugin, Sweeper {
     /// @param _proposalId The ID of the proposal to check. Should be fetched from the voting plugin.
     /// @dev Will check the plugin is the voting plugin and the timestamps are valid.
     function isProposalIdValid(uint256 _proposalId) public view returns (bool) {
-        (address plugin, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(
+        (address plugin, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(
             _proposalId
         );
 
@@ -298,11 +301,6 @@ contract ToucanReceiver is OApp, IVoteContainer, Plugin, Sweeper {
     /// @dev This requires that the votes have been received and stored, and may not be up to date.
     function getAggregateVotes(uint256 _proposalId) public view returns (Tally memory) {
         return votes[_proposalId].aggregateVotes;
-    }
-
-    /// @return Whether the token bridge has delegated voting power to this contract for bridged voting tokens
-    function isDelegate(address _tokenBridge) public view returns (bool) {
-        return governanceToken.delegates(_tokenBridge) == address(this);
     }
 
     /// @notice Get the snapshot block for a proposal from the voting plugin.

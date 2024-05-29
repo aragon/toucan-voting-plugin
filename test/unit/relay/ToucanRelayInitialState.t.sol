@@ -18,7 +18,6 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         super.setUp();
     }
 
-    // test can vote:
     function testFuzz_constructor(address _token, address _dao) public {
         // dao is checked by OApp
         vm.assume(_dao != address(0));

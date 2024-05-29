@@ -49,7 +49,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         uint128 gasLimit = 200_000;
 
         // encode a proposal id
-        uint proposalId = ProposalIdCodec.encode(address(1), 0, 100);
+        uint proposalId = ProposalIdCodec.encode(address(1), 0, 100, 0);
 
         // set the proposal vote
         relay.setProposalVote(

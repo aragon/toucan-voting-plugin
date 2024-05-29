@@ -279,7 +279,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         Tally memory _voteOptions
     ) public view returns (bool) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+        (, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(_proposalId);
         if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
 
         // the user is trying to vote with zero votes
@@ -304,8 +304,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         uint256 _proposalId
     ) public view returns (bool) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
-        if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
+        if (!isProposalOpen(_proposalId)) return false;
 
         // check that there are votes to dispatch
         Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
@@ -317,8 +316,8 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal ID.
     /// Note that we do not have any information in this implementation that validates if the proposal has already
     /// been executed. This remains the responsibility of the DAO and User.
-    function isProposalOpen(uint256 _proposalId) external view returns (bool) {
-        (, uint32 startTimestamp, uint32 endTimestamp) = ProposalIdCodec.decode(_proposalId);
+    function isProposalOpen(uint256 _proposalId) public view returns (bool) {
+        (, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(_proposalId);
         return _isProposalOpen(startTimestamp, endTimestamp);
     }
 
