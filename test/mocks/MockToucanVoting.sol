@@ -3,8 +3,11 @@ pragma solidity ^0.8.20;
 
 import {MajorityVotingBase} from "src/voting/MajorityVotingBase.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 contract MockToucanVoting {
+    function vote(uint256, IVoteContainer.Tally memory, bool) public {}
+
     mapping(uint256 => MajorityVotingBase.Proposal) internal proposals;
     bool open_;
 

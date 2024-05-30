@@ -9,7 +9,9 @@ contract TallyMathTest is Test, IVoteContainer {
     using TallyMath for Tally;
     using OverflowChecker for Tally;
 
-    function testFuzz_eq(uint a, uint b, uint c) public {
+    function testFuzz_eq(uint a, uint b, uint c) public pure {
+        vm.assume(a < type(uint256).max);
+
         Tally memory tallyA = Tally(a, b, c);
         Tally memory tallyB = Tally(a, b, c);
 
@@ -20,7 +22,7 @@ contract TallyMathTest is Test, IVoteContainer {
         assertFalse(tallyA.eq(tallyC));
     }
 
-    function testFuzz_add(uint a, uint b, uint c, uint d, uint e, uint f) public {
+    function testFuzz_add(uint a, uint b, uint c, uint d, uint e, uint f) public pure {
         // prevent overflow
         vm.assume(a <= type(uint256).max - d);
         vm.assume(b <= type(uint256).max - e);
@@ -35,7 +37,7 @@ contract TallyMathTest is Test, IVoteContainer {
         assertTrue(sum.abstain == c + f);
     }
 
-    function testFuzz_sub(uint a, uint b, uint c, uint d, uint e, uint f) public {
+    function testFuzz_sub(uint a, uint b, uint c, uint d, uint e, uint f) public pure {
         // prevent underflow
         vm.assume(a >= d);
         vm.assume(b >= e);
@@ -50,20 +52,43 @@ contract TallyMathTest is Test, IVoteContainer {
         assertTrue(sub.abstain == c - f);
     }
 
-    function testFuzz_sum(uint a, uint b, uint c) public {
+    function testFuzz_div(uint a, uint b, uint c, uint divisor) public {
+        Tally memory tally = Tally({yes: a, no: b, abstain: c});
+
+        if (divisor == 0) vm.expectRevert();
+        Tally memory div = tally.div(divisor);
+
+        assertTrue(div.yes == a / divisor);
+        assertTrue(div.no == b / divisor);
+        assertTrue(div.abstain == c / divisor);
+    }
+
+    function testFuzz_sum(uint a, uint b, uint c) public pure {
         Tally memory tally = Tally(a, b, c);
         vm.assume(!tally.overflows());
 
         assertEq(tally.sum(), a + b + c);
     }
 
-    function testFuzz_isZero(uint a, uint b, uint c) public {
-        vm.assume(a > 0);
+    function testFuzz_isZero(uint a, uint b, uint c) public pure {
+        vm.assume(a > 0 || b > 0 || c > 0);
 
         Tally memory tally = Tally(a, b, c);
         assertFalse(tally.isZero());
 
         Tally memory zeroTally = Tally(0, 0, 0);
         assertTrue(zeroTally.isZero());
+    }
+
+    function test_overflows() public pure {
+        uint a = type(uint256).max;
+        uint b = 1;
+        uint c = 0;
+
+        Tally memory tally = Tally(a, b, c);
+        assertTrue(tally.overflows());
+
+        Tally memory noOverflowTally = Tally(a - 1, b, c);
+        assertFalse(noOverflowTally.overflows());
     }
 }

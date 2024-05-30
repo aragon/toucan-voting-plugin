@@ -30,4 +30,14 @@ contract MockToucanReceiver is ToucanReceiver {
     function setAggregateVotes(uint _proposalId, Tally memory _aggregateVotes) public {
         votes[_proposalId].aggregateVotes = _aggregateVotes;
     }
+
+    function receiveVotes(uint _votingChainId, uint _proposalId, Tally memory _votes) public {
+        _receiveVotes(_votingChainId, _proposalId, _votes);
+    }
+
+    function _lzReceive(bytes calldata message, Origin calldata o, bytes calldata d) external {
+        bytes32 g;
+        address e;
+        _lzReceive(o, g, message, e, d);
+    }
 }

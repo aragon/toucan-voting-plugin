@@ -77,6 +77,9 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
         // this is not allowed by default in OSx
         vm.assume(_sender != OSX_ANY_ADDR);
 
+        // we are allowed to set the voting plugin during shared setup
+        vm.assume(_sender != address(this));
+
         dao.grant({
             _who: _sender,
             _where: address(receiver),

@@ -78,7 +78,7 @@ contract ProposalIdCodecTest is Test {
         uint32 startTimestamp,
         uint32 endTimestamp,
         uint32 blockSnapshotTimestamp,
-        uint32 warpTo
+        uint32 blockTs
     ) public pure {
         uint256 proposalId = ProposalIdCodec.encode(
             plugin,
@@ -90,18 +90,28 @@ contract ProposalIdCodecTest is Test {
         vm.assume(startTimestamp > 0);
         vm.assume(endTimestamp < type(uint32).max);
 
-        assert(!proposalId.isOpen(warpTo));
+        assert(!proposalId.isOpen(0));
 
-        warpTo = startTimestamp - 1;
-        assert(!proposalId.isOpen(warpTo));
+        blockTs = startTimestamp - 1;
+        assert(!proposalId.isOpen(blockTs));
 
-        warpTo = startTimestamp;
-        assert(proposalId.isOpen(warpTo));
+        blockTs = startTimestamp;
+        assert(!proposalId.isOpen(blockTs));
 
-        warpTo = endTimestamp;
-        assert(proposalId.isOpen(warpTo));
+        if (endTimestamp > startTimestamp) {
+            if (endTimestamp - startTimestamp > 1) {
+                blockTs = startTimestamp + 1;
+                assert(proposalId.isOpen(blockTs));
 
-        warpTo = endTimestamp + 1;
-        assert(!proposalId.isOpen(warpTo));
+                blockTs = endTimestamp - 1;
+                assert(proposalId.isOpen(blockTs));
+            }
+        }
+
+        blockTs = endTimestamp;
+        assert(!proposalId.isOpen(blockTs));
+
+        blockTs = endTimestamp + 1;
+        assert(!proposalId.isOpen(blockTs));
     }
 }

@@ -62,39 +62,7 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
         });
     }
 
-    // test has enough voting power
-    // if snapshot block is zero, false
-    // if no voting power at block false
-    // if lt voting power at block false
-    // if gte voting power at block true
-    // if gte voting power at block inc transfer true
-    // if gte voting power at block but not enough delegated false
-    // if gte voting power at block but not enough delegated inc transfer true
-
-    // test receive votes
-    // from fresh
-    // from stateful, single voting chain
-    // from stateful, single proposal id
-    // from stateful, combo
-    // event emitted
-
     // test is current delegate
 
     // test the sweeper
-
-    //  test submit votes
-    // reverts on invalid proposal and throws error
-    // reverts if nothing to submit
-    // reverts if wrong proposal id ergo nothing to submit
-    // calls the vote function with the expected values
-    // emits the event
-
-    // test lzReceive
-    // reverts with invalid proposal ID
-    // reverts with insufficient delegated voting power
-    // stores the votes if submitVotes fails and emits the event
-
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// -------- HELPERS --------
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~
 }

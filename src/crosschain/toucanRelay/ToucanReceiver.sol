@@ -135,7 +135,7 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// @param _proposalId The ID of the proposal. This should be fetched from the plugin.
     /// @dev This function is called by the ToucanRelay after all votes have been received.
     /// It can alternatively be called by anyone in the event that the relay runs out of gas but has stored the votes.
-    function submitVotes(uint256 _proposalId) public {
+    function submitVotes(uint256 _proposalId) public virtual {
         if (!isProposalIdValid(_proposalId)) revert InvalidProposalId(_proposalId);
 
         // get the current aggregate votes
@@ -240,8 +240,12 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// @dev Will check the proposal Id for validity then also check the voting power delegated to this contract.
     /// @param _proposalId The ID of the proposal to check against.
     /// @param _votes The votes to add to the proposal.
-    function canReceiveVotes(uint256 _proposalId, Tally memory _votes) public view returns (bool) {
-        if (!isProposalIdValid(_proposalId)) return false;
+    function canReceiveVotes(
+        uint256 _proposalId,
+        Tally memory _votes
+    ) public view virtual returns (bool) {
+        if (_votes.isZero()) return false;
+        else if (!isProposalIdValid(_proposalId)) return false;
         else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _votes)) return false;
         else return true;
     }
@@ -249,14 +253,14 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// @notice Checks if a proposal ID is valid for this contract. Does not check if the proposal exists.
     /// @param _proposalId The ID of the proposal to check. Should be fetched from the voting plugin.
     /// @dev Will check the plugin is the voting plugin and the timestamps are valid.
-    function isProposalIdValid(uint256 _proposalId) public view returns (bool) {
+    function isProposalIdValid(uint256 _proposalId) public view virtual returns (bool) {
         if (_proposalId.getPlugin() != address(votingPlugin)) return false;
         else if (!isProposalOpen(_proposalId)) return false;
         else return true;
     }
 
     /// @notice Checks if a proposal is open for voting based on the current block timestamp.
-    function isProposalOpen(uint256 _proposalId) public view returns (bool) {
+    function isProposalOpen(uint256 _proposalId) public view virtual returns (bool) {
         uint32 currentTime = block.timestamp.toUint32();
         return _proposalId.isOpen(currentTime);
     }
@@ -280,7 +284,6 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
         if (snapshotBlock == 0) return false;
 
         // check if adding the new votes will exceed the voting power when the snapshot was taken
-        // recall that the user must have balance at the snapshot block -1 to vote
         uint256 votingPowerAtStart = governanceToken.getPastVotes(address(this), snapshotBlock);
 
         // skip further checks if there is no voting power
