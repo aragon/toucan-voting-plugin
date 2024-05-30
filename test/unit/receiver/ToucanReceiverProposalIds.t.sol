@@ -26,52 +26,51 @@ contract TestToucanReceiverProposalIds is ToucanReceiverBaseTest {
         super.setUp();
     }
 
-    function testFuzz_invalidPlugin(uint256 _proposalId, uint _warpTo) public {
+    function testFuzz_invalidPlugin(uint256 _proposalSeed, uint32 _warpTo) public {
+        // plugins are not validated here, only timestamps
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+
         // decode existing random proposal id
-        // address proposalPlugin = _proposalId.getPlugin();
-        (, uint32 _startTs, uint32 _endTs, ) = ProposalIdCodec.decode(_proposalId);
+        address proposalPlugin = _proposalId.getPlugin();
 
-        // assume that the startTs is less than the block ts we will move to
-        vm.assume(_warpTo > _startTs);
+        vm.assume(proposalPlugin != address(plugin));
 
-        // assume that the endTs is greater than the block ts we will move to
-        vm.assume(_warpTo < _endTs);
-        // assume that the plugin is not equal to the voting plugin
-        // vm.assume(proposalPlugin != address(plugin));
+        _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(receiver.isProposalOpen(_proposalId));
 
-        // _warpToValidTs(_proposalId, _warpTo);
-
-        // bool valid = receiver.isProposalIdValid(_proposalId);
-        // assertFalse(valid);
+        bool valid = receiver.isProposalIdValid(_proposalId);
+        assertFalse(valid);
     }
 
-    // function testFuzz_invalidProposalBeforeStart(uint256 _proposalId, uint32 _warpTo) public {
-    //     // decode existing random proposal id
-    //     uint32 startTs = _proposalId.getStartTimestamp();
+    function testFuzz_invalidProposalBeforeStart(uint256 _proposalId, uint32 _warpTo) public {
+        // decode existing random proposal id
+        uint32 startTs = _proposalId.getStartTimestamp();
 
-    //     // assume that the startTs is greater than or equal the block ts we will move to
-    //     vm.assume(startTs >= _warpTo);
+        // assume that the startTs is greater than or equal the block ts we will move to
+        vm.assume(startTs >= _warpTo);
 
-    //     // warp to the start
-    //     vm.warp(_warpTo);
+        // warp to the start
+        vm.warp(_warpTo);
 
-    //     bool valid = receiver.isProposalIdValid({_proposalId: _proposalId});
-    //     assertFalse(valid);
-    // }
+        bool valid = receiver.isProposalIdValid({_proposalId: _proposalId});
+        assertFalse(valid);
+        assertFalse(receiver.isProposalOpen(_proposalId));
+    }
 
-    // function testFuzz_invalidProposalAfterEnd(uint256 _proposalId, uint32 _warpTo) public {
-    //     // decode existing random proposal id
-    //     uint32 _endTs = _proposalId.getEndTimestamp();
+    function testFuzz_invalidProposalAfterEnd(uint256 _proposalId, uint32 _warpTo) public {
+        // decode existing random proposal id
+        uint32 _endTs = _proposalId.getEndTimestamp();
 
-    //     // assume that the endTs is less than or equal the block ts we will move to
-    //     vm.assume(_endTs <= _warpTo);
+        // assume that the endTs is less than or equal the block ts we will move to
+        vm.assume(_endTs <= _warpTo);
 
-    //     // warp to the end
-    //     vm.warp(_warpTo);
+        // warp to the end
+        vm.warp(_warpTo);
 
-    //     bool valid = receiver.isProposalIdValid({_proposalId: _proposalId});
-    //     assertFalse(valid);
-    // }
+        bool valid = receiver.isProposalIdValid({_proposalId: _proposalId});
+        assertFalse(valid);
+        assertFalse(receiver.isProposalOpen(_proposalId));
+    }
     // test proposal id is valid
     // plugin must equal the voting plugin
     // timestamp must > start Ts

@@ -16,6 +16,7 @@ script = "script"
 solc = "0.8.20"
 src = "src"
 test = "test"
+verbosity = 3
 
 [profile.ci]
 fuzz = { runs = 10_000 }

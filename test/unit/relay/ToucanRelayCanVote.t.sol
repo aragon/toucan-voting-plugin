@@ -49,6 +49,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
+        assertFalse(relay.isProposalOpen(_proposalId));
     }
 
     function testFuzz_cannotVoteAfterEnd(
@@ -72,15 +73,18 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
+        assertFalse(relay.isProposalOpen(_proposalId));
     }
 
     // cannot vote if user is trying to vote with zero tokens
     function testFuzz_cannotVoteWithZeroWeight(
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         address _voter,
         uint32 _warpTo
     ) public {
+        uint256 _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
         // set the weight to zero
         Tally memory _voteOptions = Tally({yes: 0, no: 0, abstain: 0});
@@ -95,12 +99,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
     // false if the user has too little voting power at the startTs, lte startTs
     function testFuzz_cannotVoteWithInsufficientWeight(
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         address _voter,
         uint32 _warpTo,
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+
         // TODO: do we want to explicitly check for this?
         vm.assume(!_voteOptions.overflows());
 
@@ -113,6 +119,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
         _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
         // set the weight to zero
         bool canVote = relay.canVote({
@@ -125,19 +132,23 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
     // above holds even if the user gets voting power after the startTs
     function testFuzz_cannotVoteWithInsufficientWeightAfterTransfer(
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         address _voter,
         uint32 _warpTo,
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+
         vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // we want this to be an otherwise valid vote
-        vm.assume(_voteOptions.sum() <= _mintQty);
+        if (_voteOptions.sum() > _mintQty) {
+            _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
+        }
 
         // note the order of the calls
         _warpToValidTs(_proposalId, _warpTo);
@@ -154,19 +165,23 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
     // true for all ts between the start and end block, if the user has enough voting power
     function testFuzz_canVoteIfHasEnoughVotingPowerAndValidTs(
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         address _voter,
         uint32 _warpTo,
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+
         vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
-        // we want this to be a valid vote
-        vm.assume(_voteOptions.sum() <= _mintQty);
+        // we want this to be an otherwise valid vote
+        if (_voteOptions.sum() > _mintQty) {
+            _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
+        }
         vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls
@@ -183,19 +198,22 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
     // works even if a user has transferred voting power after the startTs
     function testFuzz_canVoteIfHasEnoughVotingPowerAfterTransferAndValidTs(
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         address _voter,
         uint32 _warpTo,
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
 
         // we want this to be a valid vote
-        vm.assume(_voteOptions.sum() <= _mintQty);
+        if (_voteOptions.sum() > _mintQty) {
+            _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
+        }
         vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls

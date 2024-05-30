@@ -55,7 +55,6 @@ library ProposalIdCodec {
             uint32 blockSnapshotTimestamp
         )
     {
-        // shift out the redundant bits then cast to the correct type
         plugin = getPlugin(_proposalId);
         startTimestamp = getStartTimestamp(_proposalId);
         endtimestamp = getEndTimestamp(_proposalId);
@@ -91,5 +90,13 @@ library ProposalIdCodec {
     /// @return The block snapshot timestamp from a proposal ID.
     function getBlockSnapshotTimestamp(uint256 _proposalId) internal pure returns (uint32) {
         return uint32(_proposalId);
+    }
+
+    /// @return True if the proposal is open for voting at the given block timestamp.
+    /// @dev TODO ERC20 votes requires > _startTs - I think this is different to the block but need to check
+    function isOpen(uint256 _proposalId, uint32 _blockTimestamp) internal pure returns (bool) {
+        return
+            getStartTimestamp(_proposalId) < _blockTimestamp &&
+            _blockTimestamp < getEndTimestamp(_proposalId);
     }
 }

@@ -13,7 +13,7 @@ import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
 
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 
 import "utils/converters.sol";
@@ -37,6 +37,7 @@ import "forge-std/console2.sol";
 /// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
 contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     using OptionsBuilder for bytes;
+    using ProposalIdCodec for uint256;
     using TallyMath for Tally;
     using SafeCast for uint256;
 
@@ -279,14 +280,13 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         Tally memory _voteOptions
     ) public view returns (bool) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        (, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(_proposalId);
-        if (!_isProposalOpen(startTimestamp, endTimestamp)) return false;
+        if (!isProposalOpen(_proposalId)) return false;
 
         // the user is trying to vote with zero votes
         if (_voteOptions.isZero()) return false;
 
         // this could re-enter with a malicious governance token
-        uint256 votingPower = token.getPastVotes(_voter, startTimestamp);
+        uint256 votingPower = token.getPastVotes(_voter, _proposalId.getBlockSnapshotTimestamp());
 
         // the user has insufficient voting power to vote
         if (_totalVoteWeight(_voteOptions) > votingPower) return false;
@@ -317,17 +317,9 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// Note that we do not have any information in this implementation that validates if the proposal has already
     /// been executed. This remains the responsibility of the DAO and User.
     function isProposalOpen(uint256 _proposalId) public view returns (bool) {
-        (, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(_proposalId);
-        return _isProposalOpen(startTimestamp, endTimestamp);
-    }
-
-    /// @dev Checks the timestamps passed by destructuring the proposal ID to see if the proposal is open.
-    function _isProposalOpen(uint32 _startTs, uint32 _endTs) internal view virtual returns (bool) {
         // overflow check seems redundant but L2s sometimes have unique rules and edge cases
         uint32 currentTime = block.timestamp.toUint32();
-
-        // TODO: ERC20 votes requires > _startTs - I think this is different to the block but need to check
-        return _startTs < currentTime && currentTime < _endTs;
+        return _proposalId.isOpen(currentTime);
     }
 
     /// @return The sums of the votes in a Voting Tally.

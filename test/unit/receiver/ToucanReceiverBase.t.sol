@@ -9,7 +9,7 @@ import {GovernanceERC20} from "src/token/governance/GovernanceERC20.sol";
 import {ToucanReceiver, IToucanReceiverEvents} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
-import {Test} from "forge-std/Test.sol";
+import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
@@ -18,7 +18,7 @@ import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
 import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanVoting} from "utils/deployers.sol";
 
 /// @dev single chain testing for the relay
-contract ToucanReceiverBaseTest is Test, IVoteContainer, IToucanReceiverEvents {
+contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverEvents {
     GovernanceERC20 token;
     MockLzEndpointMinimal lzEndpoint;
     MockToucanReceiver receiver;
@@ -106,16 +106,4 @@ contract ToucanReceiverBaseTest is Test, IVoteContainer, IToucanReceiverEvents {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- HELPERS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    function _warpToValidTs(uint256 _proposalId, uint256 _warpTo) internal {
-        (, uint32 _startTs, uint32 _endTs, ) = ProposalIdCodec.decode(_proposalId);
-
-        // assume that the startTs is less than the block ts we will move to
-        vm.assume(_startTs < _warpTo);
-
-        // assume that the endTs is greater than the block ts we will move to
-        vm.assume(_endTs > _warpTo);
-
-        vm.warp(_warpTo);
-    }
 }

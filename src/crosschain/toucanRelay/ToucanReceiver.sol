@@ -10,6 +10,7 @@ import {IMajorityVotingV2, IMajorityVoting} from "@interfaces/IMajorityVoting.so
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {OApp} from "@lz-oapp/OApp.sol";
 import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
 
@@ -50,6 +51,8 @@ interface IToucanReceiverEvents {
 /// This is intentional in the event of future upgrades that may mandate sending cross chain data.
 contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, Sweeper {
     using TallyMath for Tally;
+    using ProposalIdCodec for uint256;
+    using SafeCast for uint256;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- STATE ----------
@@ -245,15 +248,15 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// @param _proposalId The ID of the proposal to check. Should be fetched from the voting plugin.
     /// @dev Will check the plugin is the voting plugin and the timestamps are valid.
     function isProposalIdValid(uint256 _proposalId) public view returns (bool) {
-        (address plugin, uint32 startTimestamp, uint32 endTimestamp, ) = ProposalIdCodec.decode(
-            _proposalId
-        );
-
-        if (plugin != address(votingPlugin)) return false;
-        // TODO: ensure consistency with the voting plugin and toucan relay for strict equality checks
-        else if (block.timestamp <= startTimestamp) return false;
-        else if (block.timestamp >= endTimestamp) return false;
+        if (_proposalId.getPlugin() != address(votingPlugin)) return false;
+        else if (!isProposalOpen(_proposalId)) return false;
         else return true;
+    }
+
+    /// @notice Checks if a proposal is open for voting based on the current block timestamp.
+    function isProposalOpen(uint256 _proposalId) public view returns (bool) {
+        uint32 currentTime = block.timestamp.toUint32();
+        return _proposalId.isOpen(currentTime);
     }
 
     /// @notice Checks if this contract has had enough voting power delegated to accommodate the new votes.

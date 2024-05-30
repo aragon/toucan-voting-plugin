@@ -10,7 +10,7 @@ import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import "@libs/TallyMath.sol";
 
-import {Test} from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 
@@ -29,7 +29,7 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
     /// @param executionChainId randomised execution chain id for use in test
     /// @param proposalId randomised proposal id for use in test
     /// @param voter randomised voter address for use in test, must not be address(0)
-    /// @param warpTo timestamp to warp to
+    /// @param warpTo will be used to find a warp location between the start and end timestamps
     /// @param mintQty amount of governance tokens to mint to the voter
     /// @param voteOptions the combo of y/n/a votes to cast
     struct State {
@@ -43,7 +43,7 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
     // a single user can vote against 1 proposal
     function testFuzz_singleVoterSingleProposal(State memory _state) public {
-        _validateAndInitializeState(_state);
+        _validateStateAndWarp(_state);
 
         // vote
         vm.prank(_state.voter);
@@ -64,7 +64,7 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
     // the user can update their vote correctly
     function testFuzz_userCanUpdateVote(State memory _state) public {
-        _validateAndInitializeState(_state);
+        _validateStateAndWarp(_state);
 
         // vote
         vm.prank(_state.voter);
@@ -105,16 +105,11 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
     // multiple users can vote on the same proposal
     function testFuzz_multipleVotersSingleProposal(State memory _stateFirst) public {
-        // check this first to avoid later overflow
-        vm.assume(!_stateFirst.voteOptions.overflows());
-
-        // avoid overflows when both qtys get added
-        vm.assume(_stateFirst.mintQty <= type(uint216).max);
-        vm.assume(_stateFirst.voteOptions.sum() <= _stateFirst.mintQty);
-        vm.assume(_stateFirst.voteOptions.sum() > 0);
-
-        // ERC20 prevents minting to zero address
-        vm.assume(_stateFirst.voter != address(0));
+        // upper bound to ensure we don't overflow ERC20Votes with addition
+        if (_stateFirst.mintQty > type(uint208).max) {
+            _stateFirst.mintQty = type(uint208).max;
+        }
+        _validateState(_stateFirst);
 
         // make the second voter a valid transformation of the first
         State memory _stateSecond;
@@ -129,7 +124,6 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
             });
         }
 
-        token.mint({to: _stateFirst.voter, amount: _stateFirst.mintQty});
         token.mint({to: _stateSecond.voter, amount: _stateSecond.mintQty});
 
         _warpToValidTs(_stateFirst.proposalId, _stateFirst.warpTo);
@@ -173,9 +167,12 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         State memory _stateSecond
     ) public {
         // hard one to test many states - better for an invariant test most likely
+        console2.log("testFuzz_singleVoterMultipleProposals::pls implement me");
     }
 
-    function _validateAndInitializeState(State memory _state) internal {
+    function _validateState(State memory _state) internal {
+        _state.proposalId = _makeValidProposalIdFromSeed(_state.proposalId);
+
         // sum of votes must not overflow
         vm.assume(!_state.voteOptions.overflows());
 
@@ -183,11 +180,17 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         vm.assume(_state.voter != address(0));
 
         // we want this to be a valid vote
-        vm.assume(_state.voteOptions.sum() <= _state.mintQty);
+        if (_state.voteOptions.sum() > _state.mintQty) {
+            _state.voteOptions = Tally({yes: _state.mintQty, no: 0, abstain: 0});
+        }
         vm.assume(_state.voteOptions.sum() > 0);
 
         // note the order of the calls
         token.mint({to: _state.voter, amount: _state.mintQty});
+    }
+
+    function _validateStateAndWarp(State memory _state) internal {
+        _validateState(_state);
         _warpToValidTs(_state.proposalId, _state.warpTo);
     }
 

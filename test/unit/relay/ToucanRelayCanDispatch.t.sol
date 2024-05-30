@@ -10,7 +10,7 @@ import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import "@libs/TallyMath.sol";
 
-import {Test} from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
@@ -45,6 +45,7 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
             _executionChainId: _executionChainId
         });
         assertFalse(canDispatch);
+        assertFalse(relay.isProposalOpen(_proposalId));
     }
 
     function testFuzz_cannotDispatchAfterEnd(
@@ -66,14 +67,18 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
             _executionChainId: _executionChainId
         });
         assertFalse(canDispatch);
+        assertFalse(relay.isProposalOpen(_proposalId));
     }
 
     function testFuzz_cannotDispatchWithZeroWeight(
         uint256 _executionChainId,
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         uint32 _warpTo
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         _warpToValidTs(_proposalId, _warpTo);
+
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
         bool canDispatch = relay.canDispatch({
             _proposalId: _proposalId,
@@ -85,10 +90,11 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
     // check that we're checking the right chain against can dispatch
     function testFuzz_cannotDispatchIfZeroWeightFoundInIds(
         uint256 _executionChainId,
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         uint32 _warpTo,
         Tally memory _tally
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         // check that 0 < sum(tally) < uint256 max
         vm.assume(!_tally.overflows());
         vm.assume(_tally.sum() > 0);
@@ -102,10 +108,12 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
 
         // go to a valid time to dispatch
         _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
+        // we do this to allow wrap around without overflow
+        // we dont actually care about the value, just that it's not the same
         uint proposalIdPlusOne;
         uint executionIdPlusOne;
-
         unchecked {
             proposalIdPlusOne = _proposalId + 1;
             executionIdPlusOne = _executionChainId + 1;
@@ -135,10 +143,11 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
 
     function testFuzz_canDispatchIfData(
         uint256 _executionChainId,
-        uint256 _proposalId,
+        uint256 _proposalSeed,
         uint32 _warpTo,
         Tally memory _tally
     ) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         // check that 0 < sum(tally) < uint256 max
         vm.assume(!_tally.overflows());
         vm.assume(_tally.sum() > 0);
@@ -152,6 +161,7 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
 
         // go to a valid time to dispatch
         _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
         bool canDispatch = relay.canDispatch({
             _proposalId: _proposalId,

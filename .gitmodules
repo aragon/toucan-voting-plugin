@@ -1,7 +1,3 @@
-[submodule "lib/forge-std"]
-	branch = "v1"
-	path = "lib/forge-std"
-	url = "https://github.com/foundry-rs/forge-std"
 [submodule "lib/prb-test"]
 	branch = "release-v0"
 	path = lib/prb-test
@@ -34,3 +30,6 @@
 [submodule "lib/hardhat-deploy"]
 	path = lib/hardhat-deploy
 	url = https://github.com/wighawag/hardhat-deploy
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

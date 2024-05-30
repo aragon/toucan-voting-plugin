@@ -9,15 +9,16 @@ import {GovernanceERC20VotingChain} from "src/token/governance/GovernanceERC20Vo
 import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
-import {Test} from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 
+import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
 
 /// @dev single chain testing for the relay
-contract ToucanRelayBaseTest is Test, IVoteContainer {
+contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     GovernanceERC20VotingChain token;
     MockLzEndpointMinimal lzEndpoint;
     MockToucanRelay relay;
@@ -51,20 +52,4 @@ contract ToucanRelayBaseTest is Test, IVoteContainer {
     // test the chainId and with an override
 
     // test getVotes: should update correctly for execution chain id, proposal id and voter
-
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// -------- HELPERS --------
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    function _warpToValidTs(uint256 _proposalId, uint256 _warpTo) internal {
-        (, uint32 _startTs, uint32 _endTs, ) = ProposalIdCodec.decode(_proposalId);
-
-        // assume that the startTs is less than the block ts we will move to
-        vm.assume(_startTs < _warpTo);
-
-        // assume that the endTs is greater than the block ts we will move to
-        vm.assume(_endTs > _warpTo);
-
-        vm.warp(_warpTo);
-    }
 }
