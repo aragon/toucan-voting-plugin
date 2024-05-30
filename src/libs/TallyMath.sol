@@ -43,6 +43,19 @@ library TallyMath {
             });
     }
 
+    /// @return The product of a tally and a scalar inside a new tally.
+    function div(
+        IVoteContainer.Tally memory a,
+        uint256 divisor
+    ) internal pure returns (IVoteContainer.Tally memory) {
+        return
+            IVoteContainer.Tally({
+                yes: a.yes / divisor,
+                no: a.no / divisor,
+                abstain: a.abstain / divisor
+            });
+    }
+
     /// @return The difference of two tallies inside a new tally.
     /// @dev This can revert ib overflow if the total exceeds the maximum uint.
     function sum(IVoteContainer.Tally memory tally) public pure returns (uint) {

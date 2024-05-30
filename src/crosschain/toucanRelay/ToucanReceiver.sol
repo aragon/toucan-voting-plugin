@@ -20,6 +20,8 @@ import {Sweeper} from "src/crosschain/Sweeper.sol";
 
 import "forge-std/console2.sol";
 
+/// @notice Events emitted by the ToucanReceiver contract.
+/// @dev Separation of events makes for easier testing.
 interface IToucanReceiverEvents {
     /// @notice Emitted when the voting plugin is updated.
     event NewVotingPluginSet(address plugin, address caller);
@@ -220,7 +222,7 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
         proposalData.aggregateVotes = proposalData.aggregateVotes.sub(chainVotes);
 
         /// add the new vote to the aggregate
-        proposalData.aggregateVotes = proposalData.aggregateVotes.add(chainVotes);
+        proposalData.aggregateVotes = proposalData.aggregateVotes.add(_votes);
 
         /// update the chain vote
         chainVotes.abstain = _votes.abstain;
@@ -273,12 +275,17 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     ) public view virtual returns (bool) {
         uint256 snapshotBlock = getProposalBlockSnapshot(_proposalId);
 
-        // this proposal does not exist
-        // TODO: should this be false? or should we revert? Or just allow it?
+        // TODO: this is a naive check that assumes a valid snapshot block doesn't include genesis
+        // Maybe there are valid cases where the snapshot block is 0
         if (snapshotBlock == 0) return false;
 
         // check if adding the new votes will exceed the voting power when the snapshot was taken
+        // recall that the user must have balance at the snapshot block -1 to vote
         uint256 votingPowerAtStart = governanceToken.getPastVotes(address(this), snapshotBlock);
+
+        // skip further checks if there is no voting power
+        if (votingPowerAtStart == 0) return false;
+
         Tally memory currentAggregate = votes[_proposalId].aggregateVotes;
 
         uint256 additionalVotes = _votes.sum();

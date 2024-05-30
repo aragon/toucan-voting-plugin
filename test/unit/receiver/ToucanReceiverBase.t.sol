@@ -29,7 +29,6 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
         // reset timestamps and blocks
         vm.warp(0);
         vm.roll(0);
-
         lzEndpoint = new MockLzEndpointMinimal();
         dao = createTestDAO({_initialOwner: address(this)});
         GovernanceERC20.MintSettings memory emptyMintSettings = GovernanceERC20.MintSettings(
@@ -42,34 +41,26 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
             _dao: dao,
             _mintSettings: emptyMintSettings
         });
-
         // for testing, grant mint permission to this contract
         dao.grant({
             _who: address(this),
             _where: address(token),
             _permissionId: token.MINT_PERMISSION_ID()
         });
-
         plugin = deployMockToucanVoting();
-
         receiver = deployMockToucanReceiver({
             _governanceToken: address(token),
             _lzEndpoint: address(lzEndpoint),
             _dao: address(dao),
             _votingPlugin: address(plugin)
         });
+        // grant this contract the ability to manage the receiver
+        dao.grant({
+            _who: address(this),
+            _where: address(receiver),
+            _permissionId: receiver.RECEIVER_ADMIN_ID()
+        });
     }
-
-    // test the inital state is set including the events emitted
-
-    // test we can set the voting plugin, but only if we have permission
-
-    // test proposal id is valid
-    // plugin must equal the voting plugin
-    // timestamp must > start Ts
-    // timestamp must < end Ts
-    // INTEGRATION, we should check this lines up with toucanVoting
-    // otherwise it's considered true
 
     // test has enough voting power
     // if snapshot block is zero, false

@@ -11,5 +11,23 @@ contract MockToucanReceiver is ToucanReceiver {
         address _votingPlugin
     ) ToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
 
-    // no overriden methods yet
+    struct VotesByChain {
+        uint chainId;
+        Tally votes;
+    }
+
+    function setState(
+        uint _proposalId,
+        Tally memory aggregateVotes,
+        VotesByChain[] memory _votesByChain
+    ) public {
+        votes[_proposalId].aggregateVotes = aggregateVotes;
+        for (uint i = 0; i < _votesByChain.length; i++) {
+            votes[_proposalId].votesByChain[_votesByChain[i].chainId] = _votesByChain[i].votes;
+        }
+    }
+
+    function setAggregateVotes(uint _proposalId, Tally memory _aggregateVotes) public {
+        votes[_proposalId].aggregateVotes = _aggregateVotes;
+    }
 }

@@ -46,6 +46,9 @@ contract TestToucanReceiverProposalIds is ToucanReceiverBaseTest {
         // decode existing random proposal id
         uint32 startTs = _proposalId.getStartTimestamp();
 
+        // set the plugin to the voting plugin
+        receiver.setVotingPlugin(_proposalId.getPlugin());
+
         // assume that the startTs is greater than or equal the block ts we will move to
         vm.assume(startTs >= _warpTo);
 
@@ -58,6 +61,7 @@ contract TestToucanReceiverProposalIds is ToucanReceiverBaseTest {
     }
 
     function testFuzz_invalidProposalAfterEnd(uint256 _proposalId, uint32 _warpTo) public {
+        receiver.setVotingPlugin(_proposalId.getPlugin());
         // decode existing random proposal id
         uint32 _endTs = _proposalId.getEndTimestamp();
 
@@ -71,10 +75,18 @@ contract TestToucanReceiverProposalIds is ToucanReceiverBaseTest {
         assertFalse(valid);
         assertFalse(receiver.isProposalOpen(_proposalId));
     }
+
     // test proposal id is valid
-    // plugin must equal the voting plugin
-    // timestamp must > start Ts
-    // timestamp must < end Ts
-    // INTEGRATION, we should check this lines up with toucanVoting
-    // otherwise it's considered true
+    function testFuzz_validProposalId(uint256 _proposalSeed, uint32 _warpTo) public {
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        receiver.setVotingPlugin(_proposalId.getPlugin());
+
+        _warpToValidTs(_proposalId, _warpTo);
+        assertTrue(receiver.isProposalOpen(_proposalId));
+
+        bool valid = receiver.isProposalIdValid(_proposalId);
+        assertTrue(valid);
+    }
+
+    // TODO: INTEGRATION, we should check this lines up with toucanVoting
 }

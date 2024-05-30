@@ -12,7 +12,7 @@ contract ProposalIdCodecTest is Test {
         uint32 startTimestamp,
         uint32 endTimestamp,
         uint32 blockSnapshotTimestamp
-    ) public {
+    ) public pure {
         uint256 proposalId = ProposalIdCodec.encode(
             plugin,
             startTimestamp,
@@ -31,7 +31,7 @@ contract ProposalIdCodecTest is Test {
         uint32 startTimestamp,
         uint32 endTimestamp,
         uint32 blockSnapshotTimestamp
-    ) public {
+    ) public pure {
         uint256 proposalId = ProposalIdCodec.encode(
             plugin,
             startTimestamp,
@@ -57,7 +57,7 @@ contract ProposalIdCodecTest is Test {
         uint32 startTimestamp,
         uint32 endTimestamp,
         uint32 blockSnapshotTimestamp
-    ) public {
+    ) public pure {
         uint256 proposalId = ProposalIdCodec.encode(
             plugin,
             startTimestamp,
@@ -71,5 +71,37 @@ contract ProposalIdCodecTest is Test {
         assertEq(proposalStruct.startTimestamp, startTimestamp);
         assertEq(proposalStruct.endTimestamp, endTimestamp);
         assertEq(proposalStruct.blockSnapshotTimestamp, blockSnapshotTimestamp);
+    }
+
+    function testIsOpen(
+        address plugin,
+        uint32 startTimestamp,
+        uint32 endTimestamp,
+        uint32 blockSnapshotTimestamp,
+        uint32 warpTo
+    ) public pure {
+        uint256 proposalId = ProposalIdCodec.encode(
+            plugin,
+            startTimestamp,
+            endTimestamp,
+            blockSnapshotTimestamp
+        );
+
+        vm.assume(startTimestamp > 0);
+        vm.assume(endTimestamp < type(uint32).max);
+
+        assert(!proposalId.isOpen(warpTo));
+
+        warpTo = startTimestamp - 1;
+        assert(!proposalId.isOpen(warpTo));
+
+        warpTo = startTimestamp;
+        assert(proposalId.isOpen(warpTo));
+
+        warpTo = endTimestamp;
+        assert(proposalId.isOpen(warpTo));
+
+        warpTo = endTimestamp + 1;
+        assert(!proposalId.isOpen(warpTo));
     }
 }

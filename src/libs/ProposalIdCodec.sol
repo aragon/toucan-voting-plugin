@@ -72,6 +72,10 @@ library ProposalIdCodec {
         return ProposalId(plugin, startTimestamp, endTimestamp, blockSnapshotTimestamp);
     }
 
+    function fromStruct(ProposalId memory pid) internal pure returns (uint256) {
+        return encode(pid.plugin, pid.startTimestamp, pid.endTimestamp, pid.blockSnapshotTimestamp);
+    }
+
     /// @return The plugin address from a proposal ID.
     function getPlugin(uint256 _proposalId) internal pure returns (address) {
         return address(uint160(_proposalId >> 96));
