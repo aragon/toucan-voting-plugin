@@ -1,7 +1,7 @@
 pragma solidity ^0.8.20;
 
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {GovernanceOFTAdapter} from "src/crosschain/GovernanceOFTAdapter.sol";
+import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 
 /// simple mock for OFT adapter in the case that you dpn't want to actually
 /// send to layer zero, but want to call the send function

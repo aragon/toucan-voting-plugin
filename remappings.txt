@@ -19,6 +19,10 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 @mocks/=test/mocks/
 @libs/=src/libs/
 
+@voting-chain/=src/voting-chain/
+@execution-chain/=src/execution-chain/
+
+
 @lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
 @lz-oapp-test/=lib/LayerZero-v2/oapp/test/
 @lz-oft/=lib/LayerZero-v2/oapp/contracts/oft/

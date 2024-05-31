@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.20;
 
-import {ToucanRelay} from "src/crosschain/toucanRelay/ToucanRelay.sol";
-import {ToucanReceiver} from "src/crosschain/toucanRelay/ToucanReceiver.sol";
+import {ToucanRelay} from "src/voting-chain/crosschain/ToucanRelay.sol";
+import {ToucanReceiver} from "src/execution-chain/crosschain/ToucanReceiver.sol";
 import {MockToucanRelay} from "test/mocks/MockToucanRelay.sol";
 import {MockToucanReceiver} from "test/mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "test/mocks/MockToucanVoting.sol";
