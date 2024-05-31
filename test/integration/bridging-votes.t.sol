@@ -67,7 +67,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         relay.dispatchVotes{value: params.fee.nativeFee}(proposalId, params);
 
         // check the votes on the dst
-        Tally memory aggregateVotes = receiver.getAggregateVotes(proposalId);
+        Tally memory aggregateVotes = receiver.votes(proposalId);
 
         assertEq(aggregateVotes.abstain, 0, "abstentions should be 0");
         assertEq(aggregateVotes.yes, 0, "yes votes should be 0");
@@ -77,7 +77,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         verifyPackets(EID_EXECUTION_CHAIN, address(receiver));
 
         // check the votes on the dst
-        aggregateVotes = receiver.getAggregateVotes(proposalId);
+        aggregateVotes = receiver.votes(proposalId);
 
         assertEq(aggregateVotes.abstain, abstentions, "abstentions wrong");
         assertEq(aggregateVotes.yes, yesVotes, "yes votes wrong");

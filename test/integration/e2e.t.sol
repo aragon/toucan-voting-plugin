@@ -229,7 +229,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         // check that the state in the receiver is updated correctly
         {
-            IVoteContainer.Tally memory p = receiver.getAggregateVotes(proposal);
+            IVoteContainer.Tally memory p = receiver.votes(proposal);
             assertEq(p.yes, 50 ether, "proposal should have 50 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -396,6 +396,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         );
         // deploy and return the proxy
         address deployed = base.deployUUPSProxy(data);
+
         return ToucanVoting(deployed);
     }
 

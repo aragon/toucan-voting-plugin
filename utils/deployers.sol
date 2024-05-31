@@ -2,11 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {ToucanRelay} from "src/voting-chain/crosschain/ToucanRelay.sol";
+import {ToucanRelayUpgradeable} from "src/voting-chain/crosschain/ToucanRelayUpgradeable.sol";
 import {ToucanReceiver} from "src/execution-chain/crosschain/ToucanReceiver.sol";
 import {MockToucanRelay} from "test/mocks/MockToucanRelay.sol";
+import {MockToucanRelayUpgradeable} from "test/mocks/MockToucanRelay.sol";
 import {MockToucanReceiver} from "test/mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "test/mocks/MockToucanVoting.sol";
 import {GovernanceOFTAdapter} from "src/execution-chain/crosschain/GovernanceOFTAdapter.sol";
+import {ProxyLib} from "lib/osx-commons/contracts/src/utils/deployment/ProxyLib.sol";
 
 /// adding deployers behind free functions allows us to change proxy patterns easily
 
@@ -22,8 +25,19 @@ function deployMockToucanRelay(
     address _token,
     address _lzEndpoint,
     address _dao
-) returns (MockToucanRelay) {
-    return new MockToucanRelay({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
+) returns (MockToucanRelayUpgradeable) {
+    // deploy implementation
+    address base = address(new MockToucanRelayUpgradeable());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(
+        ToucanRelayUpgradeable.initialize,
+        (_token, _lzEndpoint, _dao)
+    );
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return MockToucanRelayUpgradeable(deployed);
+
+    // return new MockToucanRelay({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
 }
 
 function deployToucanReceiver(

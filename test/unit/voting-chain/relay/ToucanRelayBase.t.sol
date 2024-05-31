@@ -6,13 +6,13 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
-import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
+import {ToucanRelayUpgradeable as ToucanRelay} from "@voting-chain/crosschain/ToucanRelayUpgradeable.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
-import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
+import {MockToucanRelayUpgradeable} from "@mocks/MockToucanRelay.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
@@ -21,7 +21,7 @@ import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
 contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     GovernanceERC20VotingChain token;
     MockLzEndpointMinimal lzEndpoint;
-    MockToucanRelay relay;
+    MockToucanRelayUpgradeable relay;
     DAO dao;
 
     function setUp() public virtual {
