@@ -30,7 +30,7 @@ import "forge-std/console2.sol";
 ///
 /// On the voting chain we have a few requirements:
 /// 1. User can vote and this will be aggregated.
-/// 2. We can dispatch the votes to the execution chain
+/// 2. We can dispatch the votes to a single execution chain
 /// 3. User can change their vote (if the proposal has not ended)
 /// 4. We can split a user's vote across y/n/a
 /// 5. Users can partial vote
@@ -68,27 +68,34 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @notice The voting token used by the relay. Must use a timestamp based clock on the voting chain.
     IVotes public token;
 
-    /// @notice The proposals are stored in a nested mapping by execution chain and proposal ID.
-    /// @dev TODO: whether or not we should store against the layerZero EID instead of the execution chain ID.
-    mapping(uint256 executionChainId => mapping(uint256 proposalId => Proposal)) public proposals;
+    /// @notice The proposals are stored in a nested mapping by  proposal ID.
+    /// @dev This relies on a critical assumption of a single execution chain.
+    mapping(uint256 proposalId => Proposal) public proposals;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @notice Thrown if this OAapp cannot receive messages.
-    error CannotReceive();
+    /// @notice Enumerable error codes to avoid reverting view functions but still provide context.
+    /// @param None No error occurred.
+    /// @param ProposalNotOpen The proposal is not open for voting.
+    /// @param ZeroVotes The user is trying to vote with zero votes.
+    /// @param InsufficientVotingPower The user has insufficient voting power to vote.
+    enum ErrReason {
+        None,
+        ProposalNotOpen,
+        ZeroVotes,
+        InsufficientVotingPower
+    }
 
     /// @notice Thrown if the voter fails the `canVote` check during the voting process.
-    error CannotVote(
-        uint256 executionChainId,
-        uint256 proposalId,
-        address voter,
-        Tally voteOptions
-    );
+    error CannotVote(uint256 proposalId, address voter, Tally voteOptions, ErrReason reason);
 
     /// @notice Thrown if the votes cannot be dispatched according to `canDispatch`.
-    error CannotDispatch(uint256 executionChainId, uint256 proposalId);
+    error CannotDispatch(uint256 proposalId, ErrReason reason);
+
+    /// @notice Thrown if this OAapp cannot receive messages.
+    error CannotReceive();
 
     /// @notice Thrown if the token address is zero.
     error InvalidToken();
@@ -98,19 +105,10 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Emitted when a voter successfully casts a vote on a proposal.
-    event VoteCast(
-        uint256 indexed executionChainId,
-        uint256 indexed proposalId,
-        address voter,
-        Tally voteOptions
-    );
+    event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
 
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
-    event VotesDispatched(
-        uint256 indexed executionChainId,
-        uint256 indexed proposalId,
-        Tally votes
-    );
+    event VotesDispatched(uint256 indexed proposalId, Tally votes);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- MODIFIERS --------
@@ -149,27 +147,16 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Anyone with a voting token that has voting power can vote on a proposal.
-    /// @param _executionChainId The chain ID where the proposal will be executed.
     /// @param _proposalId The proposal ID to vote on. Must be fetched from the Execution Chain
     /// as it is not validated here.
     /// @param _voteOptions Votes split between yes no and abstain up to the voter's total voting power.
-    function vote(
-        uint256 _executionChainId,
-        uint256 _proposalId,
-        Tally calldata _voteOptions
-    ) external noReentrant {
+    function vote(uint256 _proposalId, Tally calldata _voteOptions) external noReentrant {
         // check that the user can actually vote given their voting power and the proposal
-        if (!canVote(_proposalId, msg.sender, _voteOptions)) {
-            revert CannotVote({
-                executionChainId: _executionChainId,
-                proposalId: _proposalId,
-                voter: msg.sender,
-                voteOptions: _voteOptions
-            });
-        }
+        (bool success, ErrReason e) = canVote(_proposalId, msg.sender, _voteOptions);
+        if (!success) revert CannotVote(_proposalId, msg.sender, _voteOptions, e);
 
         // get the proposal data
-        Proposal storage proposal = proposals[_executionChainId][_proposalId];
+        Proposal storage proposal = proposals[_proposalId];
         Tally storage lastVote = proposal.voters[msg.sender];
 
         // revert the last vote, doesn't matter if user hasn't voted before
@@ -184,32 +171,24 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         lastVote.yes = _voteOptions.yes;
         lastVote.no = _voteOptions.no;
 
-        emit VoteCast({
-            executionChainId: _executionChainId,
-            proposalId: _proposalId,
-            voter: msg.sender,
-            voteOptions: _voteOptions
-        });
+        emit VoteCast({proposalId: _proposalId, voter: msg.sender, voteOptions: _voteOptions});
     }
 
     /// @notice This function will take the votes for a given proposal ID and dispatch them to the execution chain.
-    /// @param _executionChainId The chain ID where the proposal will be executed.
     /// @param _proposalId The proposal ID to dispatch the votes for.
     /// @param _params Additional parameters required to send the message cross chain.
     /// @dev _params can be constructed using the `quote` function or defined manually.
     /// @dev This is a payable function. The msg.value should be set to the fee.
     function dispatchVotes(
-        uint256 _executionChainId,
         uint256 _proposalId,
         LzSendParams memory _params
     ) external payable noReentrant {
         // check if we can dispatch the votes
-        if (!canDispatch({_executionChainId: _executionChainId, _proposalId: _proposalId})) {
-            revert CannotDispatch({executionChainId: _executionChainId, proposalId: _proposalId});
-        }
+        (bool success, ErrReason e) = canDispatch(_proposalId);
+        if (!success) revert CannotDispatch(_proposalId, e);
 
         // get the votes and encode the message
-        Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
+        Tally memory proposalVotes = proposals[_proposalId].tally;
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
@@ -224,11 +203,7 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         // dispatch the votes via the lz endpoint
         _lzSend(_params.dstEid, message, _params.options, _params.fee, refund);
 
-        emit VotesDispatched({
-            executionChainId: _executionChainId,
-            proposalId: _proposalId,
-            votes: proposalVotes
-        });
+        emit VotesDispatched({proposalId: _proposalId, votes: proposalVotes});
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -236,7 +211,6 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Quotes the total gas fee to dispatch the votes cross chain.
-    /// @param _executionChainId The EVM chain ID of the destination chain.
     /// @param _proposalId Proposal ID of a current proposal. Is used to fetch vote data.
     /// @param _dstEid LayerZero Endpoint ID for the execution chain.
     /// @param _gasLimit Total additional gas required for operations on the execution chain.
@@ -244,12 +218,11 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     /// @return params The additional parameters required to be sent with the cross chain message.
     /// @dev These can be manually constructed but the defaults provided save some boilerplate.
     function quote(
-        uint256 _executionChainId,
         uint256 _proposalId,
         uint32 _dstEid,
         uint128 _gasLimit
     ) external view returns (LzSendParams memory params) {
-        Proposal storage proposal = proposals[_executionChainId][_proposalId];
+        Proposal storage proposal = proposals[_proposalId];
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
@@ -278,39 +251,36 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         uint256 _proposalId,
         address _voter,
         Tally memory _voteOptions
-    ) public view returns (bool) {
+    ) public view returns (bool, ErrReason) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        if (!isProposalOpen(_proposalId)) return false;
+        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
 
         // the user is trying to vote with zero votes
-        if (_voteOptions.isZero()) return false;
+        if (_voteOptions.isZero()) return (false, ErrReason.ZeroVotes);
 
         // this could re-enter with a malicious governance token
         uint256 votingPower = token.getPastVotes(_voter, _proposalId.getBlockSnapshotTimestamp());
 
         // the user has insufficient voting power to vote
-        if (_totalVoteWeight(_voteOptions) > votingPower) return false;
+        if (_totalVoteWeight(_voteOptions) > votingPower)
+            return (false, ErrReason.InsufficientVotingPower);
 
         // At the moment, we always allow vote replacement. This could be changed in the future.
-        return true;
+        return (true, ErrReason.None);
     }
 
     /// @notice Checks if the votes for a proposal can be dispatched cross chain.
-    /// @param _executionChainId The chain ID where the proposal will be executed.
     /// @param _proposalId The proposal ID to check.
     /// @return Whether a proposal is open and has votes to dispatch.
-    function canDispatch(
-        uint256 _executionChainId,
-        uint256 _proposalId
-    ) public view returns (bool) {
+    function canDispatch(uint256 _proposalId) public view returns (bool, ErrReason) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        if (!isProposalOpen(_proposalId)) return false;
+        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
 
         // check that there are votes to dispatch
-        Tally memory proposalVotes = proposals[_executionChainId][_proposalId].tally;
-        if (proposalVotes.isZero()) return false;
+        Tally memory proposalVotes = proposals[_proposalId].tally;
+        if (proposalVotes.isZero()) return (false, ErrReason.ZeroVotes);
 
-        return true;
+        return (true, ErrReason.None);
     }
 
     /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal ID.
@@ -343,14 +313,10 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
         return bytes32ToAddress(peers[_dstEid.toUint32()]);
     }
 
-    /// @return Vote data for a given execution chain, proposal and voter.
+    /// @return Vote data for a given proposal and voter.
     /// @dev Required due to nested mappings in the proposal struct.
-    function getVotes(
-        uint256 _executionChainId,
-        uint256 _proposalId,
-        address _voter
-    ) external view returns (Tally memory) {
-        return proposals[_executionChainId][_proposalId].voters[_voter];
+    function getVotes(uint256 _proposalId, address _voter) external view returns (Tally memory) {
+        return proposals[_proposalId].voters[_voter];
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
