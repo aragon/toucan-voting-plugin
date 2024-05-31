@@ -21,10 +21,12 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 
 @voting-chain/=src/voting-chain/
 @execution-chain/=src/execution-chain/
+@oapp-upgradeable/=src/oapp-upgradeable/
 
 
 @lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
 @lz-oapp-test/=lib/LayerZero-v2/oapp/test/
+@lz-oapp-precrime/=lib/LayerZero-v2/oapp/contracts/precrime/
 @lz-oft/=lib/LayerZero-v2/oapp/contracts/oft/
 @layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
 @layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/

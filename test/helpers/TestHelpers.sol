@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 contract TestHelpers is Test {
+    address constant OSX_ANY_ADDR = address(type(uint160).max);
+
     /// @dev forge will revert tests with large numbers of failed runs during fuzzing. This also
     /// hurts performance. If you find that you are getting a lot of failed runs, you can use this
     /// to ensure that the proposal id encodes a valid sequence of timestamps.

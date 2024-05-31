@@ -68,10 +68,6 @@ contract TestExecutionChainDelegation is Test {
         adapter.delegate(address(receiver));
     }
 
-    function test_canDelegateVotes() public {
-        // assertEq(receiver.isDelegate(address(adapter)), true, "receiver should be a delegate");
-    }
-
     // test that the voting power of the receiver is correctly updated
     // when tokens are sent to the adapter
     function test_delegatedBalanceUpdatesCorrectly() public {

@@ -333,13 +333,6 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
         return votes[_proposalId].votesByChain[_votingChainId];
     }
 
-    /// @notice Fetches the latest aggregate votes for a proposal across all voting chains.
-    /// @param _proposalId The ID of the proposal from the execution chain.
-    /// @dev This requires that the votes have been received and stored, and may not be up to date.
-    function getAggregateVotes(uint256 _proposalId) public view returns (Tally memory) {
-        return votes[_proposalId].aggregateVotes;
-    }
-
     /// @notice Get the snapshot block for a proposal from the voting plugin.
     /// @return The snapshot block number or 0 if the proposal does not exist.
     function getProposalBlockSnapshot(uint256 _proposalId) public view virtual returns (uint256) {

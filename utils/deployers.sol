@@ -6,6 +6,7 @@ import {ToucanReceiver} from "src/execution-chain/crosschain/ToucanReceiver.sol"
 import {MockToucanRelay} from "test/mocks/MockToucanRelay.sol";
 import {MockToucanReceiver} from "test/mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "test/mocks/MockToucanVoting.sol";
+import {GovernanceOFTAdapter} from "src/execution-chain/crosschain/GovernanceOFTAdapter.sol";
 
 /// adding deployers behind free functions allows us to change proxy patterns easily
 
@@ -57,4 +58,19 @@ function deployMockToucanReceiver(
 
 function deployMockToucanVoting() returns (MockToucanVoting) {
     return new MockToucanVoting();
+}
+
+function deployGovernanceOFTAdapter(
+    address _token,
+    address _voteProxy,
+    address _lzEndpoint,
+    address _dao
+) returns (GovernanceOFTAdapter) {
+    return
+        new GovernanceOFTAdapter({
+            _token: _token,
+            _voteProxy: _voteProxy,
+            _lzEndpoint: _lzEndpoint,
+            _dao: _dao
+        });
 }

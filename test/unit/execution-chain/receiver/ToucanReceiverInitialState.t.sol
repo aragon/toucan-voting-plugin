@@ -20,8 +20,6 @@ import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
-    address constant OSX_ANY_ADDR = address(type(uint160).max);
-
     function setUp() public override {
         super.setUp();
     }

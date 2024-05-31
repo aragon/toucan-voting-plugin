@@ -9,35 +9,27 @@ import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth
 
 /// @title GovernanceOFTAdapter
 /// @author Aragon
-/// @notice locks and unlocks a governance token to allow it to be bridged to another network
+/// @notice Locks and unlocks a governance token to allow it to be bridged to another network
+/// @dev This contract must be a singleton for the entire crosschain system and deployed
+/// On the execution chain. It can delegate votes to other contracts to allow bridged tokens
+/// to still be used for voting via cross chain messages.
 /// @dev TODO: this can be made into a proxy contract (clone) to save gas
-/// @dev TODO: decide if we want to add DAO_AUTHORIZABLE to the contract
-///      to do this we will need to reach into the OFT contract and review
-///      if its safe to make it a proxy with the constructor initialization
-/// @dev TODO: the delegation wrapper:
-///
 contract GovernanceOFTAdapter is OFTAdapter, DaoAuthorizable {
+    /// @notice Grants the ability to change the delegated voting address on this network for all bridged tokens.
     bytes32 public constant SET_CROSSCHAIN_DELEGATE_ID = keccak256("SET_CROSSCHAIN_DELEGATE");
 
-    /// @param _token the governance token to be locked, should be a governance ERC20
-    /// @param _voteProxy the vote proxy contract that will be the delegate of the governance token
-    /// @dev   should be the receiving contract on this chain that will relay votes to voting plugins
-    /// @dev   if set to address(0) will self delegate which will prevent crosschain votes from being counted
-    ///        without modification to the contract
-    /// @param _lzEndpoint the endpoint of the LayerZero network on this network
-    /// @param _dao the DAO that will be the owner of the adapter
+    /// @param _token The governance token to be locked, should allow for delegation.
+    /// @param _voteProxy The vote proxy contract on this network
+    /// that will receive the voting power of the locked tokens.
+    /// @param _lzEndpoint The endpoint of the LayerZero network on this network.
+    /// @param _dao The DAO that will be the owner of this contract.
     constructor(
         address _token,
         address _voteProxy,
         address _lzEndpoint,
-        /* todo rename to delegate to be consistent */
         address _dao
     ) OFTAdapter(_token, _lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
-        // self delegate if no vote proxy is set
-        // warning: this contract has no way of voting, so this prevents crosschain votes being counted
-        // until the vote proxy is set
-        address delegateAddress = _voteProxy == address(0) ? address(this) : _voteProxy;
-        _delegate(delegateAddress);
+        _delegate(_voteProxy);
     }
 
     // /// @notice overrides the default behavior of 6 decimals as we only use EVM chains
@@ -46,11 +38,13 @@ contract GovernanceOFTAdapter is OFTAdapter, DaoAuthorizable {
     //     return 18;
     // }
 
-    /// here we can allow delegation to a vote proxy contract
+    /// @notice Delegates the voting power of the locked tokens to another address.
+    /// @param _to The address to delegate the voting power to.
     function delegate(address _to) public auth(SET_CROSSCHAIN_DELEGATE_ID) {
         _delegate(_to);
     }
 
+    /// @dev Internal function to allow bypassing the auth modifier.
     function _delegate(address _to) internal {
         IVotes(address(innerToken)).delegate(_to);
     }
