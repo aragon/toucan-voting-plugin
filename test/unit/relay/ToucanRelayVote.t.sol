@@ -26,14 +26,12 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         super.setUp();
     }
 
-    /// @param executionChainId randomised execution chain id for use in test
     /// @param proposalId randomised proposal id for use in test
     /// @param voter randomised voter address for use in test, must not be address(0)
     /// @param warpTo will be used to find a warp location between the start and end timestamps
     /// @param mintQty amount of governance tokens to mint to the voter
     /// @param voteOptions the combo of y/n/a votes to cast
     struct State {
-        uint256 executionChainId;
         uint256 proposalId;
         address voter;
         uint32 warpTo;
@@ -47,18 +45,14 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
         // vote
         vm.prank(_state.voter);
-        relay.vote(_state.executionChainId, _state.proposalId, _state.voteOptions);
+        relay.vote(_state.proposalId, _state.voteOptions);
 
         // check the vote
-        Tally memory votes = relay.getVotes(
-            _state.executionChainId,
-            _state.proposalId,
-            _state.voter
-        );
+        Tally memory votes = relay.getVotes(_state.proposalId, _state.voter);
         assert(votes.eq(_state.voteOptions));
 
         // check the proposal
-        Tally memory proposalVotes = relay.proposals(_state.executionChainId, _state.proposalId);
+        Tally memory proposalVotes = relay.proposals(_state.proposalId);
         assert(proposalVotes.eq(_state.voteOptions));
     }
 
@@ -68,18 +62,14 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
         // vote
         vm.prank(_state.voter);
-        relay.vote(_state.executionChainId, _state.proposalId, _state.voteOptions);
+        relay.vote(_state.proposalId, _state.voteOptions);
 
         // check the vote
-        Tally memory votes = relay.getVotes(
-            _state.executionChainId,
-            _state.proposalId,
-            _state.voter
-        );
+        Tally memory votes = relay.getVotes(_state.proposalId, _state.voter);
         assert(votes.eq(_state.voteOptions));
 
         // check the proposal
-        Tally memory proposalVotes = relay.proposals(_state.executionChainId, _state.proposalId);
+        Tally memory proposalVotes = relay.proposals(_state.proposalId);
         assert(proposalVotes.eq(_state.voteOptions));
 
         // update the vote, must ensure same voting power
@@ -92,14 +82,14 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
         // vote
         vm.prank(_state.voter);
-        relay.vote(_state.executionChainId, _state.proposalId, newVoteOptions);
+        relay.vote(_state.proposalId, newVoteOptions);
 
         // check the vote
-        votes = relay.getVotes(_state.executionChainId, _state.proposalId, _state.voter);
+        votes = relay.getVotes(_state.proposalId, _state.voter);
         assert(votes.eq(newVoteOptions));
 
         // check the proposal
-        proposalVotes = relay.proposals(_state.executionChainId, _state.proposalId);
+        proposalVotes = relay.proposals(_state.proposalId);
         assert(proposalVotes.eq(newVoteOptions));
     }
 
@@ -130,33 +120,22 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
 
         // vote person A
         vm.prank(_stateFirst.voter);
-        relay.vote(_stateFirst.executionChainId, _stateFirst.proposalId, _stateFirst.voteOptions);
+        relay.vote(_stateFirst.proposalId, _stateFirst.voteOptions);
 
         // vote person B
         vm.prank(_stateSecond.voter);
-        relay.vote(_stateFirst.executionChainId, _stateFirst.proposalId, _stateSecond.voteOptions);
+        relay.vote(_stateFirst.proposalId, _stateSecond.voteOptions);
 
         // check the vote person A
-        Tally memory votesA = relay.getVotes(
-            _stateFirst.executionChainId,
-            _stateFirst.proposalId,
-            _stateFirst.voter
-        );
+        Tally memory votesA = relay.getVotes(_stateFirst.proposalId, _stateFirst.voter);
         assert(votesA.eq(_stateFirst.voteOptions));
 
         // check the vote person B - note that we use state A for ids
-        Tally memory votesB = relay.getVotes(
-            _stateFirst.executionChainId,
-            _stateFirst.proposalId,
-            _stateSecond.voter
-        );
+        Tally memory votesB = relay.getVotes(_stateFirst.proposalId, _stateSecond.voter);
         assert(votesB.eq(_stateSecond.voteOptions));
 
         // the proposal should have the sum of the votes
-        Tally memory actualProposalVotes = relay.proposals(
-            _stateFirst.executionChainId,
-            _stateFirst.proposalId
-        );
+        Tally memory actualProposalVotes = relay.proposals(_stateFirst.proposalId);
         Tally memory expectedProposalVotes = _stateFirst.voteOptions.add(_stateSecond.voteOptions);
         assert(actualProposalVotes.eq(expectedProposalVotes));
     }

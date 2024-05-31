@@ -108,13 +108,14 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
 
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
+    /// TODO Unit tests for the events
     event VotesDispatched(uint256 indexed proposalId, Tally votes);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- MODIFIERS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @dev can probably replace this with OZ
+    /// @dev TODO replace this with OZ
     bool public guard = false;
 
     error NoReentrant();

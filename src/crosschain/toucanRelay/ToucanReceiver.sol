@@ -38,7 +38,7 @@ interface IToucanReceiverEvents {
         uint256 votingChainId,
         uint256 proposalId,
         IVoteContainer.Tally votes,
-        bytes reason
+        bytes revertData
     );
 }
 
@@ -84,14 +84,31 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// ---------- ERRORS ---------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    /// @notice Error codes to be returned inside view functions to avoid reverting.
+    /// @param None No error.
+    /// @param ZeroVotes No votes were found for the proposal.
+    /// @param InvalidProposalId The proposal ID is invalid (ususally it is not open).
+    /// @param InsufficientVotingPower The receiver does not have enough voting power to receive the votes.
+    enum ErrReason {
+        None,
+        ZeroVotes,
+        InvalidProposalId,
+        InsufficientVotingPower
+    }
+
+    /// @notice Thrown if the receiver cannot receive votes for a proposal and thus cannot adjust the vote.
+    error CannotReceiveVotes(
+        uint256 votingChainId,
+        uint256 proposalId,
+        Tally votes,
+        ErrReason reason
+    );
+
     /// @notice Thrown if one of the sliced elements of the proposal ID invalidates the ID.
     error InvalidProposalId(uint256 proposalId);
 
     /// @notice Thrown if trying to submit votes to the plugin but there are no votes.
     error NoVotesToSubmit(uint256 proposalId);
-
-    /// @notice Thrown if the receiver cannot receive votes for a proposal and thus cannot adjust the vote.
-    error CannotReceiveVotes(uint256 votingChainId, uint256 proposalId, Tally votes);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// --------- CONSTRUCTOR ---------
@@ -183,11 +200,13 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
         Tally memory receivedVotes = decoded.votes;
 
         // check if the votes are valid and we can receive them
-        if (!canReceiveVotes(proposalId, receivedVotes)) {
+        (bool success, ErrReason reason) = canReceiveVotes(proposalId, receivedVotes);
+        if (!success) {
             revert CannotReceiveVotes({
                 votingChainId: votingChainId,
                 proposalId: proposalId,
-                votes: receivedVotes
+                votes: receivedVotes,
+                reason: reason
             });
         }
 
@@ -196,12 +215,12 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
 
         // attempt to submit to the plugin
         // If this fails, the votes are still stored and resubmit attempts can be made.
-        try this.submitVotes(proposalId) {} catch (bytes memory reason) {
+        try this.submitVotes(proposalId) {} catch (bytes memory revertData) {
             emit SubmitVoteFailed({
                 proposalId: proposalId,
                 votingChainId: votingChainId,
                 votes: receivedVotes,
-                reason: reason
+                revertData: revertData
             });
         }
     }
@@ -243,11 +262,16 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     function canReceiveVotes(
         uint256 _proposalId,
         Tally memory _votes
-    ) public view virtual returns (bool) {
-        if (_votes.isZero()) return false;
-        else if (!isProposalIdValid(_proposalId)) return false;
-        else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _votes)) return false;
-        else return true;
+    ) public view virtual returns (bool, ErrReason) {
+        if (_votes.isZero()) {
+            return (false, ErrReason.ZeroVotes);
+        } else if (!isProposalIdValid(_proposalId)) {
+            return (false, ErrReason.InvalidProposalId);
+        } else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _votes)) {
+            return (false, ErrReason.InsufficientVotingPower);
+        } else {
+            return (true, ErrReason.None);
+        }
     }
 
     /// @notice Checks if a proposal ID is valid for this contract. Does not check if the proposal exists.

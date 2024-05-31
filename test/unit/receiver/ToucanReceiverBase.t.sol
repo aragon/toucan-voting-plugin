@@ -25,6 +25,10 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
     DAO dao;
     MockToucanVoting plugin;
 
+    function assertErrEq(ToucanReceiver.ErrReason e1, ToucanReceiver.ErrReason e2) internal pure {
+        assertEq(uint(e1), uint(e2));
+    }
+
     function setUp() public virtual {
         // reset timestamps and blocks
         vm.warp(0);

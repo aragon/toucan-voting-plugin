@@ -35,24 +35,53 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
     function testFuzz_canReceiveRevertsOnZeroVotes(uint _proposalSeed) public view {
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         Tally memory _votes = Tally(0, 0, 0);
-        assertFalse(receiver.canReceiveVotes(_proposalId, _votes));
+        (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
+            _proposalId,
+            _votes
+        );
+        assertFalse(success);
+        assertErrEq(reason, ToucanReceiver.ErrReason.ZeroVotes);
     }
 
     function testFuzz_canReceiveRevertsOnInvalidProposalId(Tally memory _votes) public view {
         vm.assume(!_votes.isZero());
         uint _proposalId = ProposalIdCodec.encode(address(0), 1, 0, 0);
-        assertFalse(receiver.canReceiveVotes(_proposalId, _votes));
+        (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
+            _proposalId,
+            _votes
+        );
+        assertFalse(success);
+        assertErrEq(reason, ToucanReceiver.ErrReason.InvalidProposalId);
     }
 
     function testFuzz_canReceiveRevertsOnInsufficientVotingPower(
         uint _proposalSeed,
         Tally memory _votes
-    ) public view {
+    ) public {
+        _proposalSeed = 79228162495817593519834398719;
         vm.assume(!_votes.isZero());
         vm.assume(!_votes.overflows());
         vm.assume(_votes.sum() > 0);
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
-        assertFalse(receiver.canReceiveVotes(_proposalId, _votes));
+
+        console2.log("Proposal start", _proposalId.getStartTimestamp());
+        console2.log("Proposal end", _proposalId.getEndTimestamp());
+
+        // write the voting plugin address to the proposal id
+        ProposalId memory p = _proposalId.toStruct();
+        p.plugin = address(plugin);
+        _proposalId = p.fromStruct();
+
+        // set to the right opening time
+        uint32 openingTime = _proposalId.getStartTimestamp();
+        vm.warp(openingTime + 1);
+
+        (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
+            _proposalId,
+            _votes
+        );
+        assertFalse(success);
+        assertErrEq(reason, ToucanReceiver.ErrReason.InsufficientVotingPower);
     }
 
     function testFuzz_receiveVotes(

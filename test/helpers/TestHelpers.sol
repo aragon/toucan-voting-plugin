@@ -19,22 +19,30 @@ contract TestHelpers is Test {
 
         // the start ts needs to be lte the end ts
         // with a minimum of 2 blocks between them
+        // first, at the boundry ensure that end is greater than start
         if (_startTs >= _endTs) {
+            // these 2 cases require checking to prevent underflow
             if (_startTs == 0) {
                 _endTs = 2;
             } else if (_startTs == 1) {
                 _startTs = 0;
                 _endTs = 2;
+                // this is all other cases where start is greater than end
             } else {
                 _endTs = _startTs;
                 _startTs = _endTs - 2;
             }
         }
 
-        // this covers the final edge case, based on above
-        // start ts will be 0, end will be 1, so we need to bump it up
-        if (_endTs == 1) {
-            _endTs = 2;
+        // now we just check that there is at least 2 blocks between them
+        if (_endTs - _startTs == 1) {
+            // if there is no space to add to the end, remove from the start
+            if (_endTs == type(uint32).max) {
+                _startTs = _endTs - 2;
+                // else just bump the end
+            } else {
+                _endTs = _startTs + 2;
+            }
         }
 
         // the snapshot ts needs to be lte the start ts

@@ -30,8 +30,11 @@ contract MockToucanReceiverCanReceivePass is MockToucanReceiver {
         address _votingPlugin
     ) MockToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
 
-    function canReceiveVotes(uint256, Tally memory) public pure override returns (bool) {
-        return true;
+    function canReceiveVotes(
+        uint256,
+        Tally memory
+    ) public pure override returns (bool, ToucanReceiver.ErrReason) {
+        return (true, ErrReason.None);
     }
 }
 
@@ -86,7 +89,7 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
             votingChainId: _votingChainId,
             proposalId: _proposalId,
             votes: _votes,
-            reason: _reason
+            revertData: _reason
         });
 
         _callLzReceive(abi.encode(message));

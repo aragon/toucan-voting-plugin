@@ -192,11 +192,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         vm.startPrank(votingVoter);
         {
             uint balance = tokenVotingChain.balanceOf(votingVoter);
-            relay.vote(
-                proposal,
-                EVM_EXECUTION_CHAIN,
-                IVoteContainer.Tally({abstain: 0, yes: balance, no: 0})
-            );
+            relay.vote(proposal, IVoteContainer.Tally({abstain: 0, yes: balance, no: 0}));
         }
         vm.stopPrank();
 
@@ -211,7 +207,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         // on the L2 relayer
         {
-            IVoteContainer.Tally memory p = relay.proposals(EVM_EXECUTION_CHAIN, proposal);
+            IVoteContainer.Tally memory p = relay.proposals(proposal);
             assertEq(p.yes, 50 ether, "proposal should have 50 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -222,11 +218,10 @@ contract TestE2EToucan is TestHelper, AragonTest {
             uint128 gasLimit = 200_000;
             ToucanRelay.LzSendParams memory params = relay.quote(
                 proposal,
-                EVM_EXECUTION_CHAIN,
                 EID_EXECUTION_CHAIN,
                 gasLimit
             );
-            relay.dispatchVotes{value: params.fee.nativeFee}(proposal, EVM_EXECUTION_CHAIN, params);
+            relay.dispatchVotes{value: params.fee.nativeFee}(proposal, params);
         }
 
         // process it inside the recevier

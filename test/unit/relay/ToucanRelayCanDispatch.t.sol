@@ -26,11 +26,7 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         super.setUp();
     }
 
-    function testFuzz_cannotDispatchBeforeStart(
-        uint _executionChainId,
-        uint256 _proposalId,
-        uint32 _warpTo
-    ) public {
+    function testFuzz_cannotDispatchBeforeStart(uint256 _proposalId, uint32 _warpTo) public {
         // decode existing random proposal id
         uint32 _startTs = _proposalId.getStartTimestamp();
 
@@ -40,19 +36,15 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         // warp to the start
         vm.warp(_warpTo);
 
-        bool canDispatch = relay.canDispatch({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId
+        (bool canDispatch, ToucanRelay.ErrReason reason) = relay.canDispatch({
+            _proposalId: _proposalId
         });
         assertFalse(canDispatch);
         assertFalse(relay.isProposalOpen(_proposalId));
+        assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
     }
 
-    function testFuzz_cannotDispatchAfterEnd(
-        uint256 _executionChainId,
-        uint256 _proposalId,
-        uint32 _warpTo
-    ) public {
+    function testFuzz_cannotDispatchAfterEnd(uint256 _proposalId, uint32 _warpTo) public {
         // decode existing random proposal id
         uint32 _endTs = _proposalId.getEndTimestamp();
 
@@ -62,87 +54,28 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         // warp to the end
         vm.warp(_warpTo);
 
-        bool canDispatch = relay.canDispatch({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId
+        (bool canDispatch, ToucanRelay.ErrReason reason) = relay.canDispatch({
+            _proposalId: _proposalId
         });
         assertFalse(canDispatch);
+        assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
         assertFalse(relay.isProposalOpen(_proposalId));
     }
 
-    function testFuzz_cannotDispatchWithZeroWeight(
-        uint256 _executionChainId,
-        uint256 _proposalSeed,
-        uint32 _warpTo
-    ) public {
+    function testFuzz_cannotDispatchWithZeroWeight(uint256 _proposalSeed, uint32 _warpTo) public {
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         _warpToValidTs(_proposalId, _warpTo);
 
         assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
-        bool canDispatch = relay.canDispatch({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId
+        (bool canDispatch, ToucanRelay.ErrReason reason) = relay.canDispatch({
+            _proposalId: _proposalId
         });
         assertFalse(canDispatch);
-    }
-
-    // check that we're checking the right chain against can dispatch
-    function testFuzz_cannotDispatchIfZeroWeightFoundInIds(
-        uint256 _executionChainId,
-        uint256 _proposalSeed,
-        uint32 _warpTo,
-        Tally memory _tally
-    ) public {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
-        // check that 0 < sum(tally) < uint256 max
-        vm.assume(!_tally.overflows());
-        vm.assume(_tally.sum() > 0);
-
-        // set the proposal state
-        relay.setProposalState({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId,
-            _tally: _tally
-        });
-
-        // go to a valid time to dispatch
-        _warpToValidTs(_proposalId, _warpTo);
-        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
-
-        // we do this to allow wrap around without overflow
-        // we dont actually care about the value, just that it's not the same
-        uint proposalIdPlusOne;
-        uint executionIdPlusOne;
-        unchecked {
-            proposalIdPlusOne = _proposalId + 1;
-            executionIdPlusOne = _executionChainId + 1;
-        }
-
-        bool canDispatch = relay.canDispatch({
-            _proposalId: proposalIdPlusOne,
-            _executionChainId: _executionChainId
-        });
-
-        assertFalse(canDispatch);
-
-        canDispatch = relay.canDispatch({
-            _proposalId: _proposalId,
-            _executionChainId: executionIdPlusOne
-        });
-
-        assertFalse(canDispatch);
-
-        canDispatch = relay.canDispatch({
-            _proposalId: proposalIdPlusOne,
-            _executionChainId: executionIdPlusOne
-        });
-
-        assertFalse(canDispatch);
+        assertErrEq(reason, ToucanRelay.ErrReason.ZeroVotes);
     }
 
     function testFuzz_canDispatchIfData(
-        uint256 _executionChainId,
         uint256 _proposalSeed,
         uint32 _warpTo,
         Tally memory _tally
@@ -153,21 +86,17 @@ contract TestToucanRelayCanDispatch is ToucanRelayBaseTest {
         vm.assume(_tally.sum() > 0);
 
         // set the proposal state
-        relay.setProposalState({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId,
-            _tally: _tally
-        });
+        relay.setProposalState({_proposalId: _proposalId, _tally: _tally});
 
         // go to a valid time to dispatch
         _warpToValidTs(_proposalId, _warpTo);
         assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
-        bool canDispatch = relay.canDispatch({
-            _proposalId: _proposalId,
-            _executionChainId: _executionChainId
+        (bool canDispatch, ToucanRelay.ErrReason reason) = relay.canDispatch({
+            _proposalId: _proposalId
         });
 
         assertTrue(canDispatch);
+        assertErrEq(reason, ToucanRelay.ErrReason.None);
     }
 }

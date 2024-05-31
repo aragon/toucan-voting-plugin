@@ -52,16 +52,11 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         uint proposalId = ProposalIdCodec.encode(address(1), 0, 100, 0);
 
         // set the proposal vote
-        relay.setProposalVote(
-            EVM_EXECUTION_CHAIN,
-            proposalId,
-            Tally(abstentions, yesVotes, noVotes)
-        );
+        relay.setProposalVote(proposalId, Tally(abstentions, yesVotes, noVotes));
 
         // fetch a fee quote
         ToucanRelay.LzSendParams memory params = relay.quote(
             proposalId,
-            EVM_EXECUTION_CHAIN,
             EID_EXECUTION_CHAIN,
             gasLimit
         );
@@ -69,7 +64,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         vm.warp(1);
 
         // send the message
-        relay.dispatchVotes{value: params.fee.nativeFee}(proposalId, EVM_EXECUTION_CHAIN, params);
+        relay.dispatchVotes{value: params.fee.nativeFee}(proposalId, params);
 
         // check the votes on the dst
         Tally memory aggregateVotes = receiver.getAggregateVotes(proposalId);
@@ -126,14 +121,10 @@ contract MockToucanRelay is ToucanRelay {
     ) ToucanRelay(_token, _lzEndpoint, _dao) {}
 
     /// update global state before sending
-    function setProposalVote(
-        uint _execChainId,
-        uint256 _proposalId,
-        Tally calldata _votes
-    ) external {
-        proposals[_execChainId][_proposalId].tally.abstain = _votes.abstain;
-        proposals[_execChainId][_proposalId].tally.yes = _votes.yes;
-        proposals[_execChainId][_proposalId].tally.no = _votes.no;
+    function setProposalVote(uint256 _proposalId, Tally calldata _votes) external {
+        proposals[_proposalId].tally.abstain = _votes.abstain;
+        proposals[_proposalId].tally.yes = _votes.yes;
+        proposals[_proposalId].tally.no = _votes.no;
     }
 
     function _chainId() internal pure override returns (uint256) {

@@ -36,8 +36,7 @@ contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
     }
 
     // reverts if nothing to submit
-    function testFuzz_revertsIfNothingToSubmit() public {
-        uint _proposalSeed = 79228162495817593519834398721;
+    function testFuzz_revertsIfNothingToSubmit(uint _proposalSeed) public {
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
 
         address vp = _proposalId.getPlugin();

@@ -43,13 +43,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // warp to the start
         vm.warp(_warpTo);
 
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
         assertFalse(relay.isProposalOpen(_proposalId));
+        assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
     }
 
     function testFuzz_cannotVoteAfterEnd(
@@ -67,13 +68,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // warp to the end
         vm.warp(_warpTo);
 
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
         assertFalse(relay.isProposalOpen(_proposalId));
+        assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
     }
 
     // cannot vote if user is trying to vote with zero tokens
@@ -89,15 +91,16 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // set the weight to zero
         Tally memory _voteOptions = Tally({yes: 0, no: 0, abstain: 0});
 
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
+        assertErrEq(reason, ToucanRelay.ErrReason.ZeroVotes);
     }
 
-    // false if the user has too little voting power at the startTs, lte startTs
+    // false if the user has too little voting power at the startTs
     function testFuzz_cannotVoteWithInsufficientWeight(
         uint256 _proposalSeed,
         address _voter,
@@ -105,6 +108,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        // derive a proposal Id that is valid
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
 
         // TODO: do we want to explicitly check for this?
@@ -112,6 +116,9 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
+
+        // zero mint will fail
+        vm.assume(_mintQty > 0);
 
         // this is the test case where the user has too little voting power at the startTs
         vm.assume(_voteOptions.sum() > _mintQty);
@@ -122,12 +129,13 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
 
         // set the weight to zero
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
+        assertErrEq(reason, ToucanRelay.ErrReason.InsufficientVotingPower);
     }
 
     // above holds even if the user gets voting power after the startTs
@@ -138,12 +146,16 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
+        // derive a proposal Id that is valid
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
 
         vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
+
+        // zero mint will fail
+        vm.assume(_mintQty > 0);
 
         // we want this to be an otherwise valid vote
         if (_voteOptions.sum() > _mintQty) {
@@ -155,12 +167,13 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // could just as easily be a transfer
         token.mint({to: _voter, amount: _mintQty});
 
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
+        assertErrEq(reason, ToucanRelay.ErrReason.InsufficientVotingPower);
     }
 
     // true for all ts between the start and end block, if the user has enough voting power
@@ -172,28 +185,27 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions
     ) public {
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
-
         vm.assume(!_voteOptions.overflows());
-
-        // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
+        vm.assume(_mintQty > 0);
+        vm.assume(_voteOptions.sum() > 0);
 
-        // we want this to be an otherwise valid vote
+        // we want this to be an otherwise valid vote, so bound it
         if (_voteOptions.sum() > _mintQty) {
             _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
         }
-        vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
         _warpToValidTs(_proposalId, _warpTo);
 
-        bool canVote = relay.canVote({
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertTrue(canVote);
+        assertErrEq(reason, ToucanRelay.ErrReason.None);
     }
 
     // works even if a user has transferred voting power after the startTs
@@ -206,15 +218,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
     ) public {
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
         vm.assume(!_voteOptions.overflows());
-
-        // ERC20 prevents minting to zero address
         vm.assume(_voter != address(0));
+        vm.assume(_mintQty > 0);
+        vm.assume(_voteOptions.sum() > 0);
 
-        // we want this to be a valid vote
+        // we want this to be a valid vote, so bound it
         if (_voteOptions.sum() > _mintQty) {
             _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
         }
-        vm.assume(_voteOptions.sum() > 0);
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
@@ -224,7 +235,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         vm.prank(_voter);
         token.transfer({to: address(this), amount: _mintQty});
 
-        bool canVote = relay.canVote({
+        (bool canVote, ) = relay.canVote({
             _proposalId: _proposalId,
             _voter: _voter,
             _voteOptions: _voteOptions
