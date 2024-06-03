@@ -23,13 +23,13 @@ abstract contract OFTUpgradeable is OFTCoreUpgradeable, ERC20Upgradeable {
         string memory _symbol,
         address _lzEndpoint,
         address _delegate
-    ) internal initializer {
+    ) internal onlyInitializing {
         __ERC20_init(_name, _symbol);
         __OFTCore_init(decimals(), _lzEndpoint, _delegate);
     }
 
     /// @dev UPGRADES deliberately left empty to follow convention
-    function __OFT_init_unchained() internal initializer {
+    function __OFT_init_unchained() internal onlyInitializing {
         // solhint-disable-previous-line no-empty-blocks
     }
 

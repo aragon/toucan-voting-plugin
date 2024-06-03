@@ -16,13 +16,13 @@ import {OAppCoreUpgradeable} from "./OAppCoreUpgradeable.sol";
  */
 abstract contract OAppUpgradeable is OAppSenderUpgradeable, OAppReceiverUpgradeable {
     /// @dev UPGRADES removed constructor
-    function __OApp_init(address _endpoint, address _delegate) internal initializer {
+    function __OApp_init(address _endpoint, address _delegate) internal onlyInitializing {
         __OAppCore_init(_endpoint, _delegate);
         __OApp_init_unchained();
     }
 
     /// @dev UPGRADES deliberately left empty as a convention
-    function __OApp_init_unchained() internal initializer {
+    function __OApp_init_unchained() internal onlyInitializing {
         // solhint-disable-previous-line no-empty-blocks
     }
 

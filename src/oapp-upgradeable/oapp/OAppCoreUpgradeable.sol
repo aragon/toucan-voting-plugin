@@ -20,7 +20,7 @@ abstract contract OAppCoreUpgradeable is IOAppCore, OwnableUpgradeable {
     /**
      * @dev UPGRADES added to prevent reinitialization of the contract
      */
-    function __OAppCore_init(address _endpoint, address _delegate) internal initializer {
+    function __OAppCore_init(address _endpoint, address _delegate) internal onlyInitializing {
         __Ownable_init();
         __OAppCore_init_unchained(_endpoint, _delegate);
     }
@@ -33,7 +33,10 @@ abstract contract OAppCoreUpgradeable is IOAppCore, OwnableUpgradeable {
      *
      * @dev The delegate typically should be set as the owner of the contract.
      */
-    function __OAppCore_init_unchained(address _endpoint, address _delegate) internal initializer {
+    function __OAppCore_init_unchained(
+        address _endpoint,
+        address _delegate
+    ) internal onlyInitializing {
         endpoint = ILayerZeroEndpointV2(_endpoint);
 
         if (_delegate == address(0)) revert InvalidDelegate();

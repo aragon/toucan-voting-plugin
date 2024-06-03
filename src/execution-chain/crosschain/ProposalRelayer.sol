@@ -13,7 +13,7 @@ contract ProposalRelayer is OAppSenderUpgradeable, DaoAuthorizableUpgradeable {
     using SafeCast for uint256;
 
     // should be set to the DAO or given to an execution plugin
-    bytes32 constant XCHAIN_PROPOSAL_RELAY_ID = keccak256("XCHAIN_PROPOSAL_RELAY");
+    bytes32 public constant XCHAIN_PROPOSAL_RELAY_ID = keccak256("XCHAIN_PROPOSAL_RELAY");
 
     /// @notice Additional Layer Zero params required to send a cross chain message.
     /// @param dstEid The LayerZero endpoint ID of the execution chain.
@@ -38,6 +38,7 @@ contract ProposalRelayer is OAppSenderUpgradeable, DaoAuthorizableUpgradeable {
         return block.chainid;
     }
 
+    // The dao should fetch a quote before creating the proposal
     function quote(
         uint256 _proposalId,
         IDAO.Action[] memory _actions,
@@ -77,7 +78,7 @@ contract ProposalRelayer is OAppSenderUpgradeable, DaoAuthorizableUpgradeable {
         bytes memory message = abi.encode(proposalId, actions, allowFailureMap, _chainId());
 
         _lzSend({
-            _dstEid: 1,
+            _dstEid: params.dstEid,
             _message: message,
             _options: params.options,
             _fee: params.fee,

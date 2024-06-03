@@ -34,13 +34,13 @@ abstract contract OFTAdapterUpgradeable is OFTCoreUpgradeable {
         address _token,
         address _lzEndpoint,
         address _delegate
-    ) internal initializer {
+    ) internal onlyInitializing {
         __OFTCore_init(IERC20Metadata(_token).decimals(), _lzEndpoint, _delegate);
         __OFTAdapter_init_unchained(_token);
     }
 
     /// @dev UPGRADES constructor logic localised to this contract
-    function __OFTAdapter_init_unchained(address _token) internal initializer {
+    function __OFTAdapter_init_unchained(address _token) internal onlyInitializing {
         innerToken = IERC20(_token);
     }
 

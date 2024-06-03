@@ -62,12 +62,12 @@ abstract contract OFTCoreUpgradeable is
         uint8 _localDecimals,
         address _endpoint,
         address _delegate
-    ) internal initializer {
+    ) internal onlyInitializing {
         __OApp_init(_endpoint, _delegate);
         __OFTCore_init_unchained(_localDecimals);
     }
 
-    function __OFTCore_init_unchained(uint8 _localDecimals) internal initializer {
+    function __OFTCore_init_unchained(uint8 _localDecimals) internal onlyInitializing {
         if (_localDecimals < sharedDecimals()) revert InvalidLocalDecimals();
         decimalConversionRate = 10 ** (_localDecimals - sharedDecimals());
     }

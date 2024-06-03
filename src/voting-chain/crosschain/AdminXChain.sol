@@ -12,10 +12,13 @@ import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth
 
 import {PluginCloneable} from "@aragon/osx-commons-contracts/src/plugin/PluginCloneable.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/oapp/OAppReceiverUpgradeable.sol";
 
 import "utils/converters.sol";
+
+import "forge-std/console2.sol";
 
 /// @title AdminXChain
 /// @author Aragon X
@@ -31,13 +34,13 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
 
     /// @notice The ID of the permission required to call the `executeProposal` function.
     /// @dev This should be granted to the relayer.
-    bytes32 public constant EXECUTE_PROPOSAL_PERMISSION_ID =
-        keccak256("EXECUTE_PROPOSAL_PERMISSION");
+    bytes32 public constant XCHAIN_EXECUTE_PERMISSION_ID = keccak256("XCHAIN_EXECUTE_PERMISSION");
 
     /// @notice Initializes the contract.
     /// @param _dao The associated DAO.
     /// @dev This method is required to support [ERC-1167](https://eips.ethereum.org/EIPS/eip-1167).
-    function initialize(IDAO _dao) external initializer {
+    function initialize(IDAO _dao, address _lzEndpoint) external initializer {
+        __OAppCore_init(_lzEndpoint, address(_dao));
         __PluginCloneable_init(_dao);
         emit MembershipContractAnnounced({definingContract: address(_dao)});
     }
@@ -59,7 +62,7 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
             dao().hasPermission({
                 _where: address(this),
                 _who: _account,
-                _permissionId: EXECUTE_PROPOSAL_PERMISSION_ID,
+                _permissionId: XCHAIN_EXECUTE_PERMISSION_ID,
                 _data: bytes("")
             });
     }
@@ -94,11 +97,12 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
     ) internal override {
         // The DAO on this chain must manually set who can send messages on the remote chain
         address _who = bytes32ToAddress(_origin.sender);
+
         if (
             !dao().hasPermission({
                 _where: address(this),
                 _who: _who,
-                _permissionId: EXECUTE_PROPOSAL_PERMISSION_ID,
+                _permissionId: XCHAIN_EXECUTE_PERMISSION_ID,
                 _data: bytes("")
             })
         )
@@ -106,7 +110,7 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
                 dao: address(dao()),
                 where: address(this),
                 who: _who,
-                permissionId: EXECUTE_PROPOSAL_PERMISSION_ID
+                permissionId: XCHAIN_EXECUTE_PERMISSION_ID
             });
 
         // decode the data

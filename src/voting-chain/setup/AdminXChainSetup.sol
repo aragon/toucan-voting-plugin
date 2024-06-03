@@ -41,7 +41,9 @@ contract AdminSetup is PluginSetup {
         }
 
         // Clone and initialize the plugin contract.
-        bytes memory initData = abi.encodeCall(Admin.initialize, (IDAO(_dao)));
+        // TODO: add the lzEndpoint as a parameter to the initialize function
+        revert("wat");
+        bytes memory initData = abi.encodeCall(Admin.initialize, (IDAO(_dao), address(42069)));
         plugin = IMPLEMENTATION.deployMinimalProxy(initData);
 
         // Prepare permissions
@@ -54,7 +56,7 @@ contract AdminSetup is PluginSetup {
             where: plugin,
             who: admin,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: Admin(plugin).EXECUTE_PROPOSAL_PERMISSION_ID()
+            permissionId: Admin(plugin).XCHAIN_EXECUTE_PERMISSION_ID()
         });
 
         // Grant `EXECUTE_PERMISSION` on the DAO to the plugin.
