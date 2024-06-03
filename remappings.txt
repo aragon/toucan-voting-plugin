@@ -1,40 +1,35 @@
-@prb/test/=lib/prb-test/src/
 forge-std/=lib/forge-std/src/
+ds-test/=lib/forge-std/lib/ds-test/src/
+
 @aragon/osx/=lib/osx/packages/contracts/src/
 @aragon/osx-commons-contracts/=lib/osx-commons/contracts/
+
 @ensdomains/ens-contracts/=lib/ens-contracts/
+ens-contracts/=lib/ens-contracts/contracts/
 
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
-ds-test/=lib/forge-std/lib/ds-test/src/
-ens-contracts/=lib/ens-contracts/contracts/
-erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
+erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
 
-@interfaces/=src/interfaces/
-@token/=src/token/
-@voting/=src/voting/
-@utils/=src/utils/
-@mocks/=test/mocks/
-@libs/=src/libs/
+@prb/test/=lib/prb-test/src/
+solidity-bytes-utils/=lib/solidity-bytes-utils/
 
-@voting-chain/=src/voting-chain/
-@execution-chain/=src/execution-chain/
-@oapp-upgradeable/=src/oapp-upgradeable/
-
+@layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
+@layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
+@layerzerolabs/lz-evm-oapp-v2/=lib/LayerZero-v2/oapp/
+@layerzerolabs/lz-evm-v1-0.7/=lib/LayerZero/
 
 @lz-oapp/=lib/LayerZero-v2/oapp/contracts/oapp/
 @lz-oapp-test/=lib/LayerZero-v2/oapp/test/
 @lz-oapp-precrime/=lib/LayerZero-v2/oapp/contracts/precrime/
 @lz-oft/=lib/LayerZero-v2/oapp/contracts/oft/
-@layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
-@layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
 
-@layerzerolabs/lz-evm-oapp-v2/=lib/LayerZero-v2/oapp/
-@layerzerolabs/lz-evm-protocol-v2/=lib/LayerZero-v2/protocol/
-@layerzerolabs/lz-evm-messagelib-v2/=lib/LayerZero-v2/messagelib/
-@layerzerolabs/lz-evm-v1-0.7/=lib/LayerZero/
-solidity-bytes-utils/=lib/solidity-bytes-utils/
-
+@interfaces/=src/interfaces/
+@mocks/=test/mocks/
+@libs/=src/libs/
+@voting-chain/=src/voting-chain/
+@execution-chain/=src/execution-chain/
+@oapp-upgradeable/=src/oapp-upgradeable/
 
