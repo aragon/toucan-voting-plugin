@@ -33,3 +33,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "lib/token-voting-plugin"]
+	path = lib/token-voting-plugin
+	url = https://github.com/aragon/token-voting-plugin
