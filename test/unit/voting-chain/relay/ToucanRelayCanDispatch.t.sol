@@ -13,7 +13,6 @@ import "@libs/TallyMath.sol";
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
-import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 
 import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 

@@ -5,7 +5,7 @@ import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
-import {GovernanceERC20} from "@execution-chain/token/GovernanceERC20.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
@@ -78,7 +78,11 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
             _permissionId: adapter.SET_CROSSCHAIN_DELEGATE_ID()
         });
 
-        assertFalse(token.delegates(address(adapter)) == _newDelegate);
+        if (_newDelegate == address(this)) {
+            assertEq(token.delegates(address(adapter)), _newDelegate);
+        } else {
+            assertFalse(token.delegates(address(adapter)) == _newDelegate);
+        }
 
         vm.prank(_admin);
         adapter.delegate(_newDelegate);

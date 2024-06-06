@@ -9,9 +9,11 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
 
 // test utils
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
+import "@utils/deployers.sol";
 
 // share with mock by making it a constant at global level
 uint256 constant _EVM_VOTING_CHAIN = 420;
@@ -31,13 +33,29 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
     uint256 constant EVM_EXECUTION_CHAIN = 137;
     uint256 constant EVM_VOTING_CHAIN = _EVM_VOTING_CHAIN;
     uint32 constant EID_VOTING_CHAIN = 2;
+    GovernanceERC20 token;
 
     MockToucanRelay relay;
     MockToucanReceiver receiver;
+    MockToucanVoting plugin;
 
     function setUp() public override {
         super.setUp();
+        vm.warp(0);
+        vm.roll(0);
+        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings(
+            new address[](1),
+            new uint256[](1)
+        );
+        mintSettings.receivers[0] = address(this);
+        mintSettings.amounts[0] = 100 ether;
+        token = new GovernanceERC20(IDAO(address(this)), "TestToken", "TT", mintSettings);
+
+        plugin = deployMockToucanVoting();
+
         _initalizeOApps();
+
+        relay.setChainId(EVM_VOTING_CHAIN);
     }
 
     function test_canSendAggregatedVotesAcrossTheNetwork() public {
@@ -48,20 +66,26 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         // this fails with ~150k gas so it's not the cheapest
         uint128 gasLimit = 200_000;
 
+        // send tokens to the receiver
+        token.transfer(address(receiver), 100 ether);
+
         // encode a proposal id
-        uint proposalId = ProposalIdCodec.encode(address(1), 0, 100, 0);
+        uint proposalId = ProposalIdCodec.encode(address(plugin), 0, 100, 1);
+
+        plugin.setSnapshotBlock(proposalId, 1);
 
         // set the proposal vote
-        relay.setProposalVote(proposalId, Tally(abstentions, yesVotes, noVotes));
+        relay.setProposalState(proposalId, Tally(abstentions, yesVotes, noVotes));
 
         // fetch a fee quote
-        ToucanRelay.LzSendParams memory params = relay.quote(
+        MockToucanRelay.LzSendParams memory params = relay.quote(
             proposalId,
             EID_EXECUTION_CHAIN,
             gasLimit
         );
-        // move to ts 1
-        vm.warp(1);
+        // move to ts 2
+        vm.warp(2);
+        vm.roll(2);
 
         // send the message
         relay.dispatchVotes{value: params.fee.nativeFee}(proposalId, params);
@@ -84,7 +108,10 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         assertEq(aggregateVotes.no, noVotes, "no votes wrong");
 
         // ensure we registered it against the right chain id
-        Tally memory chainVotes = receiver.getVotesByChain(proposalId, EVM_VOTING_CHAIN);
+        Tally memory chainVotes = receiver.getVotesByChain({
+            _proposalId: proposalId,
+            _votingChainId: EVM_VOTING_CHAIN
+        });
 
         assertEq(chainVotes.abstain, abstentions, "abstentions wrong");
         assertEq(chainVotes.yes, yesVotes, "yes votes wrong");
@@ -99,44 +126,16 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         address endpointExecutionChain = endpoints[EID_EXECUTION_CHAIN];
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
-        relay = new MockToucanRelay(address(0), endpointVotingChain, address(this));
+        relay = deployMockToucanRelay(address(1), endpointVotingChain, address(this));
         receiver = new MockToucanReceiver(
-            address(0),
+            address(token),
             endpointExecutionChain,
             address(this),
-            address(0)
+            address(plugin)
         );
 
         // format is {localOApp}.setPeer({remoteOAppEID}, {remoteOAppAddress})
         relay.setPeer(EID_EXECUTION_CHAIN, addressToBytes32(address(receiver)));
         receiver.setPeer(EID_VOTING_CHAIN, addressToBytes32(address(relay)));
     }
-}
-
-contract MockToucanRelay is ToucanRelay {
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _dao
-    ) ToucanRelay(_token, _lzEndpoint, _dao) {}
-
-    /// update global state before sending
-    function setProposalVote(uint256 _proposalId, Tally calldata _votes) external {
-        proposals[_proposalId].tally.abstain = _votes.abstain;
-        proposals[_proposalId].tally.yes = _votes.yes;
-        proposals[_proposalId].tally.no = _votes.no;
-    }
-
-    function _chainId() internal pure override returns (uint256) {
-        return _EVM_VOTING_CHAIN;
-    }
-}
-
-contract MockToucanReceiver is ToucanReceiver {
-    constructor(
-        address _governanceToken,
-        address _lzEndpoint,
-        address _dao,
-        address _votingPlugin
-    ) ToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
 }

@@ -13,23 +13,22 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
+import {ITokenVoting, IVoteContainer} from "@aragon/token-voting/ITokenVoting.sol";
 
 // external test utils
 import "forge-std/console2.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
-import {GovernanceERC20} from "@execution-chain/token/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ToucanVoting} from "@execution-chain/voting/ToucanVoting.sol";
-import {MajorityVotingBase, IMajorityVoting} from "@execution-chain/voting/MajorityVotingBase.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
-import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 // internal test utils
 import "utils/converters.sol";
@@ -87,7 +86,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
     uint32 constant MIN_PARTICIPATION = 1;
     uint64 constant MIN_DURATION = 3600;
     uint constant MIN_PROPOSER_VOTING_POWER = 1;
-    ToucanVoting.VotingMode constant MODE = IMajorityVoting.VotingMode.VoteReplacement;
+    ToucanVoting.VotingMode constant MODE = ITokenVoting.VotingMode.VoteReplacement;
 
     uint PROPOSAL_START_DATE = 10;
 
@@ -199,7 +198,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         // check the voting state
         // on the L1:
         {
-            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = getProposalTally(proposal);
             assertEq(p.yes, 100 ether, "proposal should have 100 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -237,7 +236,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         // check the voting state is as expected
         {
-            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = getProposalTally(proposal);
             assertEq(p.yes, 150 ether, "proposal should have 100 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -268,13 +267,13 @@ contract TestE2EToucan is TestHelper, AragonTest {
         // attempting to vote on the L1 will only increase the total by 50
         vm.startPrank(votingVoter);
         {
-            plugin.vote(proposal, IMajorityVoting.VoteOption.Yes, false);
+            plugin.vote(proposal, IVoteContainer.Tally({abstain: 0, yes: 50 ether, no: 0}), false);
         }
         vm.stopPrank();
 
         // voting state should be exactly 200
         {
-            IVoteContainer.Tally memory p = plugin.currentTally(proposal);
+            IVoteContainer.Tally memory p = getProposalTally(proposal);
             assertEq(p.yes, 200 ether, "proposal should have 200 votes");
             assertEq(p.no, 0, "proposal should have 0 no votes");
             assertEq(p.abstain, 0, "proposal should have 0 abstentions");
@@ -297,7 +296,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
                 _startDate: 0, // start now
                 _endDate: 1680224400,
                 _tryEarlyExecution: false,
-                _voteOptions: tally
+                _votes: tally
             });
     }
 
@@ -429,7 +428,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         );
 
         // initalize the adapter, receiver and plugin
-        ToucanVoting.VotingSettings memory settings = MajorityVotingBase.VotingSettings({
+        ToucanVoting.VotingSettings memory settings = ITokenVoting.VotingSettings({
             votingMode: MODE,
             supportThreshold: SUPPORT_THRESHOLD,
             minParticipation: MIN_PARTICIPATION,
@@ -508,6 +507,12 @@ contract TestE2EToucan is TestHelper, AragonTest {
         // regardless, they still need to be peers
         relay.setPeer(EID_EXECUTION_CHAIN, addressToBytes32(address(receiver)));
         receiver.setPeer(EID_VOTING_CHAIN, addressToBytes32(address(relay)));
+    }
+
+    function getProposalTally(
+        uint256 _proposalId
+    ) internal view returns (IVoteContainer.Tally memory tally) {
+        (, , , tally, , ) = plugin.getProposal(_proposalId);
     }
 }
 

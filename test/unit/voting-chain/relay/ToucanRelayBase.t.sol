@@ -12,7 +12,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
-import {MockToucanRelayUpgradeable} from "@mocks/MockToucanRelay.sol";
+import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
@@ -21,7 +21,7 @@ import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
 contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     GovernanceERC20VotingChain token;
     MockLzEndpointMinimal lzEndpoint;
-    MockToucanRelayUpgradeable relay;
+    MockToucanRelay relay;
     DAO dao;
 
     function setUp() public virtual {

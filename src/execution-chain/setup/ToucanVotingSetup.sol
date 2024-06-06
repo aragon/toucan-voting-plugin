@@ -13,15 +13,15 @@ import {IGovernanceWrappedERC20} from "@interfaces/IGovernanceWrappedERC20.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
 import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
+import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
 
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
 import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
 
-import {GovernanceERC20} from "../token/GovernanceERC20.sol";
-import {GovernanceWrappedERC20} from "../token/GovernanceWrappedERC20.sol";
-import {MajorityVotingBase} from "../voting/MajorityVotingBase.sol";
-import {ToucanVoting} from "../voting/ToucanVoting.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from "@aragon/token-voting/ERC20/governance/GovernanceWrappedERC20.sol";
+import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
 
 /// @title ToucanVotingSetup
 /// @author Aragon X - 2022-2023
@@ -94,19 +94,14 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         // Decode `_data` to extract the params needed for deploying and initializing `ToucanVoting` plugin,
         // and the required helpers
         (
-            MajorityVotingBase.VotingSettings memory votingSettings,
+            ITokenVoting.VotingSettings memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20(token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             bool skipInterfaceCheck
         ) = abi.decode(
                 _data,
-                (
-                    MajorityVotingBase.VotingSettings,
-                    TokenSettings,
-                    GovernanceERC20.MintSettings,
-                    bool
-                )
+                (ITokenVoting.VotingSettings, TokenSettings, GovernanceERC20.MintSettings, bool)
             );
 
         address token = tokenSettings.addr;
@@ -286,14 +281,9 @@ contract ToucanVotingSetup is PluginUpgradeableSetup {
         uint nextProposalId = IProposal(_plugin).proposalCount();
         for (uint i = 0; i < nextProposalId; i++) {
             // untrusted call
-            (
-                bool open,
-                ,
-                MajorityVotingBase.ProposalParameters memory parameters,
-                ,
-                ,
-
-            ) = MajorityVotingBase(_plugin).getProposal(i);
+            (bool open, , ITokenVoting.ProposalParameters memory parameters, , , ) = ITokenVoting(
+                _plugin
+            ).getProposal(i);
 
             // check if proposal is open
             if (open) {

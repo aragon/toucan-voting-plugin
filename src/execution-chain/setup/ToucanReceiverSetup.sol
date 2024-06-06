@@ -19,8 +19,10 @@ import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/Permis
 import {PluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
 
 import {GovernanceOFTAdapter} from "../crosschain/GovernanceOFTAdapter.sol";
-import {GovernanceWrappedERC20} from "../token/GovernanceWrappedERC20.sol";
-import {MajorityVotingBase} from "../voting/MajorityVotingBase.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from "@aragon/token-voting/ERC20/governance/GovernanceWrappedERC20.sol";
+import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
+
 import {ToucanReceiver} from "../crosschain/ToucanReceiver.sol";
 
 /// @title ToucanReceiverSetup

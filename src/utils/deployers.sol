@@ -13,7 +13,6 @@ import {ProposalRelayer} from "@execution-chain/crosschain/ProposalRelayer.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
 
 import {MockToucanRelay} from "test/mocks/MockToucanRelay.sol";
-import {MockToucanRelayUpgradeable} from "test/mocks/MockToucanRelay.sol";
 import {MockToucanReceiver} from "test/mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "test/mocks/MockToucanVoting.sol";
 
@@ -31,9 +30,9 @@ function deployMockToucanRelay(
     address _token,
     address _lzEndpoint,
     address _dao
-) returns (MockToucanRelayUpgradeable) {
+) returns (MockToucanRelay) {
     // deploy implementation
-    address base = address(new MockToucanRelayUpgradeable());
+    address base = address(new MockToucanRelay());
     // encode the initalizer
     bytes memory data = abi.encodeCall(
         ToucanRelayUpgradeable.initialize,
@@ -41,7 +40,7 @@ function deployMockToucanRelay(
     );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
-    return MockToucanRelayUpgradeable(deployed);
+    return MockToucanRelay(deployed);
 
     // return new MockToucanRelay({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
 }

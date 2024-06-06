@@ -6,8 +6,8 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 
-import {MajorityVotingBase, IMajorityVoting} from "@execution-chain/voting/MajorityVotingBase.sol";
-import {GovernanceERC20} from "@execution-chain/token/GovernanceERC20.sol";
+import {TokenVoting, ITokenVoting} from "@aragon/token-voting/TokenVoting.sol";
+import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";

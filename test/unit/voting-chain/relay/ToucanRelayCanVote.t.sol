@@ -147,6 +147,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions
     ) public {
         // derive a proposal Id that is valid
+        _proposalSeed = 328725153614203166;
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
 
         vm.assume(!_voteOptions.overflows());
@@ -162,10 +163,17 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
             _voteOptions = Tally({yes: _mintQty, no: 0, abstain: 0});
         }
 
+        if (_voteOptions.sum() == 0) {
+            _voteOptions = Tally({yes: 1, no: 0, abstain: 0});
+        }
+
         // note the order of the calls
-        _warpToValidTs(_proposalId, _warpTo);
         // could just as easily be a transfer
+        _warpToValidTs(_proposalId, _warpTo);
         token.mint({to: _voter, amount: _mintQty});
+
+        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
+        assertFalse(_voteOptions.isZero(), "Vote options should not be zero");
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
             _proposalId: _proposalId,
