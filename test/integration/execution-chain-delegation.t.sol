@@ -14,6 +14,7 @@ import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {MockDAOSimplePermission as MockDAO} from "@mocks/MockDAO.sol";
+import "@utils/deployers.sol";
 
 /**
  * Tests a mock version of using a delegation mechanism to allow votes held on Chain B to be used on Chain A.
@@ -57,7 +58,7 @@ contract TestExecutionChainDelegation is Test {
         });
 
         // deploy the receiver contract
-        receiver = new ToucanReceiver({
+        receiver = deployToucanReceiver({
             _governanceToken: address(token),
             _lzEndpoint: address(lzEndpoint),
             _dao: address(this),

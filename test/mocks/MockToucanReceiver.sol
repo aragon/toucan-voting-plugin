@@ -4,12 +4,7 @@ import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
 contract MockToucanReceiver is ToucanReceiver {
-    constructor(
-        address _governanceToken,
-        address _lzEndpoint,
-        address _dao,
-        address _votingPlugin
-    ) ToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
+    constructor() {}
 
     struct VotesByChain {
         uint chainId;

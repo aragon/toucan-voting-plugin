@@ -2,21 +2,21 @@
 pragma solidity ^0.8.20;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
-import {IMajorityVotingV2, IMajorityVoting} from "@interfaces/IMajorityVoting.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {OApp} from "@lz-oapp/OApp.sol";
-import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
+import {OAppUpgradeable} from "@oapp-upgradeable/oapp/OAppUpgradeable.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
-import {Sweeper} from "src/Sweeper.sol";
+import {SweeperUpgradeable} from "src/SweeperUpgradeable.sol";
 
 import "forge-std/console2.sol";
 
@@ -51,7 +51,13 @@ interface IToucanReceiverEvents {
 /// 2. The relayer correctly validates the voting power on the other chain.
 /// @dev Although this contract is an OApp, it does not have any send functionality.
 /// This is intentional in the event of future upgrades that may mandate sending cross chain data.
-contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, Sweeper {
+contract ToucanReceiver is
+    OAppUpgradeable,
+    IVoteContainer,
+    IToucanReceiverEvents,
+    PluginUUPSUpgradeable,
+    SweeperUpgradeable
+{
     using TallyMath for Tally;
     using ProposalIdCodec for uint256;
     using SafeCast for uint256;
@@ -75,7 +81,7 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     IVotes public governanceToken;
 
     /// @notice The address of the voting plugin. Must implement a vote function.
-    IMajorityVotingV2 public votingPlugin;
+    ITokenVoting public votingPlugin;
 
     /// @notice Stores all votes for a proposal across all chains and in aggregate.
     mapping(uint256 proposalId => AggregateTally) public votes;
@@ -111,19 +117,25 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     error NoVotesToSubmit(uint256 proposalId);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// --------- CONSTRUCTOR ---------
+    /// --------- INITIALIZER ---------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @param _governanceToken The address of the governance token, must implement IVotes.
     /// @param _lzEndpoint The address of the Layer Zero endpoint.
     /// @param _dao The address of the Aragon DAO.
     /// @param _votingPlugin The address of the voting plugin. Must implement IMajorityVotingV2.
-    constructor(
+    function initialize(
         address _governanceToken,
         address _lzEndpoint,
         address _dao,
         address _votingPlugin
-    ) OApp(_lzEndpoint, _dao) Plugin(IDAO(_dao)) {
+    ) external initializer {
+        __OApp_init(_lzEndpoint, _dao);
+        __PluginUUPSUpgradeable_init(IDAO(_dao));
         governanceToken = IVotes(_governanceToken);
         _setVotingPlugin(_votingPlugin);
     }
@@ -140,7 +152,7 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
 
     /// @dev Internal function to set the voting plugin, called by the public function and the constructor.
     function _setVotingPlugin(address _plugin) internal {
-        votingPlugin = IMajorityVotingV2(_plugin);
+        votingPlugin = ITokenVoting(_plugin);
         emit NewVotingPluginSet(_plugin, msg.sender);
     }
 
@@ -336,7 +348,7 @@ contract ToucanReceiver is OApp, IVoteContainer, IToucanReceiverEvents, Plugin, 
     /// @notice Get the snapshot block for a proposal from the voting plugin.
     /// @return The snapshot block number or 0 if the proposal does not exist.
     function getProposalBlockSnapshot(uint256 _proposalId) public view virtual returns (uint256) {
-        (, , IMajorityVoting.ProposalParameters memory params, , , ) = votingPlugin.getProposal(
+        (, , ITokenVoting.ProposalParameters memory params, , , ) = votingPlugin.getProposal(
             _proposalId
         );
         return params.snapshotBlock;

@@ -6,7 +6,6 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ToucanRelayUpgradeable} from "@voting-chain/crosschain/ToucanRelayUpgradeable.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 
 import {ProposalRelayer} from "@execution-chain/crosschain/ProposalRelayer.sol";
@@ -23,7 +22,13 @@ function deployToucanRelay(
     address _lzEndpoint,
     address _dao
 ) returns (ToucanRelay) {
-    return new ToucanRelay({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
+    // deploy implementation
+    address base = address(new ToucanRelay());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return ToucanRelay(deployed);
 }
 
 function deployMockToucanRelay(
@@ -34,15 +39,10 @@ function deployMockToucanRelay(
     // deploy implementation
     address base = address(new MockToucanRelay());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(
-        ToucanRelayUpgradeable.initialize,
-        (_token, _lzEndpoint, _dao)
-    );
+    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockToucanRelay(deployed);
-
-    // return new MockToucanRelay({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
 }
 
 function deployToucanReceiver(
@@ -51,13 +51,16 @@ function deployToucanReceiver(
     address _dao,
     address _votingPlugin
 ) returns (ToucanReceiver) {
-    return
-        new ToucanReceiver({
-            _governanceToken: _governanceToken,
-            _lzEndpoint: _lzEndpoint,
-            _dao: _dao,
-            _votingPlugin: _votingPlugin
-        });
+    // deploy implementation
+    address base = address(new ToucanReceiver());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(
+        ToucanReceiver.initialize,
+        (_governanceToken, _lzEndpoint, _dao, _votingPlugin)
+    );
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return ToucanReceiver(deployed);
 }
 
 function deployMockToucanReceiver(
@@ -66,13 +69,16 @@ function deployMockToucanReceiver(
     address _dao,
     address _votingPlugin
 ) returns (MockToucanReceiver) {
-    return
-        new MockToucanReceiver({
-            _governanceToken: _governanceToken,
-            _lzEndpoint: _lzEndpoint,
-            _dao: _dao,
-            _votingPlugin: _votingPlugin
-        });
+    // deploy implementation
+    address base = address(new MockToucanReceiver());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(
+        ToucanReceiver.initialize,
+        (_governanceToken, _lzEndpoint, _dao, _votingPlugin)
+    );
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return MockToucanReceiver(deployed);
 }
 
 function deployMockToucanVoting() returns (MockToucanVoting) {

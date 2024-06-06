@@ -31,7 +31,8 @@ import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 // internal test utils
-import "utils/converters.sol";
+import "@utils/converters.sol";
+import "@utils/deployers.sol";
 import "forge-std/console2.sol";
 
 import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
@@ -71,7 +72,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
     address daoVotingChain;
     GovernanceERC20VotingChain tokenVotingChain;
-    ToucanRelay relay;
+    MockToucanRelay relay;
     ToucanVoting plugin;
     address layerZeroEndpointVotingChain;
 
@@ -438,7 +439,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         plugin = _deployPlugin(settings);
 
-        receiver = new ToucanReceiver({
+        receiver = deployMockToucanReceiver({
             _governanceToken: address(tokenExecutionChain),
             _lzEndpoint: layerZeroEndpointExecutionChain,
             _dao: daoExecutionChain,
@@ -471,11 +472,13 @@ contract TestE2EToucan is TestHelper, AragonTest {
         });
 
         // initalize the bridge and relay
-        relay = new ToucanRelayVotingChain({
-            _token: address(tokenVotingChain),
-            _lzEndpoint: layerZeroEndpointVotingChain,
-            _delegate: daoVotingChain
-        });
+        relay = deployMockToucanRelay(
+            address(tokenVotingChain),
+            layerZeroEndpointVotingChain,
+            daoVotingChain
+        );
+
+        relay.setChainId(EVM_VOTING_CHAIN);
 
         bridge = new OFTTokenBridge({
             _token: address(tokenVotingChain),
@@ -514,21 +517,4 @@ contract TestE2EToucan is TestHelper, AragonTest {
     ) internal view returns (IVoteContainer.Tally memory tally) {
         (, , , tally, , ) = plugin.getProposal(_proposalId);
     }
-}
-
-/// override the chain id to be the voting chain
-contract ToucanRelayVotingChain is ToucanRelay {
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _delegate
-    ) ToucanRelay(_token, _lzEndpoint, _delegate) {}
-
-    function _chainId() internal pure override returns (uint) {
-        return _EVM_VOTING_CHAIN;
-    }
-}
-
-contract MyOFT is OFT {
-    constructor(address _lzEndpoint, address _delegate) OFT("OFT", "OFT", _lzEndpoint, _delegate) {}
 }

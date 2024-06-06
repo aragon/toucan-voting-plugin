@@ -25,7 +25,7 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
     }
 
     // test the inital state is set including the events emitted
-    function testFuzz_constructor(
+    function testFuzz_initializerReceiver(
         address _token,
         address _dao,
         address _votingPlugin,
@@ -37,13 +37,14 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
         vm.expectEmit(false, false, false, true);
         emit NewVotingPluginSet(_votingPlugin, _sender);
 
-        vm.prank(_sender);
+        vm.startPrank(_sender);
         ToucanReceiver constructorReceiver = deployToucanReceiver({
             _governanceToken: _token,
             _lzEndpoint: address(lzEndpoint),
             _dao: _dao,
             _votingPlugin: _votingPlugin
         });
+        vm.stopPrank();
 
         assertEq(address(constructorReceiver.governanceToken()), _token);
         assertEq(address(constructorReceiver.dao()), _dao);

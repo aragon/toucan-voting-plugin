@@ -6,7 +6,7 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
-import {ToucanRelayUpgradeable as ToucanRelay} from "@voting-chain/crosschain/ToucanRelayUpgradeable.sol";
+import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 import "forge-std/Test.sol";

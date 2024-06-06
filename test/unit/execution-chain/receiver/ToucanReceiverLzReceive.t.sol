@@ -17,18 +17,13 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 
-import {deployToucanReceiver, deployMockToucanReceiver} from "utils/deployers.sol";
+import "utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 import "forge-std/Test.sol";
 
 contract MockToucanReceiverCanReceivePass is MockToucanReceiver {
-    constructor(
-        address _governanceToken,
-        address _lzEndpoint,
-        address _dao,
-        address _votingPlugin
-    ) MockToucanReceiver(_governanceToken, _lzEndpoint, _dao, _votingPlugin) {}
+    constructor() {}
 
     function canReceiveVotes(
         uint256,
@@ -46,12 +41,15 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
 
     function setUp() public override {
         super.setUp();
-        receiver = new MockToucanReceiverCanReceivePass({
-            _governanceToken: address(token),
-            _lzEndpoint: address(lzEndpoint),
-            _dao: address(dao),
-            _votingPlugin: address(plugin)
-        });
+
+        address base = address(new MockToucanReceiverCanReceivePass());
+        bytes memory data = abi.encodeCall(
+            ToucanReceiver.initialize,
+            (address(token), address(lzEndpoint), address(dao), address(plugin))
+        );
+        address deployed = ProxyLib.deployUUPSProxy(base, data);
+
+        receiver = MockToucanReceiverCanReceivePass(deployed);
     }
 
     function _callLzReceive(bytes memory _message) internal {

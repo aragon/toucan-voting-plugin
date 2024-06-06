@@ -63,8 +63,8 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         uint abstentions = 10 ether;
         uint yesVotes = 20 ether;
         uint noVotes = 30 ether;
-        // this fails with ~150k gas so it's not the cheapest
-        uint128 gasLimit = 200_000;
+        // this fails with ~200k gas so it's not the cheapest
+        uint128 gasLimit = 250_000;
 
         // send tokens to the receiver
         token.transfer(address(receiver), 100 ether);
@@ -127,7 +127,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
         relay = deployMockToucanRelay(address(1), endpointVotingChain, address(this));
-        receiver = new MockToucanReceiver(
+        receiver = deployMockToucanReceiver(
             address(token),
             endpointExecutionChain,
             address(this),

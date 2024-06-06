@@ -1,10 +1,9 @@
 pragma solidity ^0.8.20;
 
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ToucanRelayUpgradeable} from "@voting-chain/crosschain/ToucanRelayUpgradeable.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
-contract MockToucanRelay is ToucanRelayUpgradeable {
+contract MockToucanRelay is ToucanRelay {
     constructor() {}
 
     uint private chainId_;

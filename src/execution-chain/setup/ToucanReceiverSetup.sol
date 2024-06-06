@@ -24,6 +24,7 @@ import {GovernanceWrappedERC20} from "@aragon/token-voting/ERC20/governance/Gove
 import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
 
 import {ToucanReceiver} from "../crosschain/ToucanReceiver.sol";
+import {deployToucanReceiver} from "@utils/deployers.sol";
 
 /// @title ToucanReceiverSetup
 /// @author Aragon X - 2022-2023
@@ -85,7 +86,7 @@ contract ToucanReceiverSetup is PluginSetup {
 
         // Prepare and deploy plugin proxy.
         plugin = address(
-            new ToucanReceiver({
+            deployToucanReceiver({
                 _governanceToken: token,
                 _lzEndpoint: lzEndpoint,
                 _dao: _dao,

@@ -8,10 +8,10 @@ import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
 
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
-import {OApp} from "@lz-oapp/OApp.sol";
+import {OAppUpgradeable} from "@oapp-upgradeable/oapp/OAppUpgradeable.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Plugin} from "@aragon/osx-commons-contracts/src/plugin/Plugin.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
@@ -35,7 +35,12 @@ import "forge-std/console2.sol";
 /// 4. We can split a user's vote across y/n/a
 /// 5. Users can partial vote
 /// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
-contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
+contract ToucanRelay is
+    OAppUpgradeable,
+    IVoteContainer,
+    IToucanRelayMessage,
+    PluginUUPSUpgradeable
+{
     using OptionsBuilder for bytes;
     using ProposalIdCodec for uint256;
     using TallyMath for Tally;
@@ -128,17 +133,19 @@ contract ToucanRelay is OApp, IVoteContainer, IToucanRelayMessage, Plugin {
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// --------- CONSTRUCTOR ---------
+    /// --------- INITIALIZER ---------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @param _token The voting token used by the relay. Should be a timestamp based voting token.
     /// @param _lzEndpoint The LayerZero endpoint address for the relay on this chain.
     /// @param _dao The DAO address that will be the owner of this relay and will control permissions.
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _dao
-    ) OApp(_lzEndpoint, _dao) Plugin(IDAO(_dao)) {
+    function initialize(address _token, address _lzEndpoint, address _dao) external initializer {
+        __OApp_init(_lzEndpoint, _dao);
+        __PluginUUPSUpgradeable_init(IDAO(_dao));
         if (_token == address(0)) revert InvalidToken();
         token = IVotes(_token);
     }
