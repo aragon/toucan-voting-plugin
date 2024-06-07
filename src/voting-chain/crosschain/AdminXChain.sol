@@ -15,6 +15,7 @@ import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/oapp/OAppReceiverUpgradeable.sol";
+import {AragonLayerZeroSelfExecutor} from "src/AragonLayerZeroSelfExecutor.sol";
 
 import "utils/converters.sol";
 
@@ -25,23 +26,32 @@ import "forge-std/console2.sol";
 /// @notice The admin governance plugin giving execution permission on the DAO to a trusted relayer.
 /// This allows a parent DAO on a foreign chain to control the DAO on this chain.
 /// @custom:security-contact sirt@aragon.org
-contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppReceiverUpgradeable {
+contract AdminXChain is
+    IMembership,
+    PluginCloneable,
+    ProposalUpgradeable,
+    OAppReceiverUpgradeable,
+    AragonLayerZeroSelfExecutor
+{
     using SafeCastUpgradeable for uint256;
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    // bytes4 internal constant ADMIN_INTERFACE_ID =
-    // this.initialize.selector ^ this.executeProposal.selector;
-
-    /// @notice The ID of the permission required to call the `executeProposal` function.
+    /// @notice The ID of the permission required to call the execution function.
     /// @dev This should be granted to the relayer.
     bytes32 public constant XCHAIN_EXECUTE_PERMISSION_ID = keccak256("XCHAIN_EXECUTE_PERMISSION");
 
-    /// @notice Initializes the contract.
+    /// @notice Emitted when a cross chain execution event is successfully processed.
+    event XChainExecuted(uint256 callId, uint srcChainId);
+
+    /// @notice Initializes the contract by setting the owner and the delegate to this address.
     /// @param _dao The associated DAO.
-    /// @dev This method is required to support [ERC-1167](https://eips.ethereum.org/EIPS/eip-1167).
+    /// @param _lzEndpoint The address of the Layer Zero endpoint on this chain.abi
+    /// @dev TODO: grant permission for Aragon Ownable should be set in the PluginSetup
+    /// This allows the plugin to update it's own settings via the Aragon permissions system.
     function initialize(IDAO _dao, address _lzEndpoint) external initializer {
-        __OAppCore_init(_lzEndpoint, address(_dao));
+        // the below supersedes OAppCore
+        __AragonLayerZeroSelfExecutor_init(_lzEndpoint);
         __PluginCloneable_init(_dao);
+
         emit MembershipContractAnnounced({definingContract: address(_dao)});
     }
 
@@ -52,8 +62,9 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
         bytes4 _interfaceId
     ) public view override(PluginCloneable, ProposalUpgradeable) returns (bool) {
         return
-            // _interfaceId == ADMIN_INTERFACE_ID ||
-            _interfaceId == type(IMembership).interfaceId || super.supportsInterface(_interfaceId);
+            _interfaceId == type(IMembership).interfaceId ||
+            _interfaceId == type(OAppReceiverUpgradeable).interfaceId ||
+            super.supportsInterface(_interfaceId);
     }
 
     /// @inheritdoc IMembership
@@ -67,52 +78,34 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
             });
     }
 
-    event XChainProposalExecuted(uint256 proposalId, uint srcChainId);
-
     /// @notice Internal function to execute a proposal.
-    /// @param _proposalId The ID of the proposal to be executed.
+    /// @param _callId Unique identifier for this execution.
     /// @param _actions The array of actions to be executed.
     /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
-    /// @param _srcChainId The ID of the source chain.
+    /// @param _srcChainId The ID of chain from which the XChain proposal originated.
     /// @return execResults The array with the results of the executed actions.
     /// @return failureMap The failure map encoding which actions have failed.
     /// @dev XChain proposals don't create their own proposal ID, they use the one from the source chain.
-    function _executeXChainProposal(
+    function _executeXChain(
         IDAO _dao,
-        uint256 _proposalId,
+        uint256 _callId,
         IDAO.Action[] memory _actions,
         uint256 _allowFailureMap,
         uint256 _srcChainId
     ) internal virtual returns (bytes[] memory execResults, uint256 failureMap) {
-        (execResults, failureMap) = _dao.execute(bytes32(_proposalId), _actions, _allowFailureMap);
-        emit XChainProposalExecuted({proposalId: _proposalId, srcChainId: _srcChainId});
+        (execResults, failureMap) = _dao.execute(bytes32(_callId), _actions, _allowFailureMap);
+        emit XChainExecuted({callId: _callId, srcChainId: _srcChainId});
     }
 
+    /// @notice Entrypoint for executing a cross chain proposal.
+    /// @param _message contains the execution instruction.
     function _lzReceive(
-        Origin calldata _origin,
+        Origin calldata,
         bytes32 /* _guid */,
         bytes calldata _message,
         address /* _executor */,
         bytes calldata /* _extraData */
     ) internal override {
-        // The DAO on this chain must manually set who can send messages on the remote chain
-        address _who = bytes32ToAddress(_origin.sender);
-
-        if (
-            !dao().hasPermission({
-                _where: address(this),
-                _who: _who,
-                _permissionId: XCHAIN_EXECUTE_PERMISSION_ID,
-                _data: bytes("")
-            })
-        )
-            revert DaoUnauthorized({
-                dao: address(dao()),
-                where: address(this),
-                who: _who,
-                permissionId: XCHAIN_EXECUTE_PERMISSION_ID
-            });
-
         // decode the data
         (
             uint256 proposalId,
@@ -121,6 +114,6 @@ contract AdminXChain is IMembership, PluginCloneable, ProposalUpgradeable, OAppR
             uint256 srcChainId
         ) = abi.decode(_message, (uint256, IDAO.Action[], uint256, uint256));
 
-        _executeXChainProposal(dao(), proposalId, actions, allowFailureMap, srcChainId);
+        _executeXChain(dao(), proposalId, actions, allowFailureMap, srcChainId);
     }
 }
