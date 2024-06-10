@@ -2,23 +2,18 @@
 
 pragma solidity ^0.8.8;
 
-import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IMembership} from "@aragon/osx-commons-contracts/src/plugin/extensions/membership/IMembership.sol";
 
-// solhint-disable-next-line max-line-length
+import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+
 import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
-
 import {PluginCloneable} from "@aragon/osx-commons-contracts/src/plugin/PluginCloneable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
-import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/oapp/OAppReceiverUpgradeable.sol";
-import {AragonLayerZeroSelfExecutor} from "src/AragonLayerZeroSelfExecutor.sol";
-
+import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
 import "utils/converters.sol";
-
 import "forge-std/console2.sol";
 
 /// @title AdminXChain
@@ -26,13 +21,7 @@ import "forge-std/console2.sol";
 /// @notice The admin governance plugin giving execution permission on the DAO to a trusted relayer.
 /// This allows a parent DAO on a foreign chain to control the DAO on this chain.
 /// @custom:security-contact sirt@aragon.org
-contract AdminXChain is
-    IMembership,
-    PluginCloneable,
-    ProposalUpgradeable,
-    OAppReceiverUpgradeable,
-    AragonLayerZeroSelfExecutor
-{
+contract AdminXChain is PluginCloneable, ProposalUpgradeable, OAppReceiverUpgradeable {
     using SafeCastUpgradeable for uint256;
 
     /// @notice The ID of the permission required to call the execution function.
@@ -45,14 +34,9 @@ contract AdminXChain is
     /// @notice Initializes the contract by setting the owner and the delegate to this address.
     /// @param _dao The associated DAO.
     /// @param _lzEndpoint The address of the Layer Zero endpoint on this chain.abi
-    /// @dev TODO: grant permission for Aragon Ownable should be set in the PluginSetup
-    /// This allows the plugin to update it's own settings via the Aragon permissions system.
-    function initialize(IDAO _dao, address _lzEndpoint) external initializer {
-        // the below supersedes OAppCore
-        __AragonLayerZeroSelfExecutor_init(_lzEndpoint);
-        __PluginCloneable_init(_dao);
-
-        emit MembershipContractAnnounced({definingContract: address(_dao)});
+    function initialize(address _dao, address _lzEndpoint) external initializer {
+        __OAppCore_init(_lzEndpoint, _dao);
+        __PluginCloneable_init(IDAO(_dao));
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -62,20 +46,9 @@ contract AdminXChain is
         bytes4 _interfaceId
     ) public view override(PluginCloneable, ProposalUpgradeable) returns (bool) {
         return
-            _interfaceId == type(IMembership).interfaceId ||
+            // _interfaceId == type(IMembership).interfaceId ||
             _interfaceId == type(OAppReceiverUpgradeable).interfaceId ||
             super.supportsInterface(_interfaceId);
-    }
-
-    /// @inheritdoc IMembership
-    function isMember(address _account) external view returns (bool) {
-        return
-            dao().hasPermission({
-                _where: address(this),
-                _who: _account,
-                _permissionId: XCHAIN_EXECUTE_PERMISSION_ID,
-                _data: bytes("")
-            });
     }
 
     /// @notice Internal function to execute a proposal.
