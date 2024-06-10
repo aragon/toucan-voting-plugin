@@ -67,7 +67,7 @@ contract LayerZeroXChainPermissionAdapter is IXChainPermission {
         address _where,
         bytes32,
         XChainData calldata _data
-    ) public {
+    ) public /* needs an auth */ {
         IOAppCore(_where).setPeer(_data.protocolRemoteChainId.toUint32(), addressToBytes32(_who));
         emit XChainGranted(_data);
     }
