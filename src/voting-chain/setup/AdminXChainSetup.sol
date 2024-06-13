@@ -43,7 +43,7 @@ contract AdminSetup is PluginSetup {
         // Clone and initialize the plugin contract.
         // TODO: add the lzEndpoint as a parameter to the initialize function
         revert("wat");
-        bytes memory initData = abi.encodeCall(Admin.initialize, (IDAO(_dao), address(42069)));
+        bytes memory initData = abi.encodeCall(Admin.initialize, (_dao, address(42069)));
         plugin = IMPLEMENTATION.deployMinimalProxy(initData);
 
         // Prepare permissions

@@ -112,7 +112,7 @@ function deployProposalRelayer(address _lzEndpoint, address _dao) returns (Propo
 function deployAdminXChain(address _lzEndpoint, address _dao) returns (AdminXChain) {
     address base = address(new AdminXChain());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(AdminXChain.initialize, (IDAO(_dao), _lzEndpoint));
+    bytes memory data = abi.encodeCall(AdminXChain.initialize, (_dao, _lzEndpoint));
     // deploy and return the proxy
     address deployed = ProxyLib.deployMinimalProxy(base, data);
     return AdminXChain(deployed);

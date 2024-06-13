@@ -12,7 +12,7 @@ import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth
 import {PluginCloneable} from "@aragon/osx-commons-contracts/src/plugin/PluginCloneable.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
-import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
+import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/oapp/OAppReceiverUpgradeable.sol";
 import "utils/converters.sol";
 import "forge-std/console2.sol";
 
