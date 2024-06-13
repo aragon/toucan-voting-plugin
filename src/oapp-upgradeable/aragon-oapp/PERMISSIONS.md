@@ -40,6 +40,8 @@ Currently, layerZero defines several internal permissions:
 2. On the LzEndpoint, there is a _delegate_ that can configure the endpoint settings for that OApp.
 3. On cross-chain calls, there are _peers_ which are addresses on remote chains that are setup to send messages to this OApp.
 
+![image](https://github.com/aragon/toucan-voting-plugin/assets/45881807/38e31a86-8a58-4ea8-8d5a-6ed80c6265a3)
+
 Put another way, you have _multiple ways to manage the permissions system in oapps and it's easy to forget one_.
 
 **I'm of the view that, in a complex, cross-chain system, the OSx solution of having one, standardised way to control permissions in the entire system is preferable to having to manage multiple independent setters.**
