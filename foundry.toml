@@ -14,7 +14,7 @@ optimizer_runs = 10_000
 out = "out"
 script = "script"
 solc = "0.8.20"
-src = "src"
+src = "src" 
 test = "test"
 verbosity = 3
 
@@ -33,3 +33,6 @@ mainnet = "https://mainnet.infura.io/v3/${API_KEY_INFURA}"
 optimism = "https://optimism-mainnet.infura.io/v3/${API_KEY_INFURA}"
 polygon = "https://polygon-mainnet.infura.io/v3/${API_KEY_INFURA}"
 sepolia = "https://sepolia.infura.io/v3/${API_KEY_INFURA}"
+
+[etherscan]
+sepolia = { key = "EQ2SKG2615C4BMDD5EC23BK9PI5JWYC431" }
