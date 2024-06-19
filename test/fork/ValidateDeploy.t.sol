@@ -73,7 +73,6 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 // external test utils
 import "forge-std/console2.sol";
-import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
@@ -194,7 +193,7 @@ abstract contract BaseContracts {
     address daoExecutionChain = contracts.ex.dao;
     GovernanceERC20 tokenExecutionChain = GovernanceERC20(contracts.ex.token);
     GovernanceOFTAdapter adapter = GovernanceOFTAdapter(contracts.ex.adapter);
-    ToucanReceiver receiver = ToucanReceiver(contracts.ex.receiver);
+    ToucanReceiver receiver = ToucanReceiver(payable(contracts.ex.receiver));
     ToucanVoting plugin = ToucanVoting(contracts.ex.plugin);
     address layerZeroEndpointExecutionChain = SEPOLIA.endpoint;
 

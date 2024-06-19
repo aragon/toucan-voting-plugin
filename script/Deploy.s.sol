@@ -24,7 +24,6 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 // external test utils
 import "forge-std/console2.sol";
-import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";

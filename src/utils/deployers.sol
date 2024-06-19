@@ -60,7 +60,7 @@ function deployToucanReceiver(
     );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
-    return ToucanReceiver(deployed);
+    return ToucanReceiver(payable(deployed));
 }
 
 function deployMockToucanReceiver(
@@ -78,7 +78,7 @@ function deployMockToucanReceiver(
     );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
-    return MockToucanReceiver(deployed);
+    return MockToucanReceiver(payable(deployed));
 }
 
 function deployMockToucanVoting() returns (MockToucanVoting) {

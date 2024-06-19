@@ -13,6 +13,25 @@ contract MockDAOSimplePermission {
     }
 }
 
+contract MockDAORevertFallback {
+    function hasPermission(address, address, bytes32, bytes calldata) public pure returns (bool) {
+        // always pass
+        return true;
+    }
+
+    fallback() external {
+        revert("MockDAORevertFallback");
+    }
+
+    receive() external payable {
+        revert("MockDAORevertFallback");
+    }
+
+    function gimme() public payable {
+        // do nothing but accept ether
+    }
+}
+
 /// @notice creates an actual DAO behind a basic proxy for testing
 /// @param _initialOwner The initial owner of the DAO having the `ROOT_PERMISSION_ID` permission.
 function createTestDAO(address _initialOwner) returns (DAO) {
@@ -25,4 +44,8 @@ function createTestDAO(address _initialOwner) returns (DAO) {
         daoURI_: _daoURI
     });
     return _dao;
+}
+
+function createTestDAORevertFallback() returns (MockDAORevertFallback) {
+    return new MockDAORevertFallback();
 }

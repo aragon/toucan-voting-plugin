@@ -49,7 +49,7 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         );
         address deployed = ProxyLib.deployUUPSProxy(base, data);
 
-        receiver = MockToucanReceiverCanReceivePass(deployed);
+        receiver = MockToucanReceiverCanReceivePass(payable(deployed));
     }
 
     function _callLzReceive(bytes memory _message) internal {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.20;
 
 /// this just allows a contract inheriting OApp to initialize without an error

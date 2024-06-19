@@ -26,6 +26,11 @@ abstract contract SweeperUpgradeable is DaoAuthorizableUpgradeable {
     /// @param dao The DAO address that the refund was attempted to be sent to.
     error RefundFailed(uint256 amount, address token, address dao);
 
+    /// @notice Emitted when there is nothing to refund.
+    /// @param token The token that was attempted to be refunded. Will be the zero address if the refund was in Native.
+    /// @param dao The DAO address that the refund was attempted to be sent to.
+    error NothingToRefund(address token, address dao);
+
     /// @notice Sends all stored Native to the DAO.
     /// @dev While the DAO is trusted, sending Native on the EVM hits the fallback function
     /// which is a common reentrancy vector.
@@ -34,7 +39,7 @@ abstract contract SweeperUpgradeable is DaoAuthorizableUpgradeable {
         address dao = address(dao());
         uint balance = address(this).balance;
 
-        if (balance == 0) revert RefundFailed(balance, address(0), dao);
+        if (balance == 0) revert NothingToRefund(address(0), dao);
 
         (bool success, ) = payable(address(dao)).call{value: balance}("");
         if (!success) revert RefundFailed(balance, address(0), dao);
@@ -48,8 +53,11 @@ abstract contract SweeperUpgradeable is DaoAuthorizableUpgradeable {
         address dao = address(dao());
         uint balance = IERC20(_token).balanceOf(address(this));
 
-        if (balance == 0) revert RefundFailed(balance, _token, dao);
+        if (balance == 0) revert NothingToRefund(_token, dao);
 
         IERC20(_token).safeTransfer(dao, balance);
     }
+
+    /// @notice Fallback function to accept ETH.
+    receive() external payable virtual {}
 }

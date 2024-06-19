@@ -56,7 +56,7 @@ contract ToucanReceiverSetup is PluginSetup {
     constructor(
         GovernanceOFTAdapter _adapterBase
     ) PluginSetup(address(0 /*  will be replaced with new ToucanReceiver() */)) {
-        receiverBase = ToucanReceiver(IMPLEMENTATION);
+        receiverBase = ToucanReceiver(payable(IMPLEMENTATION));
         oftAdapterBase = address(_adapterBase);
     }
 
