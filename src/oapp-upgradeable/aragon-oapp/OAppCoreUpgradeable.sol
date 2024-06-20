@@ -27,20 +27,19 @@ abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
      * @dev initialize the OAppCore with the provided endpoint and delegate.
      * @param _endpoint The address of the LOCAL Layer Zero endpoint.
      * @param _dao The DAO who will own the permission system for this contract.
-     *
      */
     function __OAppCore_init(address _endpoint, address _dao) internal onlyInitializing {
         __AragonOAppAuthorizableInit(_dao);
-        __OAppCore_init_unchained(_endpoint);
+        __OAppCore_init_unchained(_endpoint, _dao);
     }
 
-    /// @notice Sets the delegate for layer zero to be the address of this contract.
-    /// This prevents changes to the contract outside of the Aragon permissions system.
-    /// @dev The AragonOappAuthorizable provides a 'selfExecute' function which must be used to make changes.
+    /// @notice Sets the delegate for layer zero to be the dao.
+    /// @dev This contract is also its own delegate.
+    /// @dev The AragonOappAuthorizable provides an 'execute' function which must be used to make changes.
     /// This is guarded by an Auth modifier so can be granted to addresses by the DAO in the usual way.
-    function __OAppCore_init_unchained(address _endpoint) internal onlyInitializing {
+    function __OAppCore_init_unchained(address _endpoint, address _dao) internal onlyInitializing {
         endpoint = ILayerZeroEndpointV2(_endpoint);
-        endpoint.setDelegate(address(this));
+        endpoint.setDelegate(_dao);
     }
 
     /**
@@ -70,9 +69,13 @@ abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
         return peer;
     }
 
-    /// @notice We prohibit changing the delegate as this would allow admins to bypass the permission model of the OApp.
-    function setDelegate(address) public view auth(OAPP_ADMINISTRATOR_ID) {
-        revert SetDelegateProhibited();
+    /**
+     * @notice Sets the delegate address for the OApp.
+     * @param _delegate The address of the delegate to be set.
+     * @dev Provides the ability for a delegate to set configs, on behalf of the OApp, directly on the Endpoint contract.
+     */
+    function setDelegate(address _delegate) public auth(OAPP_ADMINISTRATOR_ID) {
+        endpoint.setDelegate(_delegate);
     }
 
     /// @dev UPGRADES added for future storage vars

@@ -5,13 +5,12 @@ import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extens
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IOFT} from "@lz-oft/interfaces/IOFT.sol";
 
-import {OApp} from "@lz-oapp/OApp.sol";
-import {OFTCore} from "@lz-oft/OFTCore.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
+import {SafeERC20Upgradeable as SafeERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "@interfaces/IERC20MintableBurnable.sol";
+
+import {OFTCoreUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTCoreUpgradeable.sol";
 
 /// @title OFTTokenBridge
 /// @author Aragon Association
@@ -25,19 +24,21 @@ import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "@inte
 /// TODO Operator guide on shared decimals
 /// @dev The OFT Standard implements a shared decimals model which limits the amount of precision
 /// that can be sent across chains.
-contract OFTTokenBridge is OFTCore, DaoAuthorizable {
+contract OFTTokenBridge is OFTCoreUpgradeable {
     using SafeERC20 for IERC20;
 
-    IERC20MintableBurnable internal immutable underlyingToken_;
+    /// @notice UPGRADES removed immutablility.
+    IERC20MintableBurnable internal underlyingToken_;
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @param _token The address of the ERC-20 token to be adapted.
     /// @param _lzEndpoint The LayerZero endpoint address.
     /// @param _dao The delegate capable of making OApp configurations inside of the endpoint.
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _dao
-    ) OFTCore(IERC20Metadata(_token).decimals(), _lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
+    function initialize(address _token, address _lzEndpoint, address _dao) external initializer {
+        __OFTCore_init(IERC20Metadata(_token).decimals(), _lzEndpoint, _dao);
         underlyingToken_ = IERC20MintableBurnable(_token);
     }
 
@@ -107,4 +108,7 @@ contract OFTTokenBridge is OFTCore, DaoAuthorizable {
         underlyingToken_.mint(_to, _amountLD);
         return _amountLD;
     }
+
+    /// @dev Added for future storage slots.
+    uint256[49] private __gap;
 }

@@ -26,7 +26,8 @@ import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAda
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 // internal test utils
-import "utils/converters.sol";
+import "@utils/converters.sol";
+import "@utils/deployers.sol";
 import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
 import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
 
@@ -63,7 +64,7 @@ contract TestOFTTokenBridge is TestHelper {
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
         // 2. deploy the OFTAdapter connected to the first endpoint
-        GovernanceOFTAdapter sendContract = new GovernanceOFTAdapter({
+        GovernanceOFTAdapter sendContract = deployGovernanceOFTAdapter({
             _token: address(token),
             _voteProxy: address(0),
             _lzEndpoint: endpointExecutionChain,

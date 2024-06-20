@@ -34,6 +34,12 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
             _lzEndpoint: address(lzEndpoint),
             _dao: address(dao)
         });
+
+        dao.grant({
+            _who: address(this),
+            _where: address(relay),
+            _permissionId: relay.OAPP_ADMINISTRATOR_ID()
+        });
     }
 
     function testFuzz_quote(uint _proposalId, uint32 _dstEid, uint128 _gasLimit) public view {

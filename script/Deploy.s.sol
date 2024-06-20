@@ -217,7 +217,7 @@ contract DeployToucan is Script {
             _votingPlugin: address(plugin)
         });
 
-        adapter = new GovernanceOFTAdapter({
+        adapter = deployGovernanceOFTAdapter({
             _token: address(tokenExecutionChain),
             _voteProxy: address(receiver),
             _lzEndpoint: layerZeroEndpointExecutionChain,
@@ -253,7 +253,7 @@ contract DeployToucan is Script {
             daoVotingChain
         );
 
-        bridge = new OFTTokenBridge({
+        bridge = deployTokenBridge({
             _token: address(tokenVotingChain),
             _lzEndpoint: layerZeroEndpointVotingChain,
             _dao: daoVotingChain

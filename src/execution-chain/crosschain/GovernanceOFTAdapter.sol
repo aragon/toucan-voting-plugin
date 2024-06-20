@@ -4,8 +4,7 @@ pragma solidity ^0.8.20;
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
-import {OFTAdapter} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTAdapter.sol";
-import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizable.sol";
+import {OFTAdapterUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTAdapterUpgradeable.sol";
 
 /// @title GovernanceOFTAdapter
 /// @author Aragon
@@ -14,21 +13,26 @@ import {DaoAuthorizable} from "@aragon/osx-commons-contracts/src/permission/auth
 /// On the execution chain. It can delegate votes to other contracts to allow bridged tokens
 /// to still be used for voting via cross chain messages.
 /// @dev TODO: this can be made into a proxy contract (clone) to save gas
-contract GovernanceOFTAdapter is OFTAdapter, DaoAuthorizable {
+contract GovernanceOFTAdapter is OFTAdapterUpgradeable {
     /// @notice Grants the ability to change the delegated voting address on this network for all bridged tokens.
     bytes32 public constant SET_CROSSCHAIN_DELEGATE_ID = keccak256("SET_CROSSCHAIN_DELEGATE");
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @param _token The governance token to be locked, should allow for delegation.
     /// @param _voteProxy The vote proxy contract on this network
     /// that will receive the voting power of the locked tokens.
     /// @param _lzEndpoint The endpoint of the LayerZero network on this network.
     /// @param _dao The DAO that will be the owner of this contract.
-    constructor(
+    function initialize(
         address _token,
         address _voteProxy,
         address _lzEndpoint,
         address _dao
-    ) OFTAdapter(_token, _lzEndpoint, _dao) DaoAuthorizable(IDAO(_dao)) {
+    ) external initializer {
+        __OFTAdapter_init(_token, _lzEndpoint, _dao);
         _delegate(_voteProxy);
     }
 

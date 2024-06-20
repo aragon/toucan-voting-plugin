@@ -6,14 +6,14 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
 
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
-import {OAppUpgradeable} from "@oapp-upgradeable/oapp/OAppUpgradeable.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 
+import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 
@@ -131,7 +131,7 @@ contract ToucanRelay is
     /// @param _dao The DAO address that will be the owner of this relay and will control permissions.
     function initialize(address _token, address _lzEndpoint, address _dao) external initializer {
         __OApp_init(_lzEndpoint, _dao);
-        __PluginUUPSUpgradeable_init(IDAO(_dao));
+        // don't call plugin init as this would re-initilize.
         if (_token == address(0)) revert InvalidToken();
         token = IVotes(_token);
     }

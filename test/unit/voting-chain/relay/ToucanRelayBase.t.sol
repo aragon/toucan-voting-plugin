@@ -48,6 +48,13 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
             _lzEndpoint: address(lzEndpoint),
             _dao: address(dao)
         });
+
+        // set this address as the oapp admin for the relay
+        dao.grant({
+            _who: address(this),
+            _where: address(relay),
+            _permissionId: relay.OAPP_ADMINISTRATOR_ID()
+        });
     }
 
     function assertErrEq(ToucanRelay.ErrReason e1, ToucanRelay.ErrReason e2) internal pure {

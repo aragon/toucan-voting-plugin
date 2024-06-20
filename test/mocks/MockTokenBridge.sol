@@ -4,12 +4,6 @@ pragma solidity ^0.8.20;
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 contract MockTokenBridge is OFTTokenBridge {
-    constructor(
-        address _token,
-        address _lzEndpoint,
-        address _dao
-    ) OFTTokenBridge(_token, _lzEndpoint, _dao) {}
-
     function debit(
         uint _amountLD,
         uint _minAmountLD,

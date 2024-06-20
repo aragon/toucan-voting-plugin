@@ -11,7 +11,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {OAppUpgradeable} from "@oapp-upgradeable/oapp/OAppUpgradeable.sol";
+import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
@@ -135,7 +135,7 @@ contract ToucanReceiver is
         address _votingPlugin
     ) external initializer {
         __OApp_init(_lzEndpoint, _dao);
-        __PluginUUPSUpgradeable_init(IDAO(_dao));
+        // don't call Plugin init as this would reinit daoAuthorizable
         governanceToken = IVotes(_governanceToken);
         _setVotingPlugin(_votingPlugin);
     }

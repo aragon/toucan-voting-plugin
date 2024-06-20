@@ -50,7 +50,7 @@ contract TestExecutionChainDelegation is Test {
         token = new GovernanceERC20(dao, "TestToken", "TT", mintSettings);
 
         // deploy the adapter with no voteProxy, we can set it in the next tx
-        adapter = new GovernanceOFTAdapter({
+        adapter = deployGovernanceOFTAdapter({
             _token: address(token),
             _voteProxy: address(0),
             _lzEndpoint: address(lzEndpoint),

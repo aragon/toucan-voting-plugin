@@ -21,7 +21,8 @@ import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAda
 // internal test utils
 import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
 import {MockOAppReceiver} from "test/mocks/MockOAppReceiver.sol";
-import "utils/converters.sol";
+import "@utils/converters.sol";
+import "@utils/deployers.sol";
 
 /**
  * This test covers the creation of a governance ERC20 token that is then locked inside an OFT container, bridged
@@ -140,7 +141,7 @@ contract TestXChainOFTBridge is TestHelper {
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
         // 2. deploy the OFTAdapter connected to the first endpoint
-        adapter = new GovernanceOFTAdapter({
+        adapter = deployGovernanceOFTAdapter({
             _token: address(token),
             _voteProxy: address(0),
             _lzEndpoint: endpointExecutionChain,

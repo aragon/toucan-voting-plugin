@@ -446,7 +446,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
             _votingPlugin: address(plugin)
         });
 
-        adapter = new GovernanceOFTAdapter({
+        adapter = deployGovernanceOFTAdapter({
             _token: address(tokenExecutionChain),
             _voteProxy: address(receiver),
             _lzEndpoint: layerZeroEndpointExecutionChain,
@@ -480,7 +480,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
 
         relay.setChainId(EVM_VOTING_CHAIN);
 
-        bridge = new OFTTokenBridge({
+        bridge = deployTokenBridge({
             _token: address(tokenVotingChain),
             _lzEndpoint: layerZeroEndpointVotingChain,
             _dao: daoVotingChain

@@ -16,7 +16,7 @@ import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/pro
 
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
-import {PluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
+import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
 
 import {GovernanceOFTAdapter} from "../crosschain/GovernanceOFTAdapter.sol";
 import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
@@ -27,11 +27,11 @@ import {ToucanReceiver} from "../crosschain/ToucanReceiver.sol";
 import {deployToucanReceiver} from "@utils/deployers.sol";
 
 /// @title ToucanReceiverSetup
-/// @author Aragon X - 2022-2023
+/// @author Aragon X - 2024
 /// @notice The setup contract of the `ToucanReceiver` plugin.
 /// @custom:security-contact sirt@aragon.org
 /// TODO: this is a WIP until we have 1967 proxies setup for the receiver
-contract ToucanReceiverSetup is PluginSetup {
+abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
@@ -43,28 +43,38 @@ contract ToucanReceiverSetup is PluginSetup {
 
     /// @notice The address of the `ToucanReceiver` base contract.
     // solhint-disable-next-line immutable-vars-naming
-    ToucanReceiver private immutable receiverBase;
+    ToucanReceiver private receiverBase;
 
     // solhint-disable-next-line immutable-vars-naming
-    address public immutable oftAdapterBase;
+    address public oftAdapterBase;
 
     /// @notice Thrown if passed helpers array is of wrong length.
     /// @param length The array length of passed helpers.
     error WrongHelpersArrayLength(uint256 length);
 
     /// @notice The contract constructor deploying the plugin implementation contract
-    constructor(
-        GovernanceOFTAdapter _adapterBase
-    ) PluginSetup(address(0 /*  will be replaced with new ToucanReceiver() */)) {
-        receiverBase = ToucanReceiver(payable(IMPLEMENTATION));
-        oftAdapterBase = address(_adapterBase);
-    }
+    // constructor(
+    //     GovernanceOFTAdapter _adapterBase
+    // // ) PluginSetupUpgradeable(address(0 /*  will be replaced with new ToucanReceiver() */)) {
+    //     receiverBase = ToucanReceiver(payable(IMPLEMENTATION));
+    //     oftAdapterBase = address(_adapterBase);
+    // }
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
+        /**
+         *  Setup here needs to do a few things:
+         *
+         * 1. Deploy the receiver,
+         * 2. Deploy the adapter,
+         * 3. Check that the plugin is in the correct state (should have early execution enabled)
+         * 4. Delegate to the receiver from the adapter
+         * 5. Prepare the peers for setup
+         */
+
         // Decode `_data` to extract the params needed for deploying and initializing `ToucanReceiver` plugin,
         // and the required helpers
         (address adapter, address token, address lzEndpoint, address votingPlugin) = abi.decode(
@@ -96,19 +106,19 @@ contract ToucanReceiverSetup is PluginSetup {
         bool adapterAddressNotZero = adapter != address(0);
         address[] memory helpers = new address[](1);
 
-        if (adapterAddressNotZero) {
-            // Prepare helpers.
-            // TODO in theory this should be a clone but needs work to make
-            // it initializable
-            adapter = address(
-                new GovernanceOFTAdapter({
-                    _token: token,
-                    _voteProxy: plugin,
-                    _lzEndpoint: lzEndpoint,
-                    _dao: _dao
-                })
-            );
-        }
+        // if (adapterAddressNotZero) {
+        //     // Prepare helpers.
+        //     // TODO in theory this should be a clone but needs work to make
+        //     // it initializable
+        //     adapter = address(
+        //         new GovernanceOFTAdapter({
+        //             _token: token,
+        //             _voteProxy: plugin,
+        //             _lzEndpoint: lzEndpoint,
+        //             _dao: _dao
+        //         })
+        //     );
+        // }
 
         helpers[0] = adapter;
 
@@ -161,6 +171,13 @@ contract ToucanReceiverSetup is PluginSetup {
         preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
     }
+
+    /// @inheritdoc IPluginSetup
+    function prepareUpdate(
+        address _dao,
+        uint16 _fromBuild,
+        SetupPayload calldata _payload
+    ) external pure returns (bytes memory initData, PreparedSetupData memory preparedSetupData) {}
 
     /// @inheritdoc IPluginSetup
     function prepareUninstallation(

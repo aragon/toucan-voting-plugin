@@ -107,13 +107,16 @@ function deployGovernanceOFTAdapter(
     address _lzEndpoint,
     address _dao
 ) returns (GovernanceOFTAdapter) {
-    return
-        new GovernanceOFTAdapter({
-            _token: _token,
-            _voteProxy: _voteProxy,
-            _lzEndpoint: _lzEndpoint,
-            _dao: _dao
-        });
+    address base = address(new GovernanceOFTAdapter());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(
+        GovernanceOFTAdapter.initialize,
+        (_token, _voteProxy, _lzEndpoint, _dao)
+    );
+
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    return GovernanceOFTAdapter(deployed);
 }
 
 function deployProposalRelayer(address _lzEndpoint, address _dao) returns (ProposalRelayer) {
@@ -139,7 +142,12 @@ function deployTokenBridge(
     address _lzEndpoint,
     address _dao
 ) returns (OFTTokenBridge) {
-    return new OFTTokenBridge({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
+    address base = address(new OFTTokenBridge());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(OFTTokenBridge.initialize, (_token, _lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return OFTTokenBridge(deployed);
 }
 
 function deployMockTokenBridge(
@@ -147,5 +155,10 @@ function deployMockTokenBridge(
     address _lzEndpoint,
     address _dao
 ) returns (MockTokenBridge) {
-    return new MockTokenBridge({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
+    address base = address(new MockTokenBridge());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(OFTTokenBridge.initialize, (_token, _lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return MockTokenBridge(deployed);
 }

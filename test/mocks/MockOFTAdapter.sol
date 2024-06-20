@@ -7,13 +7,6 @@ import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAda
 /// simple mock for OFT adapter in the case that you dpn't want to actually
 /// send to layer zero, but want to call the send function
 contract MockOFTAdapter is GovernanceOFTAdapter {
-    constructor(
-        address _token,
-        address _voteProxy,
-        address _lzEndpoint,
-        address _dao
-    ) GovernanceOFTAdapter(_token, _voteProxy, _lzEndpoint, _dao) {}
-
     // override this to avoid actually sending the message
     function _lzSend(
         uint32, // _dstEid,
