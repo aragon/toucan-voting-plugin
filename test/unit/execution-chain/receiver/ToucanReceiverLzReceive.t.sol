@@ -15,23 +15,12 @@ import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
-import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
+import {MockToucanReceiver, MockToucanReceiverCanReceivePass} from "@mocks/MockToucanReceiver.sol";
 
 import "utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 import "forge-std/Test.sol";
-
-contract MockToucanReceiverCanReceivePass is MockToucanReceiver {
-    constructor() {}
-
-    function canReceiveVotes(
-        uint256,
-        Tally memory
-    ) public pure override returns (bool, ToucanReceiver.ErrReason) {
-        return (true, ErrReason.None);
-    }
-}
 
 contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMessage {
     using ProposalIdCodec for uint256;
@@ -50,11 +39,6 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         address deployed = ProxyLib.deployUUPSProxy(base, data);
 
         receiver = MockToucanReceiverCanReceivePass(payable(deployed));
-    }
-
-    function _callLzReceive(bytes memory _message) internal {
-        Origin memory o;
-        receiver._lzReceive(_message, o, bytes(""));
     }
 
     // stores the votes if submitVotes fails and emits the event
@@ -90,7 +74,8 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
             revertData: _reason
         });
 
-        _callLzReceive(abi.encode(message));
+        Origin memory o;
+        receiver._lzReceive(abi.encode(message), o, bytes(""));
 
         // check the votes are stored
         Tally memory totalVotes = receiver.votes(_proposalId);
@@ -98,5 +83,40 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
 
         assertTrue(totalVotes.eq(_votes));
         assertTrue(chainVotes.eq(_votes));
+    }
+
+    function test_revertsIfCannotReceiveVotes() public {
+        // we need the real receiver in this case
+        receiver = deployMockToucanReceiver({
+            _governanceToken: address(token),
+            _lzEndpoint: address(lzEndpoint),
+            _dao: address(dao),
+            _votingPlugin: address(plugin)
+        });
+
+        bytes memory revertData = abi.encodeWithSelector(
+            ToucanReceiver.CannotReceiveVotes.selector,
+            0,
+            0,
+            Tally(0, 0, 0),
+            ToucanReceiver.ErrReason.ZeroVotes
+        );
+
+        bytes memory message = abi.encode(
+            ToucanVoteMessage({votingChainId: 0, proposalId: 0, votes: Tally(0, 0, 0)})
+        );
+
+        Origin memory o;
+
+        (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
+            0,
+            Tally(0, 0, 0)
+        );
+
+        assertFalse(success);
+        assertEq(uint(reason), uint(ToucanReceiver.ErrReason.ZeroVotes));
+
+        vm.expectRevert(revertData);
+        receiver._lzReceive(message, o, bytes(""));
     }
 }

@@ -77,8 +77,9 @@ library OverflowChecker {
         if (tally.yes > type(uint256).max - tally.no) {
             return true;
         }
-        // Check for overflow when adding abstain votes to the sum of yes and no
-        if (tally.abstain > type(uint256).max - (tally.yes + tally.no)) {
+        // Check for overflow when adding yes + no and abstain votes
+        uint256 yesNoSum = tally.yes + tally.no;
+        if (yesNoSum > type(uint256).max - tally.abstain) {
             return true;
         }
         return false;

@@ -10,8 +10,8 @@ import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceE
 /// @title GovernanceERC20Voting chain
 /// @author Aragon Association
 /// @notice Extends the Aragon GovernanceERC20 to allow for reducing the total supply of tokens
-///         by burning them. This has implications for quorums and proposal thresholds.
-///         Also uses timestamp based voting. MORE INFO TO COME
+/// by burning them. This has implications for quorums and proposal thresholds.
+/// Also uses timestamp based voting. TODO: MORE INFO TO COME
 /// @custom:security-contact sirt@aragon.org
 contract GovernanceERC20VotingChain is GovernanceERC20, IERC20Burnable {
     /// @notice Calls the burn function in the parent contract.
@@ -29,24 +29,26 @@ contract GovernanceERC20VotingChain is GovernanceERC20, IERC20Burnable {
     ) GovernanceERC20(_dao, _name, _symbol, MintSettings(new address[](0), new uint256[](0))) {}
 
     /// @notice Burns a specific amount of tokens, decreasing the total supply.
-    /// @dev    For voting, this has signifance for quorums and proposals.
+    /// @dev For voting, this has signifance for quorums and proposals.
     /// @param _amount The amount of token to be burned.
     function burn(uint256 _amount) external auth(BURN_PERMISSION_ID) {
         _burn(_msgSender(), _amount);
     }
 
     /// @notice Burns a specific amount of tokens from a specific account, decreasing the total supply.
+    /// @dev This does not require the other account's permission so be careful with granting this.
     function burn(address _account, uint256 _amount) external auth(BURN_PERMISSION_ID) {
         _burn(_account, _amount);
     }
 
-    /// override the clock to use block.timestamp as syncing blocks
-    /// between chains is a hard problem
+    /// @notice Override the clock to use block.timestamp in place of block.number.
+    /// @dev Syncing blocks between chains is difficult, so we use timestamps instead.
     /// https://docs.openzeppelin.com/contracts/4.x/governance#timestamp_based_governance
     function clock() public view override returns (uint48) {
         return uint48(block.timestamp);
     }
 
+    /// @notice OZ Convention to show timestamp based voting is used.
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
     }

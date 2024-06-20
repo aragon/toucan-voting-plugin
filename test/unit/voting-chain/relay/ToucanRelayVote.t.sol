@@ -39,6 +39,22 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         Tally voteOptions;
     }
 
+    function testReverts_ifCannotVote(uint256 _proposalId, address _sender) public {
+        bytes memory revertData = abi.encodeWithSelector(
+            ToucanRelay.CannotVote.selector,
+            _proposalId,
+            _sender,
+            Tally(0, 0, 0),
+            ToucanRelay.ErrReason.ZeroVotes
+        );
+        vm.startPrank(_sender);
+        {
+            vm.expectRevert(revertData);
+            relay.vote(_proposalId, Tally(0, 0, 0));
+        }
+        vm.stopPrank();
+    }
+
     // a single user can vote against 1 proposal
     function testFuzz_singleVoterSingleProposal(State memory _state) public {
         _validateStateAndWarp(_state);
@@ -145,7 +161,7 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         State memory _stateFirst,
         State memory _stateSecond
     ) public {
-        // hard one to test many states - better for an invariant test most likely
+        // TODO hard one to test many states - better for an invariant test most likely
         console2.log("testFuzz_singleVoterMultipleProposals::pls implement me");
     }
 

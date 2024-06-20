@@ -10,10 +10,12 @@ import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 
 import {ProposalRelayer} from "@execution-chain/crosschain/ProposalRelayer.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
+import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
-import {MockToucanRelay} from "test/mocks/MockToucanRelay.sol";
-import {MockToucanReceiver} from "test/mocks/MockToucanReceiver.sol";
-import {MockToucanVoting} from "test/mocks/MockToucanVoting.sol";
+import {MockToucanRelay, MockToucanRelayLzMock} from "@mocks/MockToucanRelay.sol";
+import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
+import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
+import {MockTokenBridge} from "@mocks/MockTokenBridge.sol";
 
 /// adding deployers behind free functions allows us to change proxy patterns easily
 
@@ -43,6 +45,20 @@ function deployMockToucanRelay(
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockToucanRelay(deployed);
+}
+
+function deployMockToucanRelayLzMock(
+    address _token,
+    address _lzEndpoint,
+    address _dao
+) returns (MockToucanRelayLzMock) {
+    // deploy implementation
+    address base = address(new MockToucanRelayLzMock());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    return MockToucanRelayLzMock(deployed);
 }
 
 function deployToucanReceiver(
@@ -116,4 +132,20 @@ function deployAdminXChain(address _lzEndpoint, address _dao) returns (AdminXCha
     // deploy and return the proxy
     address deployed = ProxyLib.deployMinimalProxy(base, data);
     return AdminXChain(deployed);
+}
+
+function deployTokenBridge(
+    address _token,
+    address _lzEndpoint,
+    address _dao
+) returns (OFTTokenBridge) {
+    return new OFTTokenBridge({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
+}
+
+function deployMockTokenBridge(
+    address _token,
+    address _lzEndpoint,
+    address _dao
+) returns (MockTokenBridge) {
+    return new MockTokenBridge({_token: _token, _lzEndpoint: _lzEndpoint, _dao: _dao});
 }

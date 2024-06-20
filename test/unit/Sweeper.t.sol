@@ -186,13 +186,3 @@ contract TestSweeper is TestHelpers, IVoteContainer {
         vm.stopPrank();
     }
 }
-
-contract RevertFallback {
-    fallback() external {
-        revert("fallback");
-    }
-
-    receive() external payable {
-        revert("receive");
-    }
-}

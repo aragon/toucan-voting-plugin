@@ -24,6 +24,9 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     MockToucanRelay relay;
     DAO dao;
 
+    event VotesDispatched(uint256 indexed proposalId, Tally votes);
+    event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
+
     function setUp() public virtual {
         // reset timestamps and blocks
         vm.warp(0);
@@ -51,9 +54,9 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
         assertEq(uint(e1), uint(e2));
     }
 
-    // test the refund address before and after setting peers and with eid combos
+    // TODO test the refund address before and after setting peers and with eid combos
 
-    // test the chainId and with an override
+    // TODO test the chainId and with an override
 
-    // test getVotes: should update correctly for execution chain id, proposal id and voter
+    // TODO test getVotes: should update correctly for execution chain id, proposal id and voter
 }

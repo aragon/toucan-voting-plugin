@@ -81,14 +81,16 @@ contract TallyMathTest is Test, IVoteContainer {
     }
 
     function test_overflows() public pure {
-        uint a = type(uint256).max;
-        uint b = 1;
-        uint c = 0;
+        Tally memory tallyOverFlowAbstain = Tally(type(uint256).max, 1, 0);
+        assertTrue(tallyOverFlowAbstain.overflows());
 
-        Tally memory tally = Tally(a, b, c);
-        assertTrue(tally.overflows());
+        Tally memory tallyOverFlowNo = Tally(1, 0, type(uint256).max);
+        assertTrue(tallyOverFlowNo.overflows());
 
-        Tally memory noOverflowTally = Tally(a - 1, b, c);
+        Tally memory tallyOverFlowYes = Tally(0, type(uint256).max, 1);
+        assertTrue(tallyOverFlowYes.overflows());
+
+        Tally memory noOverflowTally = Tally(type(uint256).max - 1, 1, 0);
         assertFalse(noOverflowTally.overflows());
     }
 }

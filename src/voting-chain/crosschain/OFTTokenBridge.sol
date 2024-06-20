@@ -20,7 +20,11 @@ import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "@inte
 /// new tokens are minted. These bridges can be deployed to other EVM chains
 /// which will mint new tokens while the others are locked.
 /// This implementation uses layer zero as the messaging layer between chains,
-/// But the underlying token can be any ERC20 token.
+/// But the underlying token can be any ERC20 token that allows for minting/burning.
+/// TODO some sanity checks: iface chacks and sending values > uint224 across the network
+/// TODO Operator guide on shared decimals
+/// @dev The OFT Standard implements a shared decimals model which limits the amount of precision
+/// that can be sent across chains.
 contract OFTTokenBridge is OFTCore, DaoAuthorizable {
     using SafeERC20 for IERC20;
 
@@ -58,6 +62,15 @@ contract OFTTokenBridge is OFTCore, DaoAuthorizable {
         return address(underlyingToken_);
     }
 
+    /// @notice In a shared decimal model, lower bits of the uint will be cleaned to allow for compact
+    /// representation of the amount. This function calculates the amount of dust that will be removed.
+    /// @dev This can be the minAmountLD when calling the send function on the OFT.
+    /// @param _amountLD The amount of tokens to send in local decimals.
+    /// @return The amount after removing the dust.
+    function previewRemoveDust(uint256 _amountLD) external view returns (uint256) {
+        return _removeDust(_amountLD);
+    }
+
     /// @notice Indicates whether the OFT contract requires approval of the 'token()' to send.
     /// @return requiresApproval Needs approval of the underlying token implementation.
     function approvalRequired() external pure virtual returns (bool) {
@@ -71,6 +84,8 @@ contract OFTTokenBridge is OFTCore, DaoAuthorizable {
     /// @return amountSentLD The amount sent in local decimals.
     /// @return amountReceivedLD The amount received in local decimals on the remote.
     /// @dev msg.sender will need to approve this _amountLD of tokens to be burned by this contract.
+    /// @dev Because of the shared decimals model, amountSentLD will be less than _amountLD if there are nonzero
+    /// values in the lower bits of the uint. Set minAmountLD accordingly using the `previewRemoveDust` function.
     function _debit(
         uint256 _amountLD,
         uint256 _minAmountLD,

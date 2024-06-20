@@ -37,3 +37,15 @@ contract MockToucanReceiver is ToucanReceiver {
         _lzReceive(o, g, message, e, d);
     }
 }
+
+// This contract is used when we need to bypass canReceiveVotes checks
+contract MockToucanReceiverCanReceivePass is MockToucanReceiver {
+    constructor() {}
+
+    function canReceiveVotes(
+        uint256,
+        Tally memory
+    ) public pure override returns (bool, ToucanReceiver.ErrReason) {
+        return (true, ErrReason.None);
+    }
+}

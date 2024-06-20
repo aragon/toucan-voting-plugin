@@ -93,4 +93,12 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
 
         vm.assume(address(receiver.votingPlugin()) == _votingPlugin);
     }
+
+    function testFuzz_testFetchingProposalBlockSnapshot(
+        uint _proposalId,
+        uint64 _blockSnapshot
+    ) public {
+        plugin.setSnapshotBlock(_proposalId, _blockSnapshot);
+        assertEq(receiver.getProposalBlockSnapshot(_proposalId), _blockSnapshot);
+    }
 }

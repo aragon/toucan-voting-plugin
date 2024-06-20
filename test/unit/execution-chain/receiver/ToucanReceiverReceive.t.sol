@@ -58,14 +58,10 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         uint _proposalSeed,
         Tally memory _votes
     ) public {
-        _proposalSeed = 79228162495817593519834398719;
         vm.assume(!_votes.isZero());
         vm.assume(!_votes.overflows());
         vm.assume(_votes.sum() > 0);
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
-
-        console2.log("Proposal start", _proposalId.getStartTimestamp());
-        console2.log("Proposal end", _proposalId.getEndTimestamp());
 
         // write the voting plugin address to the proposal id
         ProposalId memory p = _proposalId.toStruct();
@@ -84,6 +80,42 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         assertErrEq(reason, ToucanReceiver.ErrReason.InsufficientVotingPower);
     }
 
+    // same as above but we need to ensure the voting power is sufficient
+    function testFuzz_canReceiveVotesSuccess(uint _proposalSeed, Tally memory _votes) public {
+        vm.assume(!_votes.isZero());
+        vm.assume(!_votes.overflows());
+        vm.assume(_votes.sum() > 0);
+        vm.assume(_votes.sum() <= type(uint224).max); // erc20 votes are uint224
+
+        // delegate some voting power to the receiver
+        token.mint(address(receiver), _votes.sum());
+
+        // create a valid proposal id
+        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+
+        // write the voting plugin address to the proposal id
+        ProposalId memory p = _proposalId.toStruct();
+        p.plugin = address(plugin);
+        _proposalId = p.fromStruct();
+
+        // set the correct snapshot block on the proposal id to not be 0
+        plugin.setSnapshotBlock(_proposalId, 1);
+
+        // set to the right opening time
+        uint32 openingTime = _proposalId.getStartTimestamp();
+        vm.roll(2); // this allows for lookup @ time == 1
+        vm.warp(openingTime + 1);
+
+        (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
+            _proposalId,
+            _votes
+        );
+        assertTrue(success);
+        assertErrEq(reason, ToucanReceiver.ErrReason.None);
+    }
+
+    // this function uses a mock receiver to directly call the _receiveVotes function
+    // so we don't need to setup a valid state and can just test the accounting
     function testFuzz_receiveVotes(
         uint[2] memory _votingChainIds,
         uint[2] memory _proposalIds,

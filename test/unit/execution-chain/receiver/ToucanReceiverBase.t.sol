@@ -15,7 +15,7 @@ import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
 
-import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanVoting} from "utils/deployers.sol";
+import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanVoting} from "@utils/deployers.sol";
 
 /// @dev single chain testing for the relay
 contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverEvents {
@@ -65,8 +65,4 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
             _permissionId: receiver.RECEIVER_ADMIN_ID()
         });
     }
-
-    // test is current delegate
-
-    // test the sweeper
 }

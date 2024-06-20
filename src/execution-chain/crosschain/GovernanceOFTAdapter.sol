@@ -32,12 +32,6 @@ contract GovernanceOFTAdapter is OFTAdapter, DaoAuthorizable {
         _delegate(_voteProxy);
     }
 
-    // /// @notice overrides the default behavior of 6 decimals as we only use EVM chains
-    // /// @dev check carefully the implications of this
-    // function sharedDecimals() public pure override returns (uint8) {
-    //     return 18;
-    // }
-
     /// @notice Delegates the voting power of the locked tokens to another address.
     /// @param _to The address to delegate the voting power to.
     function delegate(address _to) public auth(SET_CROSSCHAIN_DELEGATE_ID) {

@@ -49,6 +49,17 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
         });
     }
 
+    function test_delegateConstructor(address _voteProxy) public {
+        GovernanceOFTAdapter adapter_ = deployGovernanceOFTAdapter({
+            _token: address(token),
+            _voteProxy: _voteProxy,
+            _lzEndpoint: address(lzEndpoint),
+            _dao: address(dao)
+        });
+
+        assertEq(token.delegates(address(adapter_)), _voteProxy);
+    }
+
     function test_initialState() public view {
         assertEq(adapter.token(), address(token));
         assertEq(address(adapter.endpoint()), address(lzEndpoint));

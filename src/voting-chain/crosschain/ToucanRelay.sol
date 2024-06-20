@@ -11,6 +11,7 @@ import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OAppUpgradeable} from "@oapp-upgradeable/oapp/OAppUpgradeable.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
@@ -36,9 +37,10 @@ import "forge-std/console2.sol";
 /// 5. Users can partial vote
 /// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
 contract ToucanRelay is
-    OAppUpgradeable,
     IVoteContainer,
     IToucanRelayMessage,
+    ReentrancyGuardUpgradeable,
+    OAppUpgradeable,
     PluginUUPSUpgradeable
 {
     using OptionsBuilder for bytes;
@@ -88,8 +90,8 @@ contract ToucanRelay is
     /// @param InsufficientVotingPower The user has insufficient voting power to vote.
     enum ErrReason {
         None,
-        ProposalNotOpen,
         ZeroVotes,
+        ProposalNotOpen,
         InsufficientVotingPower
     }
 
@@ -115,22 +117,6 @@ contract ToucanRelay is
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
     /// TODO Unit tests for the events
     event VotesDispatched(uint256 indexed proposalId, Tally votes);
-
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    /// -------- MODIFIERS --------
-    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    /// @dev TODO replace this with OZ
-    bool public guard = false;
-
-    error NoReentrant();
-
-    modifier noReentrant() {
-        if (guard) revert NoReentrant();
-        guard = true;
-        _;
-        guard = false;
-    }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// --------- INITIALIZER ---------
@@ -158,7 +144,7 @@ contract ToucanRelay is
     /// @param _proposalId The proposal ID to vote on. Must be fetched from the Execution Chain
     /// as it is not validated here.
     /// @param _voteOptions Votes split between yes no and abstain up to the voter's total voting power.
-    function vote(uint256 _proposalId, Tally calldata _voteOptions) external noReentrant {
+    function vote(uint256 _proposalId, Tally calldata _voteOptions) external nonReentrant {
         // check that the user can actually vote given their voting power and the proposal
         (bool success, ErrReason e) = canVote(_proposalId, msg.sender, _voteOptions);
         if (!success) revert CannotVote(_proposalId, msg.sender, _voteOptions, e);
@@ -190,7 +176,7 @@ contract ToucanRelay is
     function dispatchVotes(
         uint256 _proposalId,
         LzSendParams memory _params
-    ) external payable noReentrant {
+    ) external payable nonReentrant {
         // check if we can dispatch the votes
         (bool success, ErrReason e) = canDispatch(_proposalId);
         if (!success) revert CannotDispatch(_proposalId, e);
@@ -260,11 +246,11 @@ contract ToucanRelay is
         address _voter,
         Tally memory _voteOptions
     ) public view returns (bool, ErrReason) {
-        // Check the proposal is open as defined by the timestamps in the proposal ID
-        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
-
         // the user is trying to vote with zero votes
         if (_voteOptions.isZero()) return (false, ErrReason.ZeroVotes);
+
+        // Check the proposal is open as defined by the timestamps in the proposal ID
+        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
 
         // this could re-enter with a malicious governance token
         uint256 votingPower = token.getPastVotes(_voter, _proposalId.getBlockSnapshotTimestamp());
@@ -280,7 +266,7 @@ contract ToucanRelay is
     /// @notice Checks if the votes for a proposal can be dispatched cross chain.
     /// @param _proposalId The proposal ID to check.
     /// @return Whether a proposal is open and has votes to dispatch.
-    function canDispatch(uint256 _proposalId) public view returns (bool, ErrReason) {
+    function canDispatch(uint256 _proposalId) public view virtual returns (bool, ErrReason) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
         if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
 
@@ -294,7 +280,7 @@ contract ToucanRelay is
     /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal ID.
     /// Note that we do not have any information in this implementation that validates if the proposal has already
     /// been executed. This remains the responsibility of the DAO and User.
-    function isProposalOpen(uint256 _proposalId) public view returns (bool) {
+    function isProposalOpen(uint256 _proposalId) public view virtual returns (bool) {
         // overflow check seems redundant but L2s sometimes have unique rules and edge cases
         uint32 currentTime = block.timestamp.toUint32();
         return _proposalId.isOpen(currentTime);
