@@ -23,11 +23,11 @@ import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
-import {ProposalRelayer} from "@execution-chain/crosschain/ProposalRelayer.sol";
+import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
 
 // internal test utils
-import "utils/converters.sol";
+import "@utils/converters.sol";
 import "forge-std/console2.sol";
 
 import {MockDAOSimplePermission as MockDAO} from "test/mocks/MockDAO.sol";
@@ -61,7 +61,7 @@ contract TestXChainExecute is TestHelper, AragonTest {
 
     address layerZeroEndpointExecutionChain;
     DAO daoExecutionChain;
-    ProposalRelayer relayer;
+    ActionRelay relayer;
 
     // voting chain
     uint32 constant EID_VOTING_CHAIN = 2;
@@ -150,7 +150,7 @@ contract TestXChainExecute is TestHelper, AragonTest {
         // the actual action is passing the above to the relayer
 
         // first we need a quote
-        ProposalRelayer.LzSendParams memory params = relayer.quote(
+        ActionRelay.LzSendParams memory params = relayer.quote(
             PROPOSAL_ID,
             innerActions,
             0, // allowFailureMap
@@ -164,7 +164,7 @@ contract TestXChainExecute is TestHelper, AragonTest {
         actions[0] = IDAO.Action({
             to: address(relayer),
             data: abi.encodeCall(
-                relayer.relayProposal,
+                relayer.relayActions,
                 (
                     PROPOSAL_ID,
                     innerActions,
@@ -209,16 +209,13 @@ contract TestXChainExecute is TestHelper, AragonTest {
         daoExecutionChain = createMockDAO(address(this));
 
         // deploy the relayer and connect to the dao on the execution chain
-        relayer = deployProposalRelayer(
-            layerZeroEndpointExecutionChain,
-            address(daoExecutionChain)
-        );
+        relayer = deployActionRelay(layerZeroEndpointExecutionChain, address(daoExecutionChain));
 
         // grant the DAO the ability to call the relayProposal function
         daoExecutionChain.grant({
             _who: address(daoExecutionChain),
             _where: address(relayer),
-            _permissionId: relayer.XCHAIN_PROPOSAL_RELAY_ID()
+            _permissionId: relayer.XCHAIN_ACTION_RELAYER_ID()
         });
 
         // give this contract the ability to call execute on the DAO for testing purposes

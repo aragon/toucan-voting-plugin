@@ -8,7 +8,7 @@ import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAda
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 
-import {ProposalRelayer} from "@execution-chain/crosschain/ProposalRelayer.sol";
+import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
@@ -16,6 +16,7 @@ import {MockToucanRelay, MockToucanRelayLzMock} from "@mocks/MockToucanRelay.sol
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
 import {MockTokenBridge} from "@mocks/MockTokenBridge.sol";
+import {MockActionRelay} from "@mocks/MockActionRelay.sol";
 
 /// adding deployers behind free functions allows us to change proxy patterns easily
 
@@ -119,13 +120,22 @@ function deployGovernanceOFTAdapter(
     return GovernanceOFTAdapter(deployed);
 }
 
-function deployProposalRelayer(address _lzEndpoint, address _dao) returns (ProposalRelayer) {
-    address base = address(new ProposalRelayer());
+function deployActionRelay(address _lzEndpoint, address _dao) returns (ActionRelay) {
+    address base = address(new ActionRelay());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(ProposalRelayer.initialize, (_lzEndpoint, _dao));
+    bytes memory data = abi.encodeCall(ActionRelay.initialize, (_lzEndpoint, _dao));
     // deploy and return the proxy
     address deployed = ProxyLib.deployMinimalProxy(base, data);
-    return ProposalRelayer(deployed);
+    return ActionRelay(deployed);
+}
+
+function deployMockActionRelay(address _lzEndpoint, address _dao) returns (MockActionRelay) {
+    address base = address(new MockActionRelay());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(ActionRelay.initialize, (_lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    return MockActionRelay(deployed);
 }
 
 function deployAdminXChain(address _lzEndpoint, address _dao) returns (AdminXChain) {

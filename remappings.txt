@@ -33,5 +33,4 @@ solidity-bytes-utils/=lib/solidity-bytes-utils/
 @voting-chain/=src/voting-chain/
 @execution-chain/=src/execution-chain/
 @oapp-upgradeable/=src/oapp-upgradeable/
-utils/=src/utils/
 @utils/=src/utils/

@@ -17,7 +17,7 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver, MockToucanReceiverCanReceivePass} from "@mocks/MockToucanReceiver.sol";
 
-import "utils/deployers.sol";
+import "@utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 import "forge-std/Test.sol";

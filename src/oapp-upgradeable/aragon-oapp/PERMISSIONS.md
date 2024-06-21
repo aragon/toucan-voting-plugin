@@ -73,10 +73,12 @@ The technical implementation of this can be seen in [AragonOAppAuthorizable](./A
 
 1. A single permission that is created `OAPP_ADMINISTRATOR`.
 2. The using of that permission in place of `onlyOwner`
-3. A `selfExecute` function, protected by `OAPP_ADMINISTRATOR` that allows admins to make arbitrary calls from the OApp, on the *OApp itself*
+3. An `execute` function, protected by `OAPP_ADMINISTRATOR` that allows admins to make arbitrary calls from the OApp.
 4. Setting the OApp's address as the delegate address.
 
 The consequence of (3) and (4) is that now, the _only_ way to make changes to the OApp, is via the Aragon permissions system, meaning it is entirely controlled by the DAO.
+
+Note as well: the EndpointV2 implementation of LayerZero allows the OApp to be its own delegate, meaninging it is redundant to delegate to `address(this)`. 
 
 **Advantages**:
 
@@ -89,7 +91,7 @@ The consequence of (3) and (4) is that now, the _only_ way to make changes to th
 - Not usable outside of Aragon context
 - Setting the delegate happens on the endpoint, so strictly speaking, you still have a second permission system.
 - `executeSelf` is very broad, and needs to be used with caution.
-- `OAPP_ADMINISTRATORS` could change the delegate to an address other than `address(this)` which would circumvent the PM system.
+- `OAPP_ADMINISTRATORS` could change the delegate to an address other than `address(dao)` which would circumvent the PM system.
     - It is trivial to change this though - we simply revert `setDelegate`:
 ```js
 /// @notice We prohibit changing the delegate as this would allow admins to bypass the permission model of the OApp.
@@ -97,6 +99,7 @@ function setDelegate(address) public view auth(OAPP_ADMINISTRATOR_ID) {
     revert SetDelegateProhibited();
 }
 ```
+However, in general my opinion is that the permissions system should be flexible. 
 
 ## Problem 2: Peers, XChain Permissions and IOAppCore
 

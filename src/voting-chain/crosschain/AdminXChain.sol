@@ -13,7 +13,7 @@ import {PluginCloneable} from "@aragon/osx-commons-contracts/src/plugin/PluginCl
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/oapp/OAppReceiverUpgradeable.sol";
-import "utils/converters.sol";
+import "@utils/converters.sol";
 import "forge-std/console2.sol";
 
 /// @title AdminXChain

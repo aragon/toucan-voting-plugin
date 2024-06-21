@@ -15,7 +15,7 @@ import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanRelay} from "@mocks/MockToucanRelay.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
-import {deployToucanRelay, deployMockToucanRelay} from "utils/deployers.sol";
+import {deployToucanRelay, deployMockToucanRelay} from "@utils/deployers.sol";
 
 /// @dev single chain testing for the relay
 contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {

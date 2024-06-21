@@ -17,7 +17,7 @@ import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 
-import "utils/converters.sol";
+import "@utils/converters.sol";
 import "forge-std/console2.sol";
 
 /// @title ToucanRelay

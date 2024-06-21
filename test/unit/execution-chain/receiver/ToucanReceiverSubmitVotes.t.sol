@@ -15,7 +15,7 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 
-import {deployToucanReceiver, deployMockToucanReceiver} from "utils/deployers.sol";
+import {deployToucanReceiver, deployMockToucanReceiver} from "@utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 /// @dev single chain testing for the relay

@@ -15,7 +15,7 @@ import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
 
-import {deployGovernanceOFTAdapter} from "utils/deployers.sol";
+import {deployGovernanceOFTAdapter} from "@utils/deployers.sol";
 
 /// @dev single chain testing for the relay
 contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {

@@ -8,6 +8,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "@utils/converters.sol";
 
+/// @dev this is a work in progress, it is not yet used in the codebase
 interface IXChainPermission is IPermissionCondition {
     enum Protocol {
         Unknown,
