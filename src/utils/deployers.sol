@@ -144,7 +144,7 @@ function deployAdminXChain(address _lzEndpoint, address _dao) returns (AdminXCha
     bytes memory data = abi.encodeCall(AdminXChain.initialize, (_dao, _lzEndpoint));
     // deploy and return the proxy
     address deployed = ProxyLib.deployMinimalProxy(base, data);
-    return AdminXChain(deployed);
+    return AdminXChain(payable(deployed));
 }
 
 function deployTokenBridge(

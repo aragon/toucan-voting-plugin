@@ -16,7 +16,7 @@ abstract contract AragonOAppAuthorizable is DaoAuthorizableUpgradeable {
     /// @notice This permission grants administrative rights to the holder to change OApp settings
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
 
-    /// @notice Thrown when a call in the self execute function reverts.
+    /// @notice Thrown when a call in the execute function reverts.
     error ExecuteFailed();
 
     /**

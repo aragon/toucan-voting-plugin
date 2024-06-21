@@ -19,9 +19,6 @@ abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
     // Mapping to store peers associated with corresponding endpoints
     mapping(uint32 eid => bytes32 peer) public peers;
 
-    /// @notice Thrown if trying to set the delegate as it must always be address(this)
-    error SetDelegateProhibited();
-
     /**
      * @dev UPGRADES constructor in the non-upgradeable contract
      * @dev initialize the OAppCore with the provided endpoint and delegate.

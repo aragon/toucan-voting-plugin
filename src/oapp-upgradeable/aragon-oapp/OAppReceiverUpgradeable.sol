@@ -3,20 +3,16 @@
 pragma solidity ^0.8.20;
 
 import {IOAppReceiver, Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {IXChainPermission, XChainMessagerRole} from "./XChainPermission.sol";
-
 import {OAppCoreUpgradeable} from "./OAppCoreUpgradeable.sol";
-import "@utils/converters.sol";
 
 /**
  * @title OAppReceiverUpgradeable
  * @dev Abstract contract implementing the ILayerZeroReceiver interface and extending OAppCore for OApp receivers.
  */
-abstract contract OAppReceiverUpgradeable is
-    IOAppReceiver,
-    OAppCoreUpgradeable,
-    XChainMessagerRole
-{
+abstract contract OAppReceiverUpgradeable is IOAppReceiver, OAppCoreUpgradeable {
+    // Custom error message for when the caller is not the registered endpoint/
+    error OnlyEndpoint(address addr);
+
     // @dev The version of the OAppReceiver implementation.
     // @dev Version is bumped when changes are made to this contract.
     uint64 internal constant RECEIVER_VERSION = 1;
@@ -100,28 +96,13 @@ abstract contract OAppReceiverUpgradeable is
         bytes calldata _message,
         address _executor,
         bytes calldata _extraData
-    ) public payable virtual auth(XCHAIN_MESSAGER_ROLE) {
-        IXChainPermission.XChainData memory crossChainData = IXChainPermission.XChainData({
-            protocol: IXChainPermission.Protocol.LayerZeroV2,
-            remoteSender: bytes32ToAddress(_origin.sender),
-            protocolRemoteChainId: _origin.srcEid
-        });
+    ) public payable virtual {
+        // Ensures that only the endpoint can attempt to lzReceive() messages to this OApp.
+        if (address(endpoint) != msg.sender) revert OnlyEndpoint(msg.sender);
 
-        bool isGranted = dao().hasPermission(
-            crossChainData.remoteSender,
-            address(this),
-            XCHAIN_MESSAGER_ROLE,
-            abi.encode(crossChainData)
-        );
-
-        if (!isGranted) {
-            revert IXChainPermission.XChainNotAuthorized({
-                who: crossChainData.remoteSender,
-                where: address(this),
-                permissionId: bytes32(""),
-                data: crossChainData
-            });
-        }
+        // Ensure that the sender matches the expected peer for the source endpoint.
+        if (_getPeerOrRevert(_origin.srcEid) != _origin.sender)
+            revert OnlyPeer(_origin.srcEid, _origin.sender);
 
         // Call the internal OApp implementation of lzReceive.
         _lzReceive(_origin, _guid, _message, _executor, _extraData);
