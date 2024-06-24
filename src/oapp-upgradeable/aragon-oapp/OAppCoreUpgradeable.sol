@@ -3,19 +3,14 @@
 pragma solidity ^0.8.20;
 
 import {IOAppCore, ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-
-import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizableUpgradeable.sol";
+import {AragonOAppAuthorizable} from "./AragonOAppAuthorizable.sol";
 
 /**
  * @title Aragon OAppCoreUpgradeable
  * @notice A layer zero primitive that uses the Aragon OSx permission management system.
  * @dev Abstract contract implementing the IOAppCore interface with basic OApp configurations.
  */
-abstract contract OAppCoreUpgradeable is IOAppCore, DaoAuthorizableUpgradeable {
-    /// @notice This permission grants administrative rights to the holder to change OApp settings
-    bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
-
+abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
     // The LayerZero endpoint associated with the given OApp
     /// @dev UPGRADES immutable in the non-upgradeable contract
     ILayerZeroEndpointV2 public endpoint;
@@ -30,7 +25,7 @@ abstract contract OAppCoreUpgradeable is IOAppCore, DaoAuthorizableUpgradeable {
      * @param _dao The DAO who will own the permission system for this contract. Will also be the delegate.
      */
     function __OAppCore_init(address _endpoint, address _dao) internal onlyInitializing {
-        __DaoAuthorizableUpgradeable_init(IDAO(_dao));
+        __AragonOAppAuthorizableInit(_dao);
         __OAppCore_init_unchained(_endpoint, _dao);
     }
 
