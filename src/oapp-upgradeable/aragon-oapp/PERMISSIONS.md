@@ -73,8 +73,10 @@ The technical implementation of this can be seen in [AragonOAppAuthorizable](./A
 
 1. A single permission that is created `OAPP_ADMINISTRATOR`.
 2. The using of that permission in place of `onlyOwner`
-3. An `execute` function, protected by `OAPP_ADMINISTRATOR` that allows admins to make arbitrary calls from the OApp.
+3. An `execute` function, protected by `OAPP_ADMINISTRATOR` that allows admins to make arbitrary calls from the OApp.*
 4. Setting the OApp's address as the delegate address.
+
+*On later thought, we need to discard this as is a potentially dangerous attack vector. An example would be if the OApp has MINT and BURN roles on a voting token: the OAPP Admin could then control the supply.
 
 The consequence of (3) and (4) is that now, the _only_ way to make changes to the OApp, is via the Aragon permissions system, meaning it is entirely controlled by the DAO.
 

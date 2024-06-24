@@ -3,15 +3,19 @@
 pragma solidity ^0.8.20;
 
 import {IOAppCore, ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
-import {AragonOAppAuthorizable} from "./AragonOAppAuthorizable.sol";
+import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizableUpgradeable.sol";
 
 /**
  * @title Aragon OAppCoreUpgradeable
  * @notice A layer zero primitive that uses the Aragon OSx permission management system.
  * @dev Abstract contract implementing the IOAppCore interface with basic OApp configurations.
  */
-abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
+abstract contract OAppCoreUpgradeable is IOAppCore, DaoAuthorizableUpgradeable {
+    /// @notice This permission grants administrative rights to the holder to change OApp settings
+    bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
+
     // The LayerZero endpoint associated with the given OApp
     /// @dev UPGRADES immutable in the non-upgradeable contract
     ILayerZeroEndpointV2 public endpoint;
@@ -23,17 +27,16 @@ abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
      * @dev UPGRADES constructor in the non-upgradeable contract
      * @dev initialize the OAppCore with the provided endpoint and delegate.
      * @param _endpoint The address of the LOCAL Layer Zero endpoint.
-     * @param _dao The DAO who will own the permission system for this contract.
+     * @param _dao The DAO who will own the permission system for this contract. Will also be the delegate.
      */
     function __OAppCore_init(address _endpoint, address _dao) internal onlyInitializing {
-        __AragonOAppAuthorizableInit(_dao);
+        __DaoAuthorizableUpgradeable_init(IDAO(_dao));
         __OAppCore_init_unchained(_endpoint, _dao);
     }
 
-    /// @notice Sets the delegate for layer zero to be the dao.
-    /// @dev This contract is also its own delegate.
-    /// @dev The AragonOappAuthorizable provides an 'execute' function which must be used to make changes.
-    /// This is guarded by an Auth modifier so can be granted to addresses by the DAO in the usual way.
+    /// @notice Initializes the OAppCore with the provided endpoint and delegate.
+    /// @param _endpoint The address of the LOCAL Layer Zero endpoint.
+    /// @param _dao The DAO who will own the permission system for this contract. Will also be the delegate.
     function __OAppCore_init_unchained(address _endpoint, address _dao) internal onlyInitializing {
         endpoint = ILayerZeroEndpointV2(_endpoint);
         endpoint.setDelegate(_dao);
