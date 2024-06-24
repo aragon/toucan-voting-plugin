@@ -19,6 +19,10 @@ import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20Vot
 contract ToucanRelaySetup is PluginUpgradeableSetup {
     using ProxyLib for address;
 
+    error TokenMissingMethod(address token, bytes4 selector);
+
+    error TokenNotTimestamp(address token);
+
     // address of the token bridge
     address public immutable bridgeBase;
 
@@ -70,80 +74,98 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         // the helpers are the bridge and the voting token - let's ensure they exist
         // and pass our validations
         address[] memory helpers = new address[](2);
-        helpers[0] = _validateToken(_dao, params);
-        helpers[1] = _validateBridge(_dao, params);
+        address token = validateToken(_dao, params);
+        address bridge = validateBridge(_dao, params);
+
+        helpers[0] = token;
+        helpers[1] = bridge;
 
         // deploy the relay
         plugin = IMPLEMENTATION.deployUUPSProxy(
-            abi.encodeCall(ToucanRelay.initialize, (helpers[0], params.lzEndpoint, _dao))
+            abi.encodeCall(ToucanRelay.initialize, (token, params.lzEndpoint, _dao))
         );
 
         // setup permissions
+        PermissionLib.MultiTargetPermission[]
+            memory permissions = new PermissionLib.MultiTargetPermission[](4);
 
-        // 1. the bridge needs mint and burn permissions on the token
+        // bridge can mint and burn tokens
+        permissions[0] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: GovernanceERC20VotingChain(token).MINT_PERMISSION_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: bridge,
+            where: token
+        });
 
-        // 2. the bridge and the relay need to set the DAO as the delegate/owner/admin
+        permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: GovernanceERC20VotingChain(token).BURN_PERMISSION_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: bridge,
+            where: token
+        });
+
+        // dao is the oapp administrator for the bridge and the relay
+        permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: OFTTokenBridge(bridge).OAPP_ADMINISTRATOR_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: bridge
+        });
+
+        permissions[3] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: ToucanRelay(plugin).OAPP_ADMINISTRATOR_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: plugin
+        });
+
+        preparedSetupData.permissions = permissions;
+        preparedSetupData.helpers = helpers;
+
         // 3. TODO setPeer still needs to be implemented on the other side
-
-        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](3);
     }
 
-    function _validateToken(
-        address _dao,
+    function validateToken(
+        address,
         InstallationParams memory params
-    ) internal view returns (address) {
+    ) public view returns (address) {
+        // token needs to have burn and mint permissions
+        // token should return balanceOf, mint, burn, getPastVotes
+        // token should use a timestamp based clock
+        GovernanceERC20VotingChain token = GovernanceERC20VotingChain(params.token);
+
+        bytes[] memory calls = new bytes[](5);
+        calls[0] = abi.encodeCall(token.BURN_PERMISSION_ID, ());
+        calls[1] = abi.encodeCall(token.MINT_PERMISSION_ID, ());
+        calls[2] = abi.encodeCall(token.balanceOf, (address(0)));
+        calls[3] = abi.encodeCall(token.getPastVotes, (address(0), 0));
+        calls[4] = abi.encodeCall(token.CLOCK_MODE, ());
+
+        // check all the calls don't revert
+        // need to be careful here as malcious address could be passed
+        for (uint256 i = 0; i < calls.length; i++) {
+            (bool success, ) = address(token).staticcall(calls[i]);
+            if (!success) revert TokenMissingMethod(params.token, abi.decode(calls[i], (bytes4)));
+        }
+
+        // check the clock uses timestamps
+        bytes32 clockModeHash = keccak256(abi.encodePacked(token.CLOCK_MODE()));
+        bytes32 timestampHash = keccak256(abi.encodePacked("mode=timestamp"));
+        if (!(clockModeHash == timestampHash)) revert TokenNotTimestamp(params.token);
+
+        // all good - return the token
         return params.token;
     }
 
-    function _validateBridge(
+    function validateBridge(
         address _dao,
         InstallationParams memory params
-    ) internal view returns (address) {
+    ) public view returns (address) {
         return params.bridge;
-    }
-
-    function _grantMintBurnPermissions(
-        address _dao,
-        address _token,
-        address _bridge
-    ) internal returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        IDAO dao = IDAO(_dao);
-        GovernanceERC20VotingChain token = GovernanceERC20VotingChain(_token);
-
-        //  Check if the bridge has the mint permission
-        bool hasMint = dao.hasPermission({
-            _who: _bridge,
-            _where: _token,
-            _permissionId: token.MINT_PERMISSION_ID(),
-            _data: bytes("")
-        });
-
-        bool hasBurn = dao.hasPermission({
-            _who: _bridge,
-            _where: _token,
-            _permissionId: token.BURN_PERMISSION_ID(),
-            _data: bytes("")
-        });
-
-        if (hasMint) {
-            permissions[0] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Grant,
-                permissionId: token.MINT_PERMISSION_ID(),
-                condition: PermissionLib.NO_CONDITION,
-                who: _bridge,
-                where: _token
-            });
-        }
-
-        if (hasBurn) {
-            permissions[1] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Grant,
-                permissionId: token.BURN_PERMISSION_ID(),
-                condition: PermissionLib.NO_CONDITION,
-                who: _bridge,
-                where: _token
-            });
-        }
     }
 
     function _grantOAppAdminPermissions(
@@ -151,7 +173,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         address _relay,
         address _bridge
     ) internal returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        // 2. the bridge and the relay need to set the DAO as the delegate/owner/admin
+        // 2. the bridge and the relay need to set the DAO as the admin
     }
 
     /// @inheritdoc IPluginSetup

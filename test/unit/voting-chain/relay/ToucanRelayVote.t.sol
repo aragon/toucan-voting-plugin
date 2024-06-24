@@ -156,15 +156,6 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
         assert(actualProposalVotes.eq(expectedProposalVotes));
     }
 
-    // the user can vote against multiple proposals
-    function testFuzz_singleVoterMultipleProposals(
-        State memory _stateFirst,
-        State memory _stateSecond
-    ) public {
-        // TODO hard one to test many states - better for an invariant test most likely
-        console2.log("testFuzz_singleVoterMultipleProposals::pls implement me");
-    }
-
     function _validateState(State memory _state) internal {
         _state.proposalId = _makeValidProposalIdFromSeed(_state.proposalId);
 

@@ -74,7 +74,7 @@ contract MockToucanRelayLzMock is MockToucanRelay {
         bytes memory /*_message */,
         bytes memory /* _options */,
         bool _payInLzToken
-    ) internal view override returns (MessagingFee memory fee) {
+    ) internal pure override returns (MessagingFee memory fee) {
         return MessagingFee(100, _payInLzToken ? 99 : 0);
     }
 
@@ -86,7 +86,7 @@ contract MockToucanRelayLzMock is MockToucanRelay {
         address _refundAddress
     ) internal override returns (MessagingReceipt memory receipt) {
         // @dev Push corresponding fees to the endpoint, any excess is sent back to the _refundAddress from the endpoint.
-        uint256 messageValue = _payNative(_fee.nativeFee);
+        _payNative(_fee.nativeFee);
         if (_fee.lzTokenFee > 0) _payLzToken(_fee.lzTokenFee);
 
         _getPeerOrRevert(_dstEid);

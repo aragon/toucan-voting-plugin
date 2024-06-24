@@ -376,7 +376,7 @@ contract TestDemoOffsite is BaseContracts, Test {
         vm.label(layerZeroEndpointVotingChain, "LZ_ENDPOINT_VOTING_CHAIN");
     }
 
-    function _executionChain() internal view override returns (bool) {
+    function _executionChain() internal pure override returns (bool) {
         return false;
     }
 }

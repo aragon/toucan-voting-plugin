@@ -71,7 +71,7 @@ contract TestGovERC20VotingChain is TestHelpers, IVoteContainer {
 
         vm.expectRevert(revertData);
         vm.prank(_notBurner);
-        token.burn(1);
+        token.burn(_notBurner, 1);
     }
 
     function testFuzz_canBurn(uint224 _mint, uint224 _burn, address _burner) public {
