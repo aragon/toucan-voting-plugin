@@ -36,3 +36,7 @@
 [submodule "lib/token-voting-plugin"]
 	path = lib/token-voting-plugin
 	url = https://github.com/aragon/token-voting-plugin
+[submodule "lib/admin-plugin"]
+	path = lib/admin-plugin
+	url = https://github.com/aragon/admin-plugin
+	branch = develop

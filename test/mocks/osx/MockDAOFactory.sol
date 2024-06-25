@@ -13,8 +13,10 @@ import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/Proxy
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 // import {PluginRepo} from "../plugin/repo/PluginRepo.sol";
-import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
+// import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+
+import {MockPluginSetupProcessor as PluginSetupProcessor} from "./MockPSP.sol";
 
 // import {DAORegistry} from "./DAORegistry.sol";
 
