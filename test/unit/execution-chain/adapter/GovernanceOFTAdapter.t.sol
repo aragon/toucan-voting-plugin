@@ -49,6 +49,12 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
         });
     }
 
+    function test_cannotCallImpl() public {
+        GovernanceOFTAdapter impl = new GovernanceOFTAdapter();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(token), address(this), address(lzEndpoint), address(dao));
+    }
+
     function test_delegateConstructor(address _voteProxy) public {
         GovernanceOFTAdapter adapter_ = deployGovernanceOFTAdapter({
             _token: address(token),

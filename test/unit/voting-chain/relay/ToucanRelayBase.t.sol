@@ -60,10 +60,4 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     function assertErrEq(ToucanRelay.ErrReason e1, ToucanRelay.ErrReason e2) internal pure {
         assertEq(uint(e1), uint(e2));
     }
-
-    // TODO test the refund address before and after setting peers and with eid combos
-
-    // TODO test the chainId and with an override
-
-    // TODO test getVotes: should update correctly for execution chain id, proposal id and voter
 }

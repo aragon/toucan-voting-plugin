@@ -17,6 +17,7 @@ import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
 import {MockTokenBridge} from "@mocks/MockTokenBridge.sol";
 import {MockActionRelay} from "@mocks/MockActionRelay.sol";
+import {MockOAppUpgradeable as MockOApp, MockOFTUpgradeable as MockOFT} from "@mocks/MockOApp.sol";
 
 /// adding deployers behind free functions allows us to change proxy patterns easily
 
@@ -171,4 +172,30 @@ function deployMockTokenBridge(
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockTokenBridge(deployed);
+}
+
+function deployMockOApp(address _lzEndpoint, address _dao) returns (MockOApp) {
+    address base = address(new MockOApp());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(MockOApp.initialize, (_lzEndpoint, _dao));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    return MockOApp(deployed);
+}
+
+function deployMockOFT(
+    string memory _name,
+    string memory _symbol,
+    address _lzEndpoint,
+    address _delegate
+) returns (MockOFT) {
+    address base = address(new MockOFT());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(
+        MockOFT.initialize,
+        (_name, _symbol, _lzEndpoint, _delegate)
+    );
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    return MockOFT(deployed);
 }

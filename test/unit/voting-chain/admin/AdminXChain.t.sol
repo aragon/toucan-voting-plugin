@@ -54,6 +54,12 @@ contract AdminXChainTest is TestHelpers, IVoteContainer {
         });
     }
 
+    function test_cannotCallImpl() public {
+        AdminXChain impl = new AdminXChain();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(lzEndpoint), address(dao));
+    }
+
     function test_cannotReinitialize() public {
         vm.expectRevert("Initializable: contract is already initialized");
         admin.initialize(address(lzEndpoint), address(dao));

@@ -2,12 +2,15 @@
 
 pragma solidity ^0.8.8;
 
+import {IOFT} from "@lz-oft/interfaces/IOFT.sol";
+import {IOAppCore, ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
 import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
 import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 
+import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
@@ -19,49 +22,74 @@ import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20Vot
 contract ToucanRelaySetup is PluginUpgradeableSetup {
     using ProxyLib for address;
 
+    /// @notice Thrown if the token is missing a required method for cross-chain communication.
     error TokenMissingMethod(address token, bytes4 selector);
 
+    /// @notice Thrown if the token does not use a timestamp based clock.
     error TokenNotTimestamp(address token);
 
-    // address of the token bridge
+    /// @notice Thrown if the token name or symbol is empty.
+    error InvalidTokenNameOrSymbol();
+
+    /// @notice Thrown if the bridge is missing a required method for cross-chain communication.
+    error BridgeMissingMethod(address bridge, bytes4 selector);
+
+    /// @notice Thrown if the bridge is not the correct version.
+    error InvalidBridge();
+
+    /// @notice Thrown if the layerZero endpoint is invalid.
+    error InvalidEndpoint();
+
+    /// @notice Thrown if the DAO is not a delegate for the bridge OApp.
+    error DaoNotDelegate(address dao, address delegate, address bridge);
+
+    /// @notice Thrown if the token used in the bridge does not match the token provided.
+    error IncorrectBridgeToken(address bridge, address token);
+
+    /// @notice Thrown if the helpers length is incorrect.
+    error IncorrectHelpersLength(uint8 expected, uint8 actual);
+
+    /// @notice The ID of the permission required to call admin functions on the bridge and the relay.
+    bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
+
+    /// @notice address of the token bridge implementation.
     address public immutable bridgeBase;
 
-    // address of the voting token
+    /// @notice address of the voting token implementation.
     address public immutable votingTokenBase;
 
+    /// @notice address of one-shot initializer for post deploy OApp setup.
+    address public immutable initializerBase;
+
+    /// @notice The installation parameters for the `ToucanRelay` plugin.
+    /// @param lzEndpoint The address of the LayerZero endpoint on this chain.
+    /// @param bridge The address of the token bridge, can be a zero address to deploy a new one.
+    /// @param token The address of the voting token, can be a zero address to deploy a new one.
+    /// @param name The name of the voting token, can be an empty string if `token` is provided.
+    /// @param symbol The symbol of the voting token, can be an empty string if `token` is provided.
+    /// @param initializeCaller The address that will call the initializer, setting the peer after the
+    /// execution chain contracts are setup.
     struct InstallationParams {
         address lzEndpoint;
-        address token;
-        bool skipTokenValidation;
         address bridge;
-        bool skipBridgeValidation;
+        address token;
+        string name;
+        string symbol;
+        address initializeCaller;
     }
 
+    /// @notice Sets the implementation contracts for the `ToucanRelay` plugin and helpers.
+    /// @param _bridgeBase The address of the `OFTTokenBridge` implementation contract.
+    /// @param _votingTokenBase The address of the `GovernanceERC20VotingChain` implementation contract.
     constructor(
         OFTTokenBridge _bridgeBase,
-        GovernanceERC20VotingChain _votingTokenBase
+        GovernanceERC20VotingChain _votingTokenBase,
+        OAppInitializer _initializerBase
     ) PluginUpgradeableSetup(address(new ToucanRelay())) {
         bridgeBase = address(_bridgeBase);
         votingTokenBase = address(_votingTokenBase);
+        initializerBase = address(_initializerBase);
     }
-
-    // /// @inheritdoc IPluginSetup
-    // function prepareInstallation(
-    //     address _dao,
-    //     bytes calldata _data
-    // ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-    //     /*
-    //         Here we need to:
-
-    //         1. Deploy the Relay
-    //         2. Initialize the Relay
-    //         3. Deploy the Voting Token (or link it)
-    //         4. Deploy the bridge
-    //         5. Grant the permissions for the relay, voting token and bridge
-    //         6. Ensure the DAO can activate XChain by calling setPeer once the other side of the setup is complete OR allow an EOA to do so
-
-    //     */
-    // }
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(
@@ -73,12 +101,21 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
 
         // the helpers are the bridge and the voting token - let's ensure they exist
         // and pass our validations
-        address[] memory helpers = new address[](2);
-        address token = validateToken(_dao, params);
-        address bridge = validateBridge(_dao, params);
+        address[] memory helpers = new address[](4);
+
+        address token = validateOrDeployToken(_dao, params);
+        address bridge = validateOrDeployBridge(_dao, params.bridge, token, params.lzEndpoint);
+
+        // set peer needs to be called when the corresponding receiver is deployed on the execution chain
+        // for this we deploy a contract that will allow an address outside of the dao to call setPeer once
+        // which is then unable to be called again
+        address initializerRelay = initializerBase.deployMinimalProxy(abi.encode(_dao, plugin));
+        address initializerBridge = initializerBase.deployMinimalProxy(abi.encode(_dao, plugin));
 
         helpers[0] = token;
         helpers[1] = bridge;
+        helpers[2] = initializerRelay;
+        helpers[3] = initializerBridge;
 
         // deploy the relay
         plugin = IMPLEMENTATION.deployUUPSProxy(
@@ -87,9 +124,10 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
 
         // setup permissions
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](4);
+            memory permissions = new PermissionLib.MultiTargetPermission[](8);
 
         // bridge can mint and burn tokens
+        // may be redundant but avoids conditionals
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             permissionId: GovernanceERC20VotingChain(token).MINT_PERMISSION_ID(),
@@ -109,7 +147,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         // dao is the oapp administrator for the bridge and the relay
         permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
-            permissionId: OFTTokenBridge(bridge).OAPP_ADMINISTRATOR_ID(),
+            permissionId: OAPP_ADMINISTRATOR_ID,
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: bridge
@@ -117,16 +155,80 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
 
         permissions[3] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
-            permissionId: ToucanRelay(plugin).OAPP_ADMINISTRATOR_ID(),
+            permissionId: OAPP_ADMINISTRATOR_ID,
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: plugin
         });
 
+        // let the initializer set the peer on the relay and the bridge
+        permissions[4] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: OAppInitializer(initializerRelay).INITIALIZER_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: initializerRelay,
+            where: plugin
+        });
+
+        permissions[5] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: OAppInitializer(initializerBridge).INITIALIZER_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: initializerBridge,
+            where: bridge
+        });
+
+        // let the initializeCaller call the initializer
+        permissions[6] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: OAppInitializer(initializerRelay).INITIALIZER_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: params.initializeCaller,
+            where: initializerRelay
+        });
+
+        permissions[7] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: OAppInitializer(initializerBridge).INITIALIZER_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: params.initializeCaller,
+            where: initializerBridge
+        });
+
         preparedSetupData.permissions = permissions;
         preparedSetupData.helpers = helpers;
+    }
 
-        // 3. TODO setPeer still needs to be implemented on the other side
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /// --------- TOKEN ----------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    function validateOrDeployToken(
+        address _dao,
+        InstallationParams memory _params
+    ) public returns (address) {
+        if (_params.token == address(0)) {
+            return deployToken(_dao, _params);
+        } else {
+            return validateToken(_dao, _params);
+        }
+    }
+
+    function isEmpty(string memory _str) internal pure returns (bool) {
+        return keccak256(abi.encode(_str)) == keccak256(abi.encode(""));
+    }
+
+    function deployToken(address _dao, InstallationParams memory _params) public returns (address) {
+        if (isEmpty(_params.name) || isEmpty(_params.symbol)) {
+            revert InvalidTokenNameOrSymbol();
+        }
+        return
+            votingTokenBase.deployUUPSProxy(
+                abi.encodeCall(
+                    GovernanceERC20VotingChain.initialize,
+                    (IDAO(_dao), _params.name, _params.symbol)
+                )
+            );
     }
 
     function validateToken(
@@ -161,22 +263,75 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         return params.token;
     }
 
-    function validateBridge(
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /// -------- BRIDGE ----------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    function validateOrDeployBridge(
         address _dao,
-        InstallationParams memory params
-    ) public view returns (address) {
-        return params.bridge;
+        address _bridge,
+        address _token,
+        address _lzEndpoint
+    ) public returns (address) {
+        if (_bridge == address(0)) {
+            return deployBridge(_dao, _token, _lzEndpoint);
+        } else {
+            return validateBridge(_dao, _bridge, _token, _lzEndpoint);
+        }
     }
 
-    function _grantOAppAdminPermissions(
+    function deployBridge(
         address _dao,
-        address _relay,
-        address _bridge
-    ) internal returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        // 2. the bridge and the relay need to set the DAO as the admin
+        address _token,
+        address _lzEndpoint
+    ) public returns (address) {
+        return
+            bridgeBase.deployUUPSProxy(
+                abi.encodeCall(OFTTokenBridge.initialize, (_token, _lzEndpoint, _dao))
+            );
+    }
+
+    function validateBridge(
+        address _dao,
+        address _bridge,
+        address _token,
+        address _lzEndpoint
+    ) public view returns (address) {
+        OFTTokenBridge bridge = OFTTokenBridge(_bridge);
+
+        /// check the bridge is the correct OFT version
+        try bridge.oftVersion() returns (bytes4 interfaceId, uint64 version) {
+            if (interfaceId != type(IOFT).interfaceId || version != 1) {
+                revert InvalidBridge();
+            }
+        } catch {
+            revert BridgeMissingMethod(_bridge, bridge.oftVersion.selector);
+        }
+
+        /// check the token is the correct token
+        try bridge.token() returns (address token) {
+            if (token != _token) {
+                revert IncorrectBridgeToken(_bridge, _token);
+            }
+        } catch {
+            revert BridgeMissingMethod(_bridge, bridge.token.selector);
+        }
+
+        /// check the DAO is delegate for the bridge
+        bytes memory callData = abi.encodeWithSignature("delegates(address)", _bridge);
+        (bool success, bytes memory data) = (_lzEndpoint).staticcall(callData);
+        if (!success) revert InvalidEndpoint();
+        else {
+            address delegate = abi.decode(data, (address));
+            if (delegate != _dao) revert DaoNotDelegate(_dao, delegate, _bridge);
+        }
+
+        // all good - return the bridge
+        return _bridge;
     }
 
     /// @inheritdoc IPluginSetup
+    /// @dev This is a no-op as this is the first version of the plugin.
     function prepareUpdate(
         address _dao,
         uint16 _fromBuild,
@@ -184,8 +339,36 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     ) external returns (bytes memory initData, PreparedSetupData memory preparedSetupData) {}
 
     /// @inheritdoc IPluginSetup
+    /// @dev The relay will be uninstalled but we keep the bridge setup as-is.
+    /// Strictly speaking, there's nothing to uninstall on the DAO but we revoke the permissions nonetheless.
     function prepareUninstallation(
         address _dao,
         SetupPayload calldata _payload
-    ) external returns (PermissionLib.MultiTargetPermission[] memory permissions) {}
+    ) external pure returns (PermissionLib.MultiTargetPermission[] memory permissions) {
+        // fetch the bridge address
+        address[] memory currentHelpers = _payload.currentHelpers;
+        if (currentHelpers.length != 4) {
+            revert IncorrectHelpersLength(4, uint8(currentHelpers.length));
+        }
+        address bridge = currentHelpers[1];
+
+        permissions = new PermissionLib.MultiTargetPermission[](2);
+
+        // remove OAPP administrator ids from relay and bridge
+        permissions[0] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: OAPP_ADMINISTRATOR_ID
+        });
+
+        permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: bridge,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: OAPP_ADMINISTRATOR_ID
+        });
+    }
 }

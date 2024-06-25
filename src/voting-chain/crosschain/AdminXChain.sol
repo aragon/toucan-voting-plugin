@@ -56,6 +56,10 @@ contract AdminXChain is
     /// @notice Store metadata from received actions against a globally unique proposal ID.
     mapping(uint256 proposalId => XChainActionMetadata) internal _xChainActionMetadata;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes the contract by setting the owner and the delegate to this address.
     /// @param _dao The associated DAO.
     /// @param _lzEndpoint The address of the Layer Zero endpoint on this chain.abi

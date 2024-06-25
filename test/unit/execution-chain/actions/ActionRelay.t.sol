@@ -47,6 +47,12 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
         });
     }
 
+    function test_cannotCallImpl() public {
+        MockActionRelay impl = new MockActionRelay();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(lzEndpoint), address(dao));
+    }
+
     function test_cannotReinitialize() public {
         vm.expectRevert("Initializable: contract is already initialized");
         relay.initialize(address(lzEndpoint), address(dao));

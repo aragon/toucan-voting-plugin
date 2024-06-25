@@ -26,6 +26,12 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
 
     // TODO reentrancy gov token
 
+    function test_cannotCallImplementation() public {
+        ToucanRelay impl = new ToucanRelay();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(0), address(lzEndpoint), address(dao));
+    }
+
     function testFuzz_initializer(address _token, address _dao) public {
         // dao is checked by OApp
         vm.assume(_dao != address(0));

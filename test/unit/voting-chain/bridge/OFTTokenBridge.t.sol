@@ -61,8 +61,14 @@ contract TestOFTTokenBridge is TestHelpers, IVoteContainer {
         });
     }
 
+    function test_cannotCallImpl() public {
+        OFTTokenBridge impl = new OFTTokenBridge();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(token), address(lzEndpoint), address(dao));
+    }
+
     function test_cannotReinitialize() public {
-        vm.expectRevert("Initializable: contract is already initialized");
+        vm.expectRevert(initializableError);
         bridge.initialize(address(token), address(lzEndpoint), address(dao));
     }
 

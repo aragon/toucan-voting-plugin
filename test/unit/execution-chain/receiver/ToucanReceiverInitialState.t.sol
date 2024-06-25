@@ -24,6 +24,12 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
         super.setUp();
     }
 
+    function test_cannotCallImplementation() public {
+        MockToucanReceiver impl = new MockToucanReceiver();
+        vm.expectRevert(initializableError);
+        impl.initialize(address(lzEndpoint), address(dao), address(dao), address(dao));
+    }
+
     // test the inital state is set including the events emitted
     function testFuzz_initializerReceiver(
         address _token,

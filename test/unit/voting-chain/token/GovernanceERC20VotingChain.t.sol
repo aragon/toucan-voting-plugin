@@ -5,6 +5,12 @@ import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {IERC20BurnableUpgradeable} from "@interfaces/IERC20BurnableUpgradeable.sol";
+import {IERC20MintableUpgradeable} from "@interfaces/IERC20MintableUpgradeable.sol";
+import {IERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20PermitUpgradeable.sol";
+import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
@@ -22,6 +28,8 @@ import {deployToucanRelay, deployMockToucanRelay} from "@utils/deployers.sol";
 contract TestGovERC20VotingChain is TestHelpers, IVoteContainer {
     GovernanceERC20VotingChain token;
     DAO dao;
+
+    bytes4[] ifaces;
 
     function setUp() public virtual {
         // reset timestamps and blocks
@@ -125,5 +133,18 @@ contract TestGovERC20VotingChain is TestHelpers, IVoteContainer {
     function test_clock(uint48 _warp) public {
         vm.warp(_warp);
         assertEq(token.clock(), _warp);
+    }
+
+    function test_interface() public {
+        ifaces.push(type(IERC20Upgradeable).interfaceId);
+        ifaces.push(type(IERC20PermitUpgradeable).interfaceId);
+        ifaces.push(type(IERC20MetadataUpgradeable).interfaceId);
+        ifaces.push(type(IVotesUpgradeable).interfaceId);
+        ifaces.push(type(IERC20MintableUpgradeable).interfaceId);
+        ifaces.push(type(IERC20BurnableUpgradeable).interfaceId);
+
+        for (uint i = 0; i < ifaces.length; i++) {
+            assert(token.supportsInterface(ifaces[i]));
+        }
     }
 }
