@@ -18,8 +18,6 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 import {SweeperUpgradeable} from "src/SweeperUpgradeable.sol";
 
-import "forge-std/console2.sol";
-
 /// @notice Events emitted by the ToucanReceiver contract.
 /// @dev Separation of events makes for easier testing.
 interface IToucanReceiverEvents {

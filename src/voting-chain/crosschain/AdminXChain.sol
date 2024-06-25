@@ -90,6 +90,8 @@ contract AdminXChain is
     /// @param _origin contains the source endpoint and sender address, passed from Layer Zero.
     /// @param _message contains the execution instruction.
     /// @dev The security model for this function is entirely reliant on the message broker, and that the peer is trusted.
+    /// @dev TODO: storing the message hash is an alternative option that could then be used to limit the calldata passed
+    /// between chains. This could then be re-construted and executed on the receiving chain.
     function _lzReceive(
         Origin calldata _origin,
         bytes32 /* _guid */,

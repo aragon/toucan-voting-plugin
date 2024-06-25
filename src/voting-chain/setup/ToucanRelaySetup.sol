@@ -58,9 +58,6 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     /// @notice address of the voting token implementation.
     address public immutable votingTokenBase;
 
-    /// @notice address of one-shot initializer for post deploy OApp setup.
-    address public immutable initializerBase;
-
     /// @notice The installation parameters for the `ToucanRelay` plugin.
     /// @param lzEndpoint The address of the LayerZero endpoint on this chain.
     /// @param bridge The address of the token bridge, can be a zero address to deploy a new one.
@@ -75,7 +72,6 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         address token;
         string name;
         string symbol;
-        address initializeCaller;
     }
 
     /// @notice Sets the implementation contracts for the `ToucanRelay` plugin and helpers.
@@ -83,12 +79,10 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     /// @param _votingTokenBase The address of the `GovernanceERC20VotingChain` implementation contract.
     constructor(
         OFTTokenBridge _bridgeBase,
-        GovernanceERC20VotingChain _votingTokenBase,
-        OAppInitializer _initializerBase
+        GovernanceERC20VotingChain _votingTokenBase
     ) PluginUpgradeableSetup(address(new ToucanRelay())) {
         bridgeBase = address(_bridgeBase);
         votingTokenBase = address(_votingTokenBase);
-        initializerBase = address(_initializerBase);
     }
 
     /// @inheritdoc IPluginSetup
@@ -101,21 +95,13 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
 
         // the helpers are the bridge and the voting token - let's ensure they exist
         // and pass our validations
-        address[] memory helpers = new address[](4);
+        address[] memory helpers = new address[](2);
 
         address token = validateOrDeployToken(_dao, params);
         address bridge = validateOrDeployBridge(_dao, params.bridge, token, params.lzEndpoint);
 
-        // set peer needs to be called when the corresponding receiver is deployed on the execution chain
-        // for this we deploy a contract that will allow an address outside of the dao to call setPeer once
-        // which is then unable to be called again
-        address initializerRelay = initializerBase.deployMinimalProxy(abi.encode(_dao, plugin));
-        address initializerBridge = initializerBase.deployMinimalProxy(abi.encode(_dao, plugin));
-
         helpers[0] = token;
         helpers[1] = bridge;
-        helpers[2] = initializerRelay;
-        helpers[3] = initializerBridge;
 
         // deploy the relay
         plugin = IMPLEMENTATION.deployUUPSProxy(
@@ -124,7 +110,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
 
         // setup permissions
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](8);
+            memory permissions = new PermissionLib.MultiTargetPermission[](4);
 
         // bridge can mint and burn tokens
         // may be redundant but avoids conditionals
@@ -159,40 +145,6 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: plugin
-        });
-
-        // let the initializer set the peer on the relay and the bridge
-        permissions[4] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAppInitializer(initializerRelay).INITIALIZER_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: initializerRelay,
-            where: plugin
-        });
-
-        permissions[5] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAppInitializer(initializerBridge).INITIALIZER_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: initializerBridge,
-            where: bridge
-        });
-
-        // let the initializeCaller call the initializer
-        permissions[6] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAppInitializer(initializerRelay).INITIALIZER_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: params.initializeCaller,
-            where: initializerRelay
-        });
-
-        permissions[7] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAppInitializer(initializerBridge).INITIALIZER_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: params.initializeCaller,
-            where: initializerBridge
         });
 
         preparedSetupData.permissions = permissions;
@@ -347,8 +299,8 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     ) external pure returns (PermissionLib.MultiTargetPermission[] memory permissions) {
         // fetch the bridge address
         address[] memory currentHelpers = _payload.currentHelpers;
-        if (currentHelpers.length != 4) {
-            revert IncorrectHelpersLength(4, uint8(currentHelpers.length));
+        if (currentHelpers.length != 2) {
+            revert IncorrectHelpersLength(2, uint8(currentHelpers.length));
         }
         address bridge = currentHelpers[1];
 

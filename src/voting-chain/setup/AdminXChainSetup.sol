@@ -21,36 +21,23 @@ contract AdminXChainSetup is PluginSetup {
     /// @notice The ID of the permission required to call the `execute` function.
     bytes32 internal constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
-    /// @notice A single use initializer that will allow peers to be set after setup.
-    address immutable initalizerBase;
-
     /// @notice The constructor setting the `Admin` implementation contract to clone from.
-    constructor(OAppInitializer _initializerBase) PluginSetup(address(new AdminXChain())) {
-        initalizerBase = address(_initializerBase);
-    }
+    constructor() PluginSetup(address(new AdminXChain())) {}
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-        (address lzEndpoint, address initializeCaller) = abi.decode(_data, (address, address));
+        address lzEndpoint = abi.decode(_data, (address));
 
         // Clone and initialize the plugin contract.
         bytes memory initData = abi.encodeCall(AdminXChain.initialize, (_dao, lzEndpoint));
         plugin = IMPLEMENTATION.deployMinimalProxy(initData);
 
-        // set peer needs to be called when the corresponding receiver is deployed on the execution chain
-        // for this we deploy a contract that will allow an address outside of the dao to call setPeer once
-        // which is then unable to be called again
-        address initializer = initalizerBase.deployMinimalProxy(abi.encode(_dao, plugin));
-
-        address[] memory helpers = new address[](1);
-        helpers[0] = initializer;
-
         // Prepare permissions
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](5);
+            memory permissions = new PermissionLib.MultiTargetPermission[](3);
 
         // Grant the DAO OApp admin
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -61,26 +48,8 @@ contract AdminXChainSetup is PluginSetup {
             permissionId: AdminXChain(payable(plugin)).OAPP_ADMINISTRATOR_ID()
         });
 
-        // also give it to the initializer
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: initializer,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(payable(plugin)).OAPP_ADMINISTRATOR_ID()
-        });
-
-        // give the initializeCaller the ability to call the set peer
-        permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: initializer,
-            who: initializeCaller,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: OAppInitializer(initializer).INITIALIZER_ID()
-        });
-
         // Grant `EXECUTE_PERMISSION` on the DAO to the plugin.
-        permissions[3] = PermissionLib.MultiTargetPermission({
+        permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
@@ -89,7 +58,7 @@ contract AdminXChainSetup is PluginSetup {
         });
 
         // sweep on the DAO
-        permissions[4] = PermissionLib.MultiTargetPermission({
+        permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: _dao,
@@ -98,7 +67,6 @@ contract AdminXChainSetup is PluginSetup {
         });
 
         preparedSetupData.permissions = permissions;
-        preparedSetupData.helpers = helpers;
     }
 
     /// @inheritdoc IPluginSetup
