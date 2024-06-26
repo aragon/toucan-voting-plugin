@@ -37,7 +37,7 @@ contract ToucanReceiverSetup is PluginUpgradeableSetup {
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
 
-    bytes4 private constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
+    bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
     uint8 private constant VOTE_REPLACEMENT_MODE = uint8(IToucanVoting.VotingMode.VoteReplacement);
 
     address public oftAdapterBase;

@@ -26,8 +26,12 @@ mkdir -p ./$TMP_DIR
 mv ./test/integration/* ./$TMP_DIR/
 
 # Run forge coverage and capture the exit status
+# prune the coverage report to remove files that are not part of the project
 # this ensures that the files get moved back even if the script fails
-forge coverage --report lcov && genhtml lcov.info -o report --branch-coverage
+forge coverage --report lcov && \
+    lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/**/*.sol' 'script/**/*.sol' 'test/*.sol' 'script/*.sol' && \
+    genhtml lcov.info.pruned -o report --branch-coverage
+
 status=$?
 
 # Move files back to ./test/integration

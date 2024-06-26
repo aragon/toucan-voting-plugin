@@ -12,7 +12,6 @@ import {OFTAdapterUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTAdapterUpgr
 /// @dev This contract must be a singleton for the entire crosschain system and deployed
 /// On the execution chain. It can delegate votes to other contracts to allow bridged tokens
 /// to still be used for voting via cross chain messages.
-/// @dev TODO: this can be made into a proxy contract (clone) to save gas
 contract GovernanceOFTAdapter is OFTAdapterUpgradeable {
     /// @notice Grants the ability to change the delegated voting address on this network for all bridged tokens.
     bytes32 public constant SET_CROSSCHAIN_DELEGATE_ID = keccak256("SET_CROSSCHAIN_DELEGATE");

@@ -186,7 +186,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     function validateToken(
         address,
         InstallationParams memory params
-    ) public view returns (address) {
+    ) public view virtual returns (address) {
         // token needs to have burn and mint permissions
         // token should return balanceOf, mint, burn, getPastVotes
         // token should use a timestamp based clock
@@ -248,7 +248,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         address _bridge,
         address _token,
         address _lzEndpoint
-    ) public view returns (address) {
+    ) public view virtual returns (address) {
         OFTTokenBridge bridge = OFTTokenBridge(_bridge);
 
         /// check the bridge is the correct OFT version

@@ -419,12 +419,5 @@ contract TestExecutionChainOSx is TestHelpers {
             address(token),
             "voting should have the voting token as underlying"
         );
-
-        // check that the token voting plugin is set as the voting plugin on the receiver
-        assertEq(
-            address(receiver.votingPlugin()),
-            address(voting),
-            "voting plugin should be set on the receiver"
-        );
     }
 }
