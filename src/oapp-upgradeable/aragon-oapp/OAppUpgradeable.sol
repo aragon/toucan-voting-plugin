@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 // @dev Import the 'MessagingFee' and 'MessagingReceipt' so it's exposed to OApp implementers
 // solhint-disable-next-line no-unused-import

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IOAppCore, ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
 import {AragonOAppAuthorizable} from "./AragonOAppAuthorizable.sol";
@@ -16,7 +16,8 @@ abstract contract OAppCoreUpgradeable is IOAppCore, AragonOAppAuthorizable {
     ILayerZeroEndpointV2 public endpoint;
 
     // Mapping to store peers associated with corresponding endpoints
-    mapping(uint32 eid => bytes32 peer) public peers;
+    /// @dev eid => peer
+    mapping(uint32 => bytes32) public peers;
 
     /**
      * @dev UPGRADES constructor in the non-upgradeable contract

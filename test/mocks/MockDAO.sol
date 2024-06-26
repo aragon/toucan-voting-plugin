@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import "forge-std/console2.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";

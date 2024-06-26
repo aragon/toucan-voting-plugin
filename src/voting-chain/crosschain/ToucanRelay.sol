@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
@@ -55,9 +55,10 @@ contract ToucanRelay is
     /// @notice Subset of proposal data seen required to dispatch votes cross chain.
     /// @param tally Aggregated votes for the proposal.
     /// @param voters Mapping of voters to their most recent vote choices.
+    /// @dev voter => lastVote
     struct Proposal {
         Tally tally;
-        mapping(address voter => Tally lastVote) voters;
+        mapping(address => Tally) voters;
     }
 
     /// @notice Additional Layer Zero params required to send a cross chain message.
@@ -77,7 +78,8 @@ contract ToucanRelay is
 
     /// @notice The proposals are stored in a nested mapping by  proposal ID.
     /// @dev This relies on a critical assumption of a single execution chain.
-    mapping(uint256 proposalId => Proposal) public proposals;
+    /// @dev proposalId => Proposal
+    mapping(uint256 => Proposal) public proposals;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------

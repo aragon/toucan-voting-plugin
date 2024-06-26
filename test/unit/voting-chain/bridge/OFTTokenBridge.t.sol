@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IOFT} from "@lz-oft/interfaces/IOFT.sol";

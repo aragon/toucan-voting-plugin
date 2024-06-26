@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
@@ -66,9 +66,10 @@ contract ToucanReceiver is
 
     /// @notice All votes across all chains for a proposal.
     /// @param votesByChain The votes aggregated by each voting chain.
+    /// @dev chainId => Tally
     /// @param aggregateVotes The total votes across all chains.
     struct AggregateTally {
-        mapping(uint256 chainId => Tally) votesByChain;
+        mapping(uint256 => Tally) votesByChain;
         Tally aggregateVotes;
     }
 
@@ -82,7 +83,8 @@ contract ToucanReceiver is
     ITokenVoting public votingPlugin;
 
     /// @notice Stores all votes for a proposal across all chains and in aggregate.
-    mapping(uint256 proposalId => AggregateTally) public votes;
+    /// @dev proposalId => AggregateTally
+    mapping(uint256 => AggregateTally) public votes;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------

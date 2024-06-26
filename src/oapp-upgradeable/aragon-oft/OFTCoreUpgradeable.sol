@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IOFT, SendParam, OFTLimit, OFTReceipt, OFTFeeDetail, MessagingReceipt, MessagingFee} from "@lz-oft/interfaces/IOFT.sol";
 import {IOAppMsgInspector} from "@lz-oapp/interfaces/IOAppMsgInspector.sol";

@@ -2,10 +2,6 @@
 	branch = "release-v0"
 	path = lib/prb-test
 	url = https://github.com/PaulRBerg/prb-test
-[submodule "lib/osx"]
-	path = lib/osx
-	url = https://github.com/aragon/osx
-	branch = develop
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
@@ -40,3 +36,6 @@
 	path = lib/admin-plugin
 	url = https://github.com/aragon/admin-plugin
 	branch = develop
+[submodule "lib/osx"]
+	path = lib/osx
+	url = https://github.com/aragon/osx

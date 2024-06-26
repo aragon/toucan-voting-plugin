@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {IPluginSetup, PermissionLib} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";

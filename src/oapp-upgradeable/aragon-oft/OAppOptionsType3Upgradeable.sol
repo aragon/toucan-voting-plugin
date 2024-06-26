@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {IOAppOptionsType3, EnforcedOptionParam} from "@lz-oapp/interfaces/IOAppOptionsType3.sol";
 
@@ -13,8 +13,9 @@ import {AragonOAppAuthorizable} from "@oapp-upgradeable/aragon-oapp/AragonOAppAu
 abstract contract OAppOptionsType3Upgradeable is IOAppOptionsType3, AragonOAppAuthorizable {
     uint16 internal constant OPTION_TYPE_3 = 3;
 
-    // @dev The "msgType" should be defined in the child contract.
-    mapping(uint32 eid => mapping(uint16 msgType => bytes enforcedOption)) public enforcedOptions;
+    /// @dev The "msgType" should be defined in the child contract.
+    /// @dev eid => msgType => enforcedOption
+    mapping(uint32 => mapping(uint16 => bytes)) public enforcedOptions;
 
     /**
      * @dev Sets the enforced options for specific endpoint and message type combinations.

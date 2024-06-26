@@ -54,7 +54,8 @@ contract AdminXChain is
     }
 
     /// @notice Store metadata from received actions against a globally unique proposal ID.
-    mapping(uint256 proposalId => XChainActionMetadata) internal _xChainActionMetadata;
+    /// @dev proposalId => XChainActionMetadata
+    mapping(uint256 => XChainActionMetadata) internal _xChainActionMetadata;
 
     constructor() {
         _disableInitializers();
