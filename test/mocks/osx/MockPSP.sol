@@ -271,18 +271,24 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         _;
     }
 
-    /// @dev MOCK: PIN TO A SINGLE SETUP CONTRACT
-    address SETUP;
-
     /// @notice Constructs the plugin setup processor by setting the associated plugin repo registry.
     // / @param _repoRegistry The plugin repo registry contract.
     constructor(address _setup) {
-        SETUP = _setup;
+        queueSetup(_setup);
         // repoRegistry = _repoRegistry;
     }
 
-    function setSetup(address _setup) external {
-        SETUP = _setup;
+    address[] setups;
+
+    function queueSetup(address _setup) public {
+        setups.push(_setup);
+    }
+
+    function popSetup() internal returns (address) {
+        require(setups.length > 0, "No setups queued");
+        address _setup = setups[setups.length - 1];
+        setups.pop();
+        return _setup;
     }
 
     /// @notice Prepares the installation of a plugin.
@@ -307,7 +313,10 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         // );
 
         // Prepare the installation
-        (plugin, preparedSetupData) = PluginSetup(SETUP).prepareInstallation(_dao, _params.data);
+        (plugin, preparedSetupData) = PluginSetup(popSetup()).prepareInstallation(
+            _dao,
+            _params.data
+        );
 
         // bytes32 pluginInstallationId = _getPluginInstallationId(_dao, plugin);
 
@@ -561,55 +570,52 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         address _dao,
         PrepareUninstallationParams calldata _params
     ) external returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.setupPayload.plugin);
+        // bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.setupPayload.plugin);
 
-        PluginState storage pluginState = states[pluginInstallationId];
+        // PluginState storage pluginState = states[pluginInstallationId];
 
-        bytes32 appliedSetupId = _getAppliedSetupId(
-            _params.pluginSetupRef,
-            hashHelpers(_params.setupPayload.currentHelpers)
-        );
+        // bytes32 appliedSetupId = _getAppliedSetupId(
+        //     _params.pluginSetupRef,
+        //     hashHelpers(_params.setupPayload.currentHelpers)
+        // );
 
-        if (pluginState.currentAppliedSetupId != appliedSetupId) {
-            revert InvalidAppliedSetupId({
-                currentAppliedSetupId: pluginState.currentAppliedSetupId,
-                appliedSetupId: appliedSetupId
-            });
-        }
+        // if (pluginState.currentAppliedSetupId != appliedSetupId) {
+        //     revert InvalidAppliedSetupId({
+        //         currentAppliedSetupId: pluginState.currentAppliedSetupId,
+        //         appliedSetupId: appliedSetupId
+        //     });
+        // }
 
-        PluginRepo.Version memory version = _params.pluginSetupRef.pluginSetupRepo.getVersion(
-            _params.pluginSetupRef.versionTag
-        );
+        // PluginRepo.Version memory version = _params.pluginSetupRef.pluginSetupRepo.getVersion(
+        //     _params.pluginSetupRef.versionTag
+        // );
 
-        permissions = PluginSetup(version.pluginSetup).prepareUninstallation(
-            _dao,
-            _params.setupPayload
-        );
+        permissions = PluginSetup(popSetup()).prepareUninstallation(_dao, _params.setupPayload);
 
-        bytes32 preparedSetupId = _getPreparedSetupId(
-            _params.pluginSetupRef,
-            hashPermissions(permissions),
-            ZERO_BYTES_HASH,
-            bytes(""),
-            PreparationType.Uninstallation
-        );
+        // bytes32 preparedSetupId = _getPreparedSetupId(
+        //     _params.pluginSetupRef,
+        //     hashPermissions(permissions),
+        //     ZERO_BYTES_HASH,
+        //     bytes(""),
+        //     PreparationType.Uninstallation
+        // );
 
-        // Check if this setup has already been prepared before and is pending.
-        if (pluginState.blockNumber < pluginState.preparedSetupIdToBlockNumber[preparedSetupId]) {
-            revert SetupAlreadyPrepared({preparedSetupId: preparedSetupId});
-        }
+        // // Check if this setup has already been prepared before and is pending.
+        // if (pluginState.blockNumber < pluginState.preparedSetupIdToBlockNumber[preparedSetupId]) {
+        //     revert SetupAlreadyPrepared({preparedSetupId: preparedSetupId});
+        // }
 
-        pluginState.preparedSetupIdToBlockNumber[preparedSetupId] = block.number;
+        // pluginState.preparedSetupIdToBlockNumber[preparedSetupId] = block.number;
 
-        emit UninstallationPrepared({
-            sender: msg.sender,
-            dao: _dao,
-            preparedSetupId: preparedSetupId,
-            pluginSetupRepo: _params.pluginSetupRef.pluginSetupRepo,
-            versionTag: _params.pluginSetupRef.versionTag,
-            setupPayload: _params.setupPayload,
-            permissions: permissions
-        });
+        // emit UninstallationPrepared({
+        //     sender: msg.sender,
+        //     dao: _dao,
+        //     preparedSetupId: preparedSetupId,
+        //     pluginSetupRepo: _params.pluginSetupRef.pluginSetupRepo,
+        //     versionTag: _params.pluginSetupRef.versionTag,
+        //     setupPayload: _params.setupPayload,
+        //     permissions: permissions
+        // });
     }
 
     /// @notice Applies the permissions of a prepared uninstallation to a DAO.
@@ -621,23 +627,23 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         address _dao,
         ApplyUninstallationParams calldata _params
     ) external canApply(_dao, APPLY_UNINSTALLATION_PERMISSION_ID) {
-        bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.plugin);
+        // bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.plugin);
 
-        PluginState storage pluginState = states[pluginInstallationId];
+        // PluginState storage pluginState = states[pluginInstallationId];
 
-        bytes32 preparedSetupId = _getPreparedSetupId(
-            _params.pluginSetupRef,
-            hashPermissions(_params.permissions),
-            ZERO_BYTES_HASH,
-            bytes(""),
-            PreparationType.Uninstallation
-        );
+        // bytes32 preparedSetupId = _getPreparedSetupId(
+        //     _params.pluginSetupRef,
+        //     hashPermissions(_params.permissions),
+        //     ZERO_BYTES_HASH,
+        //     bytes(""),
+        //     PreparationType.Uninstallation
+        // );
 
-        validatePreparedSetupId(pluginInstallationId, preparedSetupId);
+        // validatePreparedSetupId(pluginInstallationId, preparedSetupId);
 
-        // Since the plugin is uninstalled, only the current block number must be updated.
-        pluginState.blockNumber = block.number;
-        pluginState.currentAppliedSetupId = bytes32(0);
+        // // Since the plugin is uninstalled, only the current block number must be updated.
+        // pluginState.blockNumber = block.number;
+        // pluginState.currentAppliedSetupId = bytes32(0);
 
         // If the list of requested permission changes is not empy, process them.
         // Note, that this requires the `PluginSetupProcessor` to have the `ROOT_PERMISSION_ID` permission on the
@@ -646,11 +652,11 @@ contract MockPluginSetupProcessor is ProtocolVersion {
             DAO(payable(_dao)).applyMultiTargetPermissions(_params.permissions);
         }
 
-        emit UninstallationApplied({
-            dao: _dao,
-            plugin: _params.plugin,
-            preparedSetupId: preparedSetupId
-        });
+        // emit UninstallationApplied({
+        //     dao: _dao,
+        //     plugin: _params.plugin,
+        //     preparedSetupId: preparedSetupId
+        // });
     }
 
     /// @notice Validates that a setup ID can be applied for `applyInstallation`, `applyUpdate`, or `applyUninstallation`.

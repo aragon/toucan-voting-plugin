@@ -26,8 +26,7 @@ import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
 /// @author Aragon X - 2024
 /// @notice The setup contract of the `ToucanReceiver` plugin.
 /// @custom:security-contact sirt@aragon.org
-/// TODO: this is a WIP until we have 1967 proxies setup for the receiver
-abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
+contract ToucanReceiverSetup is PluginUpgradeableSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
@@ -44,18 +43,6 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
     address public oftAdapterBase;
     address public actionRelayBase;
 
-    struct RemoteConfig {
-        uint32 eid;
-        address bridge;
-        address relay;
-    }
-
-    struct InstallationParams {
-        address lzEndpoint;
-        address votingPlugin;
-        RemoteConfig remoteConfig;
-    }
-
     /// @notice Thrown if passed helpers array is of wrong length.
     /// @param length The array length of passed helpers.
     error WrongHelpersArrayLength(uint256 length);
@@ -64,9 +51,11 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
 
     /// @notice The contract constructor deploying the plugin implementation contract
     constructor(
-        GovernanceOFTAdapter _adapterBase
+        GovernanceOFTAdapter _adapterBase,
+        ActionRelay _actionRelayBase
     ) PluginUpgradeableSetup(address(new ToucanReceiver())) {
         oftAdapterBase = address(_adapterBase);
+        actionRelayBase = address(_actionRelayBase);
     }
 
     /// @inheritdoc IPluginSetup
@@ -74,27 +63,24 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-        InstallationParams memory params = abi.decode(_data, (InstallationParams));
+        (address lzEndpoint, address _votingPlugin) = abi.decode(_data, (address, address));
 
-        ToucanVoting votingPlugin = validateVotingPlugin(params.votingPlugin);
+        ToucanVoting votingPlugin = validateVotingPlugin(_votingPlugin);
         address token = address(votingPlugin.getVotingToken());
         plugin = IMPLEMENTATION.deployUUPSProxy(
-            abi.encodeCall(
-                ToucanReceiver.initialize,
-                (token, params.lzEndpoint, _dao, address(votingPlugin))
-            )
+            abi.encodeCall(ToucanReceiver.initialize, (token, lzEndpoint, _dao, _votingPlugin))
         );
         address adapter = _deployAdapter({
             _token: token,
             _receiver: plugin,
-            _lzEndpoint: params.lzEndpoint,
+            _lzEndpoint: lzEndpoint,
             _dao: _dao
         });
 
-        address actionRelay = _deployActionRelay({_lzEndpoint: params.lzEndpoint, _dao: _dao});
+        address actionRelay = _deployActionRelay({_lzEndpoint: lzEndpoint, _dao: _dao});
 
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](4);
+            memory permissions = new PermissionLib.MultiTargetPermission[](5);
 
         // give the DAO OApp Administrator permissions on the receiver and the adapter
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -129,6 +115,15 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: actionRelay
+        });
+
+        // dao can sweep the receiver
+        permissions[4] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            permissionId: ToucanReceiver(payable(plugin)).SWEEP_COLLECTOR_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: plugin
         });
 
         address[] memory helpers = new address[](2);
@@ -201,7 +196,7 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
         address actionRelay = _payload.currentHelpers[1];
 
         // revert the permissions
-        permissions = new PermissionLib.MultiTargetPermission[](4);
+        permissions = new PermissionLib.MultiTargetPermission[](5);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
@@ -233,6 +228,14 @@ abstract contract ToucanReceiverSetup is PluginUpgradeableSetup {
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: actionRelay
+        });
+
+        permissions[4] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            permissionId: ToucanReceiver(payable(_payload.plugin)).SWEEP_COLLECTOR_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: _payload.plugin
         });
     }
 }

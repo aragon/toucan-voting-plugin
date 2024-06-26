@@ -35,3 +35,4 @@ solidity-bytes-utils/=lib/solidity-bytes-utils/
 @execution-chain/=src/execution-chain/
 @oapp-upgradeable/=src/oapp-upgradeable/
 @utils/=src/utils/
+@helpers/=test/helpers/

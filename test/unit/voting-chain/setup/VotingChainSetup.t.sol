@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IPluginSetup, PermissionLib} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
 
 import {AdminSetup, Admin} from "@aragon/admin/AdminSetup.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
@@ -13,46 +13,106 @@ import {MockPluginSetupProcessor} from "@mocks/osx/MockPSP.sol";
 import {MockDAOFactory, PluginSetupRef} from "@mocks/osx/MockDAOFactory.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 
-import {ToucanRelaySetup} from "@voting-chain/setup/ToucanRelaySetup.sol";
+import {ToucanRelaySetup, ToucanRelay} from "@voting-chain/setup/ToucanRelaySetup.sol";
+import {AdminXChainSetup, AdminXChain} from "@voting-chain/setup/AdminXChainSetup.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 
 import "@utils/converters.sol";
+import "@helpers/OSxHelpers.sol";
 
 contract TestVotingChainOSx is TestHelpers {
-    address trustedDeployer = address(0xc0ffeeb00b5);
+    address trustedDeployer = address(0x420420420);
+
+    // osx contracts
+    MockPluginSetupProcessor mockPSP;
+    MockDAOFactory mockDAOFactory;
+
+    // layer zero
+    MockLzEndpointMinimal lzEndpoint;
+    uint32 remoteEid = 123;
+    address remoteActionRelay = address(1);
+    address remoteReceiver = address(2);
+    address remoteAdapter = address(3);
+
+    // dao
+    DAO dao;
+
+    // plugin setups
+    AdminSetup adminSetup;
+    ToucanRelaySetup toucanRelaySetup;
+    AdminXChainSetup adminXChainSetup;
+
+    // plugins
+    GovernanceERC20VotingChain token;
+    OFTTokenBridge bridge;
+    Admin admin;
+    ToucanRelay toucanRelay;
+    AdminXChain adminXChain;
+
+    // setup
+    PermissionLib.MultiTargetPermission[] toucanRelayPermissions;
+    PermissionLib.MultiTargetPermission[] adminXChainPermissions;
+    PermissionLib.MultiTargetPermission[] adminUninstallPermissions;
 
     function testIt() public {
-        vm.label(trustedDeployer, "trustedDeployer");
+        _addLabels();
+        _deployL0();
+        _deployOSX();
+        _deployDAOAndAdmin();
+        _prepareSetupRelay();
+        _prepareSetupAdminXChain();
+        _prepareUninstallAdmin();
 
+        // you would wait until the execution chain is deployed and the addresses of the
+        // remote peers are known
+        _applyInstallationsSetPeersRevokeAdmin();
+
+        _validateEndState();
+    }
+
+    function _deployOSX() internal {
         // deploy the mock PSP with the admin plugin
-        AdminSetup adminSetup = new AdminSetup();
-        MockPluginSetupProcessor mockPSP = new MockPluginSetupProcessor(address(adminSetup));
-        MockDAOFactory mockDAOFactory = new MockDAOFactory(mockPSP);
-        MockLzEndpointMinimal lzEndpoint = new MockLzEndpointMinimal();
+        adminSetup = new AdminSetup();
+        mockPSP = new MockPluginSetupProcessor(address(adminSetup));
+        mockDAOFactory = new MockDAOFactory(mockPSP);
+    }
 
-        bytes memory data = abi.encode(trustedDeployer);
+    function _deployL0() internal {
+        lzEndpoint = new MockLzEndpointMinimal();
+    }
 
+    function _deployDAOAndAdmin() internal {
         // use the OSx DAO factory with the Admin Plugin
-        DAO dao = mockDAOFactory.createDao(_mockDAOSettings(), _mockPluginSettings(data));
+        bytes memory data = abi.encode(trustedDeployer);
+        dao = mockDAOFactory.createDao(_mockDAOSettings(), _mockPluginSettings(data));
 
         // nonce 0 is something?
         // nonce 1 is implementation contract
         // nonce 2 is the admin contract behind the proxy
-        Admin admin = Admin(computeAddress(address(adminSetup), 2));
+        admin = Admin(computeAddress(address(adminSetup), 2));
         assertEq(admin.isMember(trustedDeployer), true, "trustedDeployer should be a member");
 
+        vm.label(address(dao), "dao");
+        vm.label(address(admin), "admin");
+    }
+
+    function _addLabels() internal {
+        vm.label(trustedDeployer, "trustedDeployer");
+    }
+
+    function _prepareSetupRelay() internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
-        ToucanRelaySetup toucanRelaySetup = new ToucanRelaySetup(
+        toucanRelaySetup = new ToucanRelaySetup(
             new OFTTokenBridge(),
             new GovernanceERC20VotingChain(IDAO(address(dao)), "TestToken", "TT")
         );
 
         // set it on the mock psp
-        mockPSP.setSetup(address(toucanRelaySetup));
+        mockPSP.queueSetup(address(toucanRelaySetup));
 
         // prepare the installation
-        data = abi.encode(
+        bytes memory data = abi.encode(
             ToucanRelaySetup.InstallationParams({
                 lzEndpoint: address(lzEndpoint),
                 token: address(0),
@@ -61,131 +121,261 @@ contract TestVotingChainOSx is TestHelpers {
                 symbol: "vTT"
             })
         );
-        (address toucanRelay, IPluginSetup.PreparedSetupData memory toucanRelaySetupData) = mockPSP
-            .prepareInstallation(address(dao), _mockPrepareInstallationParams(data));
+        (
+            address toucanRelayAddress,
+            IPluginSetup.PreparedSetupData memory toucanRelaySetupData
+        ) = mockPSP.prepareInstallation(address(dao), _mockPrepareInstallationParams(data));
 
-        // apply the installation
+        // cannot write to storage from memory memory so just push here
+        for (uint256 i = 0; i < toucanRelaySetupData.permissions.length; i++) {
+            toucanRelayPermissions.push(toucanRelaySetupData.permissions[i]);
+        }
+
+        toucanRelay = ToucanRelay(toucanRelayAddress);
+        address[] memory helpers = toucanRelaySetupData.helpers;
+        token = GovernanceERC20VotingChain(helpers[0]);
+        bridge = OFTTokenBridge(helpers[1]);
+
+        vm.label(toucanRelayAddress, "toucanRelay");
+        vm.label(address(token), "token");
+        vm.label(address(bridge), "bridge");
+    }
+
+    function _prepareSetupAdminXChain() internal {
+        // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
+        adminXChainSetup = new AdminXChainSetup();
+
+        // set it on the mock psp
+        mockPSP.queueSetup(address(adminXChainSetup));
+
+        // prepare the installation
+        bytes memory data = abi.encode(address(lzEndpoint));
+        (
+            address adminXChainAddress,
+            IPluginSetup.PreparedSetupData memory adminXChainSetupData
+        ) = mockPSP.prepareInstallation(address(dao), _mockPrepareInstallationParams(data));
+
+        // cannot write to storage from memory memory so just push here
+        for (uint256 i = 0; i < adminXChainSetupData.permissions.length; i++) {
+            adminXChainPermissions.push(adminXChainSetupData.permissions[i]);
+        }
+
+        adminXChain = AdminXChain(payable(adminXChainAddress));
+
+        vm.label(adminXChainAddress, "adminXChain");
+    }
+
+    function _prepareUninstallAdmin() internal {
+        // psp will use the admin setup in next call
+        mockPSP.queueSetup(address(adminSetup));
+
+        IPluginSetup.SetupPayload memory payload = IPluginSetup.SetupPayload({
+            plugin: address(admin),
+            currentHelpers: new address[](0),
+            data: new bytes(0)
+        });
+
+        // prepare the uninstallation
+        PermissionLib.MultiTargetPermission[] memory permissions = mockPSP.prepareUninstallation(
+            address(dao),
+            _mockPrepareUninstallationParams(payload)
+        );
+
+        // cannot write to storage from memory memory so just push here
+        for (uint256 i = 0; i < permissions.length; i++) {
+            adminUninstallPermissions.push(permissions[i]);
+        }
+    }
+
+    function _applyInstallationsSetPeersRevokeAdmin() internal {
+        IDAO.Action[] memory actions = new IDAO.Action[](6);
+
+        // action 0: apply the toucanRelay installation
+        actions[0] = IDAO.Action({
+            to: address(mockPSP),
+            value: 0,
+            data: abi.encodeCall(
+                mockPSP.applyInstallation,
+                (
+                    address(dao),
+                    _mockApplyInstallationParams(address(toucanRelay), toucanRelayPermissions)
+                )
+            )
+        });
+
+        // action 1: apply the adminXChain installation
+        actions[1] = IDAO.Action({
+            to: address(mockPSP),
+            value: 0,
+            data: abi.encodeCall(
+                mockPSP.applyInstallation,
+                (
+                    address(dao),
+                    _mockApplyInstallationParams(address(adminXChain), adminXChainPermissions)
+                )
+            )
+        });
+
+        // action 2,3,4: set the peers
+        actions[2] = IDAO.Action({
+            to: address(toucanRelay),
+            value: 0,
+            data: abi.encodeCall(toucanRelay.setPeer, (remoteEid, addressToBytes32(remoteReceiver)))
+        });
+
+        actions[3] = IDAO.Action({
+            to: address(adminXChain),
+            value: 0,
+            data: abi.encodeCall(
+                adminXChain.setPeer,
+                (remoteEid, addressToBytes32(remoteActionRelay))
+            )
+        });
+
+        actions[4] = IDAO.Action({
+            to: address(bridge),
+            value: 0,
+            data: abi.encodeCall(adminXChain.setPeer, (remoteEid, addressToBytes32(remoteAdapter)))
+        });
+
+        // action 5: uninstall the admin plugin
+        actions[5] = IDAO.Action({
+            to: address(mockPSP),
+            value: 0,
+            data: abi.encodeCall(
+                mockPSP.applyUninstallation,
+                (
+                    address(dao),
+                    _mockApplyUninstallationParams(address(admin), adminUninstallPermissions)
+                )
+            )
+        });
+
+        // wrap the actions in grant/revoke root permissions
+        IDAO.Action[] memory wrappedActions = wrapGrantRevokeRoot(dao, address(mockPSP), actions);
+
+        // execute the actions
         vm.startPrank(trustedDeployer);
         {
-            IDAO.Action[] memory actions = new IDAO.Action[](3);
-            actions[0] = IDAO.Action({
-                to: address(dao),
-                value: 0,
-                data: abi.encodeCall(
-                    dao.grant,
-                    (address(dao), address(mockPSP), dao.ROOT_PERMISSION_ID())
-                )
-            });
-
-            actions[1] = IDAO.Action({
-                to: address(mockPSP),
-                value: 0,
-                data: abi.encodeCall(
-                    mockPSP.applyInstallation,
-                    (address(dao), _mockApplyInstallationParams(toucanRelay, toucanRelaySetupData))
-                )
-            });
-
-            actions[2] = IDAO.Action({
-                to: address(dao),
-                value: 0,
-                data: abi.encodeCall(
-                    dao.revoke,
-                    (address(dao), address(mockPSP), dao.ROOT_PERMISSION_ID())
-                )
-            });
-
-            admin.executeProposal({_metadata: "", _actions: actions, _allowFailureMap: 0});
+            admin.executeProposal({_metadata: "", _actions: wrappedActions, _allowFailureMap: 0});
         }
         vm.stopPrank();
     }
 
-    // eth address derivation using RLP encoding
-    // use this if you can't get the address directly and don't have access to CREATE2
-    function computeAddress(address target, uint8 nonce) internal pure returns (address) {
-        bytes memory data;
-        if (nonce == 0) {
-            data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), target, bytes1(0x80));
-        } else if (nonce <= 0x7f) {
-            data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), target, uint8(nonce));
-        } else if (nonce <= 0xff) {
-            data = abi.encodePacked(bytes1(0xd7), bytes1(0x94), target, bytes1(0x81), uint8(nonce));
-        } else if (nonce <= 0xffff) {
-            data = abi.encodePacked(
-                bytes1(0xd8),
-                bytes1(0x94),
-                target,
-                bytes1(0x82),
-                uint16(nonce)
-            );
-        } else if (nonce <= 0xffffff) {
-            data = abi.encodePacked(
-                bytes1(0xd9),
-                bytes1(0x94),
-                target,
-                bytes1(0x83),
-                uint24(nonce)
-            );
-        } else {
-            data = abi.encodePacked(
-                bytes1(0xda),
-                bytes1(0x94),
-                target,
-                bytes1(0x84),
-                uint32(nonce)
-            );
-        }
+    function _validateEndState() internal view {
+        // check that the admin is uninstalled
+        assertEq(
+            dao.hasPermission({
+                _who: address(admin),
+                _where: address(dao),
+                _permissionId: dao.EXECUTE_PERMISSION_ID(),
+                _data: ""
+            }),
+            false,
+            "admin should not have execute permission"
+        );
 
-        return bytes32ToAddress(keccak256(data));
-    }
+        // check that xchain admin has execute on the dao
+        assertEq(
+            dao.hasPermission({
+                _who: address(adminXChain),
+                _where: address(dao),
+                _permissionId: dao.EXECUTE_PERMISSION_ID(),
+                _data: ""
+            }),
+            true,
+            "xchain admin should have execute permission"
+        );
 
-    function _mockDAOSettings() internal pure returns (MockDAOFactory.DAOSettings memory) {
-        return
-            MockDAOFactory.DAOSettings({
-                trustedForwarder: address(0),
-                daoURI: "test",
-                subdomain: "test",
-                metadata: new bytes(0)
-            });
-    }
+        // check the DAO is the OAPP admin for the xchain contracts: relay, xchain and bridge
+        assertEq(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(toucanRelay),
+                _permissionId: toucanRelay.OAPP_ADMINISTRATOR_ID(),
+                _data: ""
+            }),
+            true,
+            "DAO should be the OAPP admin for the toucanRelay"
+        );
 
-    // all this data is unused in the mock
-    function _mockPluginSetupRef() internal pure returns (PluginSetupRef memory) {
-        return
-            PluginSetupRef({
-                pluginSetupRepo: PluginRepo(address(0)),
-                versionTag: PluginRepo.Tag({release: 1, build: 0})
-            });
-    }
+        assertEq(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(adminXChain),
+                _permissionId: adminXChain.OAPP_ADMINISTRATOR_ID(),
+                _data: ""
+            }),
+            true,
+            "DAO should be the OAPP admin for the adminXChain"
+        );
 
-    function _mockPrepareInstallationParams(
-        bytes memory data
-    ) internal pure returns (MockPluginSetupProcessor.PrepareInstallationParams memory) {
-        return MockPluginSetupProcessor.PrepareInstallationParams(_mockPluginSetupRef(), data);
-    }
+        assertEq(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(bridge),
+                _permissionId: bridge.OAPP_ADMINISTRATOR_ID(),
+                _data: ""
+            }),
+            true,
+            "DAO should be the OAPP admin for the bridge"
+        );
 
-    function _mockApplyInstallationParams(
-        address plugin,
-        IPluginSetup.PreparedSetupData memory preparedSetupData
-    ) internal pure returns (MockPluginSetupProcessor.ApplyInstallationParams memory) {
-        return
-            MockPluginSetupProcessor.ApplyInstallationParams(
-                _mockPluginSetupRef(),
-                plugin,
-                preparedSetupData.permissions,
-                bytes32("helpersHash")
-            );
-    }
+        // check that the peers are all set for the crosschain contracts
+        assertEq(
+            bytes32ToAddress(toucanRelay.peers(remoteEid)),
+            remoteReceiver,
+            "toucanRelay should have the remote receiver as a peer"
+        );
 
-    /// we don't use most of the plugin settings in the mock so just ignore it
-    function _mockPluginSettings(
-        bytes memory data
-    ) internal pure returns (MockDAOFactory.PluginSettings[] memory) {
-        MockDAOFactory.PluginSettings[] memory settings = new MockDAOFactory.PluginSettings[](1);
-        settings[0] = MockDAOFactory.PluginSettings({
-            pluginSetupRef: _mockPluginSetupRef(),
-            data: data
-        });
-        return settings;
+        assertEq(
+            bytes32ToAddress(adminXChain.peers(remoteEid)),
+            remoteActionRelay,
+            "adminXChain should have the remote action relay as a peer"
+        );
+
+        assertEq(
+            bytes32ToAddress(bridge.peers(remoteEid)),
+            remoteAdapter,
+            "bridge should have the remote adapter as a peer"
+        );
+
+        // check that the token is deployed and the bridge has mint/burn ability
+        assertEq(token.name(), "vTestToken", "token should be deployed with the correct name");
+        assertEq(token.symbol(), "vTT", "token should be deployed with the correct symbol");
+
+        assertEq(
+            dao.hasPermission({
+                _who: address(bridge),
+                _where: address(token),
+                _permissionId: token.MINT_PERMISSION_ID(),
+                _data: ""
+            }),
+            true,
+            "bridge should have mint permission on the token"
+        );
+
+        assertEq(
+            dao.hasPermission({
+                _who: address(bridge),
+                _where: address(token),
+                _permissionId: token.BURN_PERMISSION_ID(),
+                _data: ""
+            }),
+            true,
+            "bridge should have burn permission on the token"
+        );
+
+        // DAO should be able to sweep refunds from adminxchain
+        assertEq(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(adminXChain),
+                _permissionId: adminXChain.SWEEP_COLLECTOR_ID(),
+                _data: ""
+            }),
+            true,
+            "DAO should be able to sweep refunds from adminXChain"
+        );
     }
 }
