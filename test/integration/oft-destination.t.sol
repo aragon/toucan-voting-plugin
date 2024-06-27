@@ -13,7 +13,7 @@ import {GUID} from "@layerzerolabs/lz-evm-protocol-v2/contracts/libs/GUID.sol";
 import {OFTMsgCodec} from "@lz-oft/libs/OFTMsgCodec.sol";
 
 // aragon contracts
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 // external test utils
 import "forge-std/console2.sol";

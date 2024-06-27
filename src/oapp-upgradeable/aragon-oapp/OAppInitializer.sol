@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IOAppCore} from "@lz-oapp/interfaces/IOAppCore.sol";
 
-import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizableUpgradeable.sol";
+import {DaoAuthorizableUpgradeable} from "@aragon/osx/core/plugin/dao-authorizable//DaoAuthorizableUpgradeable.sol";
 
 /// @title OAappInitializer
 /// @notice Allows granting a one-off permission to an address to set OApp settings that cannot be known at deploy time.

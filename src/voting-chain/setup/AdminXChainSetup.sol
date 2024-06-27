@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.8;
 
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {PluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
+import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
@@ -21,8 +21,16 @@ contract AdminXChainSetup is PluginSetup {
     /// @notice The ID of the permission required to call the `execute` function.
     bytes32 internal constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
+    address public immutable adminXChainBase;
+
     /// @notice The constructor setting the `Admin` implementation contract to clone from.
-    constructor() PluginSetup(address(new AdminXChain())) {}
+    constructor(AdminXChain _implementation) PluginSetup() {
+        adminXChainBase = address(_implementation);
+    }
+
+    function implementation() external view returns (address) {
+        return adminXChainBase;
+    }
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(
@@ -33,7 +41,7 @@ contract AdminXChainSetup is PluginSetup {
 
         // Clone and initialize the plugin contract.
         bytes memory initData = abi.encodeCall(AdminXChain.initialize, (_dao, lzEndpoint));
-        plugin = IMPLEMENTATION.deployMinimalProxy(initData);
+        plugin = adminXChainBase.deployMinimalProxy(initData);
 
         // Prepare permissions
         PermissionLib.MultiTargetPermission[]

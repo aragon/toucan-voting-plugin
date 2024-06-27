@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.17;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IPluginSetup, PermissionLib} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 
 import {AdminSetup, Admin} from "@aragon/admin/AdminSetup.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
@@ -104,6 +105,7 @@ contract TestVotingChainOSx is TestHelpers {
     function _prepareSetupRelay() internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
         toucanRelaySetup = new ToucanRelaySetup(
+            new ToucanRelay(),
             new OFTTokenBridge(),
             new GovernanceERC20VotingChain(IDAO(address(dao)), "TestToken", "TT")
         );
@@ -143,7 +145,7 @@ contract TestVotingChainOSx is TestHelpers {
 
     function _prepareSetupAdminXChain() internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
-        adminXChainSetup = new AdminXChainSetup();
+        adminXChainSetup = new AdminXChainSetup(new AdminXChain());
 
         // set it on the mock psp
         mockPSP.queueSetup(address(adminXChainSetup));

@@ -4,7 +4,7 @@ pragma solidity ^0.8.8;
 
 /* solhint-disable max-line-length */
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IERC20BurnableUpgradeable} from "@interfaces/IERC20BurnableUpgradeable.sol";
 import {IERC20MintableUpgradeable} from "@interfaces/IERC20MintableUpgradeable.sol";
 import {IERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20PermitUpgradeable.sol";
@@ -15,7 +15,7 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {ERC20VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizableUpgradeable.sol";
+import {DaoAuthorizableUpgradeable} from "@aragon/osx/core/plugin/dao-authorizable//DaoAuthorizableUpgradeable.sol";
 
 /* solhint-enable max-line-length */
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {EnforcedOptionParam} from "@lz-oapp/interfaces/IOAppOptionsType3.sol";
 
@@ -10,7 +10,7 @@ import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockOFTUpgradeable, MockOAppUpgradeable, MockOFT, MockOApp} from "@mocks/MockOApp.sol";
-import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {deployMockOApp, deployMockOFT} from "@utils/deployers.sol";
 
 import {OAppBaseTest} from "./OAppBase.t.sol";

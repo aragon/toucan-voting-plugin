@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 contract MockToucanVoting {

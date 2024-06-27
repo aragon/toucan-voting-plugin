@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.17;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
@@ -11,14 +11,12 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
 import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
-
 import "@utils/converters.sol";
-import "forge-std/console2.sol";
 
 /// @title ToucanRelay
 /// @author Aragon
@@ -35,7 +33,6 @@ import "forge-std/console2.sol";
 /// 3. User can change their vote (if the proposal has not ended)
 /// 4. We can split a user's vote across y/n/a
 /// 5. Users can partial vote
-/// @dev TODO decide if we want to make this a cloneable or UUPSUpgradeable contract
 contract ToucanRelay is
     IVoteContainer,
     IToucanRelayMessage,

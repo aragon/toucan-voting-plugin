@@ -8,14 +8,14 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
 import {IGovernanceWrappedERC20} from "@interfaces/IGovernanceWrappedERC20.sol";
 
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
-import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
+import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {TokenVoting as ToucanVoting, ITokenVoting as IToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
 
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
@@ -26,7 +26,7 @@ import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
 /// @author Aragon X - 2024
 /// @notice The setup contract of the `ToucanReceiver` plugin.
 /// @custom:security-contact sirt@aragon.org
-contract ToucanReceiverSetup is PluginUpgradeableSetup {
+contract ToucanReceiverSetup is PluginSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
@@ -40,6 +40,7 @@ contract ToucanReceiverSetup is PluginUpgradeableSetup {
     bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
     uint8 private constant VOTE_REPLACEMENT_MODE = uint8(IToucanVoting.VotingMode.VoteReplacement);
 
+    address public toucanReceiverBase;
     address public oftAdapterBase;
     address public actionRelayBase;
 
@@ -51,11 +52,17 @@ contract ToucanReceiverSetup is PluginUpgradeableSetup {
 
     /// @notice The contract constructor deploying the plugin implementation contract
     constructor(
+        ToucanReceiver _toucanReceiverBase,
         GovernanceOFTAdapter _adapterBase,
         ActionRelay _actionRelayBase
-    ) PluginUpgradeableSetup(address(new ToucanReceiver())) {
+    ) PluginSetup() {
+        toucanReceiverBase = address(_toucanReceiverBase);
         oftAdapterBase = address(_adapterBase);
         actionRelayBase = address(_actionRelayBase);
+    }
+
+    function implementation() external view returns (address) {
+        return toucanReceiverBase;
     }
 
     /// @inheritdoc IPluginSetup
@@ -67,7 +74,7 @@ contract ToucanReceiverSetup is PluginUpgradeableSetup {
 
         ToucanVoting votingPlugin = validateVotingPlugin(_votingPlugin);
         address token = address(votingPlugin.getVotingToken());
-        plugin = IMPLEMENTATION.deployUUPSProxy(
+        plugin = toucanReceiverBase.deployUUPSProxy(
             abi.encodeCall(ToucanReceiver.initialize, (token, lzEndpoint, _dao, _votingPlugin))
         );
         address adapter = _deployAdapter({
@@ -174,13 +181,6 @@ contract ToucanReceiverSetup is PluginUpgradeableSetup {
                 abi.encodeWithSelector(ActionRelay.initialize.selector, _lzEndpoint, _dao)
             );
     }
-
-    /// @inheritdoc IPluginSetup
-    function prepareUpdate(
-        address _dao,
-        uint16 _fromBuild,
-        SetupPayload calldata _payload
-    ) external pure returns (bytes memory initData, PreparedSetupData memory preparedSetupData) {}
 
     /// @inheritdoc IPluginSetup
     function prepareUninstallation(

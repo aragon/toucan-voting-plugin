@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.8;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {MockDAOFactory, PluginSetupRef} from "@mocks/osx/MockDAOFactory.sol";
 import {MockPluginSetupProcessor} from "@mocks/osx/MockPSP.sol";
 

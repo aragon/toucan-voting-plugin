@@ -3,10 +3,10 @@ pragma solidity ^0.8.17;
 
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IOAppReceiver} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
-import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
 import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
 

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
-import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {TokenVoting, ITokenVoting} from "@aragon/token-voting/TokenVoting.sol";
 import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";

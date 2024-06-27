@@ -2,8 +2,8 @@
 pragma solidity ^0.8.17;
 
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {IERC20BurnableUpgradeable} from "@interfaces/IERC20BurnableUpgradeable.sol";
 import {IERC20MintableUpgradeable} from "@interfaces/IERC20MintableUpgradeable.sol";
@@ -37,7 +37,11 @@ contract TestGovERC20VotingChain is TestHelpers, IVoteContainer {
         vm.roll(0);
 
         dao = createTestDAO({_initialOwner: address(this)});
-        token = new GovernanceERC20VotingChain({_name: "Test Token", _symbol: "TT", _dao: dao});
+        token = new GovernanceERC20VotingChain({
+            _name: "Test Token",
+            _symbol: "TT",
+            _dao: IDAO(address(dao))
+        });
 
         // for testing, grant mint permission to this contract
         dao.grant({

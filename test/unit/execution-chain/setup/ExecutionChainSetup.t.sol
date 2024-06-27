@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.17;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IPluginSetup, PermissionLib} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IPluginSetup, PermissionLib} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
 import {AdminSetup, Admin} from "@aragon/admin/AdminSetup.sol";

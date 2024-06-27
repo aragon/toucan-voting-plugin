@@ -1,25 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.8.8;
+pragma solidity ^0.8.17;
 
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {ProtocolVersion} from "@aragon/osx-commons-contracts/src/utils/versioning/ProtocolVersion.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {PluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
 import {DAO, IDAO} from "@aragon/osx/core/dao/DAO.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
-import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
-import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
+import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
 
-// import {PluginRepoRegistry} from "../repo/PluginRepoRegistry.sol";
+// import {PluginRepoRegistry} from "@aragon/osx/framework/plugin/repo/PluginRepoRegistry.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
+import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PluginSetupRef, hashHelpers, hashPermissions, _getPreparedSetupId, _getAppliedSetupId, _getPluginInstallationId, PreparationType} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 
-/// @dev Strip framework interactions from the PSP
-/// You can set the setup contract as needed
-contract MockPluginSetupProcessor is ProtocolVersion {
+/// @title PluginSetupProcessor
+/// @author Aragon Association - 2022-2023
+/// @notice This contract processes the preparation and application of plugin setups (installation, update, uninstallation) on behalf of a requesting DAO.
+/// @dev This contract is temporarily granted the `ROOT_PERMISSION_ID` permission on the applying DAO and therefore is highly security critical.
+contract MockPluginSetupProcessor {
     using ERC165Checker for address;
 
     /// @notice The ID of the permission required to call the `applyInstallation` function.
@@ -123,7 +124,7 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         PermissionLib.MultiTargetPermission[] permissions;
     }
 
-    // /// @notice The plugin repo registry listing the `PluginRepo` contracts versioning the `PluginSetup` contracts.
+    /// @notice The plugin repo registry listing the `PluginRepo` contracts versioning the `PluginSetup` contracts.
     // PluginRepoRegistry public repoRegistry;
 
     /// @notice Thrown if a setup is unauthorized and cannot be applied because of a missing permission of the associated DAO.
@@ -387,9 +388,7 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         // pluginState.currentAppliedSetupId = appliedSetupId;
         // pluginState.blockNumber = block.number;
 
-        // If the list of requested permission changes is not empy, process them.
-        // Note, that this requires the `PluginSetupProcessor` to have the `ROOT_PERMISSION_ID` permission on the
-        // installing DAO. Make sure this permission is only granted TEMPORARILY.
+        // Process the permissions, which requires the `ROOT_PERMISSION_ID` from the installing DAO.
         if (_params.permissions.length > 0) {
             DAO(payable(_dao)).applyMultiTargetPermissions(_params.permissions);
         }
@@ -511,7 +510,7 @@ contract MockPluginSetupProcessor is ProtocolVersion {
 
     /// @notice Applies the permissions of a prepared update of an UUPS upgradeable proxy contract to a DAO.
     /// @param _dao The address of the updating DAO.
-    /// @param _params The struct containing the parameters for the `applyUpdate` function.
+    /// @param _params The struct containing the parameters for the `applyInstallation` function.
     function applyUpdate(
         address _dao,
         ApplyUpdateParams calldata _params
@@ -546,9 +545,7 @@ contract MockPluginSetupProcessor is ProtocolVersion {
             _upgradeProxy(_params.plugin, newImplementation, _params.initData);
         }
 
-        // If the list of requested permission changes is not empy, process them.
-        // Note, that this requires the `PluginSetupProcessor` to have the `ROOT_PERMISSION_ID` permission on the
-        // updating DAO. Make sure this permission is only granted TEMPORARILY.
+        // Process the permissions, which requires the `ROOT_PERMISSION_ID` from the updating DAO.
         if (_params.permissions.length > 0) {
             DAO(payable(_dao)).applyMultiTargetPermissions(_params.permissions);
         }
@@ -645,9 +642,7 @@ contract MockPluginSetupProcessor is ProtocolVersion {
         // pluginState.blockNumber = block.number;
         // pluginState.currentAppliedSetupId = bytes32(0);
 
-        // If the list of requested permission changes is not empy, process them.
-        // Note, that this requires the `PluginSetupProcessor` to have the `ROOT_PERMISSION_ID` permission on the
-        // uninstalling DAO. Make sure this permission is only granted TEMPORARILY.
+        // Process the permissions, which requires the `ROOT_PERMISSION_ID` from the uninstalling DAO.
         if (_params.permissions.length > 0) {
             DAO(payable(_dao)).applyMultiTargetPermissions(_params.permissions);
         }

@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.17;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
 
-import {DaoAuthorizableUpgradeable} from "@aragon/osx-commons-contracts/src/permission/auth/DaoAuthorizableUpgradeable.sol";
+import {DaoAuthorizableUpgradeable} from "@aragon/osx/core/plugin/dao-authorizable/DaoAuthorizableUpgradeable.sol";
 
 /**
  * @title AragonOAppAuthorizable

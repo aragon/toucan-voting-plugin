@@ -2,15 +2,14 @@
 
 pragma solidity ^0.8.8;
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IOAppReceiver} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {IMembership} from "@aragon/osx-commons-contracts/src/plugin/extensions/membership/IMembership.sol";
 
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
-import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
-import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
-import {PluginCloneable} from "@aragon/osx-commons-contracts/src/plugin/PluginCloneable.sol";
+import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
+import {PluginCloneable} from "@aragon/osx/core/plugin/PluginCloneable.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";

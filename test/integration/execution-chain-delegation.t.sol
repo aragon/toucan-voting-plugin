@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 /// Aragon contracts
 // OSx
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 // project
 import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";

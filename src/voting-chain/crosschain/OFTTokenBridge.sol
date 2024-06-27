@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IOFT} from "@lz-oft/interfaces/IOFT.sol";
 
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";

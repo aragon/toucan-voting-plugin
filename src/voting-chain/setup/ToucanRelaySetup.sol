@@ -4,11 +4,11 @@ pragma solidity ^0.8.8;
 
 import {IOFT} from "@lz-oft/interfaces/IOFT.sol";
 import {IOAppCore, ILayerZeroEndpointV2} from "@lz-oapp/interfaces/IOAppCore.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
+import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
@@ -19,7 +19,7 @@ import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20Vot
 /// @author Aragon X
 /// @notice The setup contract of the `ToucanRelay` plugin.
 /// @custom:security-contact sirt@aragon.org
-contract ToucanRelaySetup is PluginUpgradeableSetup {
+contract ToucanRelaySetup is PluginSetup {
     using ProxyLib for address;
 
     /// @notice Thrown if the token is missing a required method for cross-chain communication.
@@ -58,6 +58,9 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     /// @notice address of the voting token implementation.
     address public immutable votingTokenBase;
 
+    /// @notice address of the relay implementation.
+    address public immutable relayBase;
+
     /// @notice The installation parameters for the `ToucanRelay` plugin.
     /// @param lzEndpoint The address of the LayerZero endpoint on this chain.
     /// @param bridge The address of the token bridge, can be a zero address to deploy a new one.
@@ -78,11 +81,17 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
     /// @param _bridgeBase The address of the `OFTTokenBridge` implementation contract.
     /// @param _votingTokenBase The address of the `GovernanceERC20VotingChain` implementation contract.
     constructor(
+        ToucanRelay _relayBase,
         OFTTokenBridge _bridgeBase,
         GovernanceERC20VotingChain _votingTokenBase
-    ) PluginUpgradeableSetup(address(new ToucanRelay())) {
+    ) PluginSetup() {
+        relayBase = address(_relayBase);
         bridgeBase = address(_bridgeBase);
         votingTokenBase = address(_votingTokenBase);
+    }
+
+    function implementation() external view returns (address) {
+        return relayBase;
     }
 
     /// @inheritdoc IPluginSetup
@@ -104,7 +113,7 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         helpers[1] = bridge;
 
         // deploy the relay
-        plugin = IMPLEMENTATION.deployUUPSProxy(
+        plugin = relayBase.deployUUPSProxy(
             abi.encodeCall(ToucanRelay.initialize, (token, params.lzEndpoint, _dao))
         );
 
@@ -281,14 +290,6 @@ contract ToucanRelaySetup is PluginUpgradeableSetup {
         // all good - return the bridge
         return _bridge;
     }
-
-    /// @inheritdoc IPluginSetup
-    /// @dev This is a no-op as this is the first version of the plugin.
-    function prepareUpdate(
-        address _dao,
-        uint16 _fromBuild,
-        SetupPayload calldata _payload
-    ) external returns (bytes memory initData, PreparedSetupData memory preparedSetupData) {}
 
     /// @inheritdoc IPluginSetup
     /// @dev The relay will be uninstalled but we keep the bridge setup as-is.
