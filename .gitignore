@@ -18,3 +18,5 @@ yarn.lock
 broadcast/*
 broadcast/*/31337/
 report/*
+
+.vscode/*

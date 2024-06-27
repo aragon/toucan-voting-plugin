@@ -47,10 +47,11 @@ command_exists() {
 ### BEGIN SCRIPT
 
 # layer zero coverage is not supported due to stack too deep
-# copy the integration tests to a temporary directory
+# copy the integration tests && lz code to a temp dir
+# make the offending "endpoint" contracts abstract
 # run forge coverage
-# move the integration tests back to the original directory
-# this also creates a coverage report
+# move the code back to the original directory and make the endpoint contracts non-abstract
+# this also creates a coverage report, and removes unneccessary files
 
 ROOT_DIR="src/layer-zero/LayerZero-v2"
 PROTOCOL_DIR="protocol/contracts"
@@ -78,10 +79,14 @@ make_abstract "$EndpointV2" "EndpointV2"
 make_abstract "$EndpointV2Alt" "EndpointV2Alt"
 
 # Run forge coverage and capture the exit status
-# prune the coverage report to remove files that are not part of the project
 # this ensures that the files get moved back even if the script fails
+# Also prune the coverage report to remove files that are not part of the project
+# The layer zero contracts are imported directly and the pragma has been changed
+# we are not testing them directly
 forge coverage --report lcov &&
-    lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/**/*.sol' 'script/**/*.sol' 'test/*.sol' 'script/*.sol' &&
+    lcov --remove ./lcov.info -o ./lcov.info.pruned \
+        'test/**/*.sol' 'script/**/*.sol' 'test/*.sol' \
+        'script/*.sol' 'src/layer-zero/LayerZero-v2/**' &&
     genhtml lcov.info.pruned -o report --branch-coverage
 
 status=$?
@@ -94,7 +99,7 @@ remove_abstract "$EndpointV2Alt" "EndpointV2Alt"
 mv ./$TMP_DIR/integration/* ./test/integration/
 mv ./$TMP_DIR/layer-zero-test/* ./src/layer-zero/LayerZero-v2/oapp/test/
 
-# Remove the temporary integration directory
+# Remove the temporary directory
 rm -rf ./$TMP_DIR
 
 # Exit with the status of forge coverage
