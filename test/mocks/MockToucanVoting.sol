@@ -133,3 +133,24 @@ contract MockToucanVoting {
         return open_;
     }
 }
+
+contract MockVotingPluginValidator {
+    bytes4 _iface;
+    ITokenVoting.VotingMode _votingMode;
+
+    function setIface(bytes4 iface) public {
+        _iface = iface;
+    }
+
+    function supportsInterface(bytes4 _interfaceId) external view returns (bool) {
+        return _interfaceId == _iface;
+    }
+
+    function votingMode() public view returns (ITokenVoting.VotingMode) {
+        return _votingMode;
+    }
+
+    function setVotingMode(ITokenVoting.VotingMode _mode) public {
+        _votingMode = _mode;
+    }
+}

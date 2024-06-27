@@ -58,11 +58,5 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
             _dao: address(dao),
             _votingPlugin: address(plugin)
         });
-        // grant this contract the ability to manage the receiver
-        dao.grant({
-            _who: address(this),
-            _where: address(receiver),
-            _permissionId: receiver.RECEIVER_ADMIN_ID()
-        });
     }
 }

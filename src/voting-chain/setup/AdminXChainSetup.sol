@@ -8,7 +8,6 @@ import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
-import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
 
 /// @title AdminXChainSetup

@@ -452,13 +452,6 @@ contract TestE2EToucan is TestHelper, AragonTest {
             _lzEndpoint: layerZeroEndpointExecutionChain,
             _dao: daoExecutionChain
         });
-
-        // authorize the receiver to send to the plugin
-        DAO(payable(daoExecutionChain)).grant({
-            _where: address(receiver),
-            _who: address(this),
-            _permissionId: receiver.RECEIVER_ADMIN_ID()
-        });
     }
 
     function _deployVotingChain() internal {

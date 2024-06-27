@@ -73,9 +73,6 @@ contract ToucanReceiver is
         Tally aggregateVotes;
     }
 
-    /// @dev TODO: OApp implements Ownable so has a different permission system
-    bytes32 public constant RECEIVER_ADMIN_ID = keccak256("RECEIVER_ADMIN");
-
     /// @notice The address of the governance token. Must implement IVotes for vote delegation.
     IVotes public governanceToken;
 
@@ -146,7 +143,7 @@ contract ToucanReceiver is
 
     /// @notice Updates the voting plugin in the case of a new voting plugin being released.
     /// @param _plugin The address of the new voting plugin.
-    function setVotingPlugin(address _plugin) public auth(RECEIVER_ADMIN_ID) {
+    function setVotingPlugin(address _plugin) public auth(OAPP_ADMINISTRATOR_ID) {
         _setVotingPlugin(_plugin);
     }
 

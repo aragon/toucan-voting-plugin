@@ -10,7 +10,6 @@ import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
-import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";

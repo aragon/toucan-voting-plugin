@@ -13,9 +13,6 @@ import {OFTAdapterUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTAdapterUpgr
 /// On the execution chain. It can delegate votes to other contracts to allow bridged tokens
 /// to still be used for voting via cross chain messages.
 contract GovernanceOFTAdapter is OFTAdapterUpgradeable {
-    /// @notice Grants the ability to change the delegated voting address on this network for all bridged tokens.
-    bytes32 public constant SET_CROSSCHAIN_DELEGATE_ID = keccak256("SET_CROSSCHAIN_DELEGATE");
-
     constructor() {
         _disableInitializers();
     }
@@ -37,7 +34,7 @@ contract GovernanceOFTAdapter is OFTAdapterUpgradeable {
 
     /// @notice Delegates the voting power of the locked tokens to another address.
     /// @param _to The address to delegate the voting power to.
-    function delegate(address _to) public auth(SET_CROSSCHAIN_DELEGATE_ID) {
+    function delegate(address _to) public auth(OAPP_ADMINISTRATOR_ID) {
         _delegate(_to);
     }
 

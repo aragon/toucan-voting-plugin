@@ -224,13 +224,6 @@ contract DeployToucan is Script {
             _dao: daoExecutionChain
         });
 
-        // authorize the receiver to send to the plugin
-        DAO(payable(daoExecutionChain)).grant({
-            _where: address(receiver),
-            _who: address(this),
-            _permissionId: receiver.RECEIVER_ADMIN_ID()
-        });
-
         // configure the OApps
         adapter.setPeer(EID_VOTING_CHAIN, addressToBytes32(address(bridge)));
         receiver.setPeer(EID_VOTING_CHAIN, addressToBytes32(address(relay)));

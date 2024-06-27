@@ -33,24 +33,35 @@ contract ToucanReceiverSetup is PluginSetup {
     using ProxyLib for address;
 
     /// @notice The identifier of the `EXECUTE_PERMISSION` permission.
-    /// @dev TODO: Migrate this constant to a common library that can be shared across plugins.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
 
+    /// @notice The interface ID of the `ITokenVoting` interface.
     bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
-    uint8 private constant VOTE_REPLACEMENT_MODE = uint8(IToucanVoting.VotingMode.VoteReplacement);
 
-    address public toucanReceiverBase;
-    address public oftAdapterBase;
-    address public actionRelayBase;
+    /// @notice The base contract of the `ToucanReceiver` plugin from which to create proxies.
+    address public immutable toucanReceiverBase;
+
+    /// @notice The base contract of the `GovernanceOFTAdapter` helper from which to create proxies.
+    address public immutable oftAdapterBase;
+
+    /// @notice The base contract of the `ActionRelay` helper from which to create proxies.
+    address public immutable actionRelayBase;
+
+    /// @dev The voting mode of the `TokenVoting` contract.
+    uint8 private constant VOTE_REPLACEMENT_MODE = uint8(IToucanVoting.VotingMode.VoteReplacement);
 
     /// @notice Thrown if passed helpers array is of wrong length.
     /// @param length The array length of passed helpers.
     error WrongHelpersArrayLength(uint256 length);
+
+    /// @notice Thrown if the voting plugin does not support the `ITokenVoting` interface.
     error InvalidInterface();
+
+    /// @notice Thrown if the voting plugin is not in vote replacement mode.
     error NotInVoteReplacementMode();
 
-    /// @notice The contract constructor deploying the plugin implementation contract
+    /// @notice Deploys the setup by binding the implementation contracts required during installation.
     constructor(
         ToucanReceiver _toucanReceiverBase,
         GovernanceOFTAdapter _adapterBase,
@@ -61,11 +72,13 @@ contract ToucanReceiverSetup is PluginSetup {
         actionRelayBase = address(_actionRelayBase);
     }
 
+    /// @return The address of the `ToucanReceiver` implementation contract.
     function implementation() external view returns (address) {
         return toucanReceiverBase;
     }
 
     /// @inheritdoc IPluginSetup
+    /// @dev The DAO should call `setPeer` on the XChain contracts while applying the installation.
     function prepareInstallation(
         address _dao,
         bytes calldata _data
@@ -86,6 +99,8 @@ contract ToucanReceiverSetup is PluginSetup {
 
         address actionRelay = _deployActionRelay({_lzEndpoint: lzEndpoint, _dao: _dao});
 
+        // TODO: run through all the bespoke permissions and check that
+        // they are set here
         PermissionLib.MultiTargetPermission[]
             memory permissions = new PermissionLib.MultiTargetPermission[](5);
 
@@ -139,11 +154,15 @@ contract ToucanReceiverSetup is PluginSetup {
 
         preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
-
-        // the dao should call setPeer after the apply installation
     }
 
-    function validateVotingPlugin(address _votingPlugin) public view returns (ToucanVoting) {
+    /// @notice Validates the voting plugin by checking if it supports the `ITokenVoting` interface
+    /// and is in vote replacement mode.
+    /// @param _votingPlugin The address of the voting plugin to validate.
+    /// @return The `ToucanVoting` instance of the voting plugin, if it is valid, else reverts.
+    function validateVotingPlugin(
+        address _votingPlugin
+    ) public view virtual returns (ToucanVoting) {
         ToucanVoting votingPlugin = ToucanVoting(_votingPlugin);
 
         if (!votingPlugin.supportsInterface(TOKEN_VOTING_INTERFACE_ID)) {
@@ -157,12 +176,13 @@ contract ToucanReceiverSetup is PluginSetup {
         return votingPlugin;
     }
 
+    /// @notice Deploys the `GovernanceOFTAdapter` helper contract behind a proxy.
     function _deployAdapter(
         address _token,
         address _receiver,
         address _lzEndpoint,
         address _dao
-    ) internal returns (address) {
+    ) internal virtual returns (address) {
         return
             oftAdapterBase.deployUUPSProxy(
                 abi.encodeWithSelector(
@@ -175,6 +195,7 @@ contract ToucanReceiverSetup is PluginSetup {
             );
     }
 
+    /// @notice Deploys the `ActionRelay` helper contract behind a proxy.
     function _deployActionRelay(address _lzEndpoint, address _dao) internal returns (address) {
         return
             actionRelayBase.deployUUPSProxy(

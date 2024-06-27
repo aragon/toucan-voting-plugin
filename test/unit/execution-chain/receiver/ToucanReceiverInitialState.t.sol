@@ -68,7 +68,7 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
             address(dao),
             address(receiver),
             _sender,
-            receiver.RECEIVER_ADMIN_ID()
+            receiver.OAPP_ADMINISTRATOR_ID()
         );
         vm.expectRevert(revertData);
         vm.prank(_sender);
@@ -88,7 +88,7 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
         dao.grant({
             _who: _sender,
             _where: address(receiver),
-            _permissionId: receiver.RECEIVER_ADMIN_ID()
+            _permissionId: receiver.OAPP_ADMINISTRATOR_ID()
         });
 
         vm.expectEmit(false, false, false, true);

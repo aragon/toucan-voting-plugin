@@ -79,7 +79,7 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
             address(dao),
             address(adapter),
             _attacker,
-            adapter.SET_CROSSCHAIN_DELEGATE_ID()
+            adapter.OAPP_ADMINISTRATOR_ID()
         );
         vm.expectRevert(revertData);
         vm.prank(_attacker);
@@ -92,7 +92,7 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
         dao.grant({
             _who: _admin,
             _where: address(adapter),
-            _permissionId: adapter.SET_CROSSCHAIN_DELEGATE_ID()
+            _permissionId: adapter.OAPP_ADMINISTRATOR_ID()
         });
 
         if (_newDelegate == address(this)) {
