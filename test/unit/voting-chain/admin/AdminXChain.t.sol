@@ -7,8 +7,8 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
-import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
+import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
+import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 
 import {OAppReceiverUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
 import {AdminXChain, Origin} from "@voting-chain/crosschain/AdminXChain.sol";
@@ -17,7 +17,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {deployAdminXChain} from "@utils/deployers.sol";

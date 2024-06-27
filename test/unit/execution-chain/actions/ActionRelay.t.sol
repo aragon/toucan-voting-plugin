@@ -13,7 +13,7 @@ import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockActionRelay} from "@mocks/MockActionRelay.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {deployActionRelay, deployMockActionRelay} from "@utils/deployers.sol";

@@ -12,7 +12,7 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 // aragon contracts
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 
 // external test utils

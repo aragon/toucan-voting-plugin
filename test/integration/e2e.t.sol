@@ -12,7 +12,7 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 // aragon contracts
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
 import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
 import {ITokenVoting, IVoteContainer} from "@aragon/token-voting/ITokenVoting.sol";

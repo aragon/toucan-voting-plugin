@@ -126,6 +126,7 @@ contract TestExecutionChainOSx is TestHelpers {
         );
 
         votingSetup = new TokenVotingSetup(
+            new TokenVoting(),
             baseToken,
             new GovernanceWrappedERC20(
                 IERC20Upgradeable(address(baseToken)),
@@ -177,7 +178,11 @@ contract TestExecutionChainOSx is TestHelpers {
 
     function _prepareSetupReceiver() internal {
         // deploy receiver and set it as next address for PSP to use
-        receiverSetup = new ToucanReceiverSetup(new GovernanceOFTAdapter(), new ActionRelay());
+        receiverSetup = new ToucanReceiverSetup(
+            new ToucanReceiver(),
+            new GovernanceOFTAdapter(),
+            new ActionRelay()
+        );
         mockPSP.queueSetup(address(receiverSetup));
 
         // prepare the installation

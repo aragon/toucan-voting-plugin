@@ -56,11 +56,19 @@ contract TestToucanReceiverSetup is TestHelpers {
         vm.warp(0);
         vm.roll(0);
 
-        setup = new ToucanReceiverSetup(new GovernanceOFTAdapter(), new ActionRelay());
+        setup = new ToucanReceiverSetup(
+            new ToucanReceiver(),
+            new GovernanceOFTAdapter(),
+            new ActionRelay()
+        );
     }
 
     function testFuzz_constructor(address _adapter, address _actionRelay) public {
-        setup = new ToucanReceiverSetup(GovernanceOFTAdapter(_adapter), ActionRelay(_actionRelay));
+        setup = new ToucanReceiverSetup(
+            new ToucanReceiver(),
+            GovernanceOFTAdapter(_adapter),
+            ActionRelay(_actionRelay)
+        );
         assertEq(setup.oftAdapterBase(), _adapter);
         assertEq(setup.actionRelayBase(), _actionRelay);
     }

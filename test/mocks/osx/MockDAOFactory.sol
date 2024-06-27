@@ -5,11 +5,11 @@ pragma solidity ^0.8.8;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {IProtocolVersion} from "@aragon/osx-commons-contracts/src/utils/versioning/IProtocolVersion.sol";
-import {ProtocolVersion} from "@aragon/osx-commons-contracts/src/utils/versioning/ProtocolVersion.sol";
+import {IProtocolVersion} from "@aragon/osx/utils/protocol/IProtocolVersion.sol";
+import {ProtocolVersion} from "@aragon/osx/utils/protocol/ProtocolVersion.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 // import {PluginRepo} from "../plugin/repo/PluginRepo.sol";

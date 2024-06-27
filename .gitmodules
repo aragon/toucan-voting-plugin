@@ -5,9 +5,6 @@
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
-[submodule "lib/osx-commons"]
-	path = lib/osx-commons
-	url = https://github.com/aragon/osx-commons
 [submodule "lib/LayerZero-v2"]
 	path = lib/LayerZero-v2
 	url = https://github.com/LayerZero-Labs/LayerZero-v2
@@ -29,13 +26,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/token-voting-plugin"]
-	path = lib/token-voting-plugin
-	url = https://github.com/aragon/token-voting-plugin
-[submodule "lib/admin-plugin"]
-	path = lib/admin-plugin
-	url = https://github.com/aragon/admin-plugin
-	branch = develop
 [submodule "lib/osx"]
 	path = lib/osx
 	url = https://github.com/aragon/osx

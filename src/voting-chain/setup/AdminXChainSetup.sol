@@ -5,7 +5,7 @@ pragma solidity ^0.8.8;
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 import {OAppInitializer} from "@oapp-upgradeable/aragon-oapp/OAppInitializer.sol";

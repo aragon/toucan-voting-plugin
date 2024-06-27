@@ -14,7 +14,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {deployToucanRelay} from "@utils/deployers.sol";
 import "@utils/converters.sol";
 import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import "forge-std/console2.sol";
 

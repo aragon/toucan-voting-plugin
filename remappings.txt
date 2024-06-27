@@ -2,9 +2,8 @@ forge-std/=lib/forge-std/src/
 ds-test/=lib/forge-std/lib/ds-test/src/
 
 @aragon/osx/=lib/osx/packages/contracts/src/
-@aragon/osx-commons-contracts/=lib/osx-commons/contracts/
-@aragon/token-voting/=lib/token-voting-plugin/packages/contracts/src/
-@aragon/admin/=lib/admin-plugin/packages/contracts/src/
+@aragon/token-voting/=src/token-voting/
+@aragon/admin/=lib/osx/packages/contracts/src/plugins/governance/admin/
 
 @ensdomains/ens-contracts/=lib/ens-contracts/
 ens-contracts/=lib/ens-contracts/contracts/
@@ -27,12 +26,12 @@ solidity-bytes-utils/=lib/solidity-bytes-utils/
 @lz-oapp-test/=src/layer-zero/LayerZero-v2/oapp/test/
 @lz-oapp-precrime/=src/layer-zero/LayerZero-v2/oapp/contracts/precrime/
 @lz-oft/=src/layer-zero/LayerZero-v2/oapp/contracts/oft/
+@oapp-upgradeable/=src/layer-zero/oapp-upgradeable/
 
 @interfaces/=src/interfaces/
 @mocks/=test/mocks/
 @libs/=src/libs/
 @voting-chain/=src/voting-chain/
 @execution-chain/=src/execution-chain/
-@oapp-upgradeable/=src/oapp-upgradeable/
 @utils/=src/utils/
 @helpers/=test/helpers/
