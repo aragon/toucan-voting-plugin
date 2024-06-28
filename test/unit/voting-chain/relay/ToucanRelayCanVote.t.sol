@@ -111,7 +111,6 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         // derive a proposal Id that is valid
         uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
 
-        // TODO: do we want to explicitly check for this?
         vm.assume(!_voteOptions.overflows());
 
         // ERC20 prevents minting to zero address

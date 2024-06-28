@@ -35,6 +35,7 @@ contract ToucanReceiverSetup is PluginSetup {
     /// @notice The identifier of the `EXECUTE_PERMISSION` permission.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
+    bytes32 public constant UPGRADE_PLUGIN_PERMISSION_ID = keccak256("UPGRADE_PLUGIN_PERMISSION");
 
     /// @notice The interface ID of the `ITokenVoting` interface.
     bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
@@ -47,9 +48,6 @@ contract ToucanReceiverSetup is PluginSetup {
 
     /// @notice The base contract of the `ActionRelay` helper from which to create proxies.
     address public immutable actionRelayBase;
-
-    /// @dev The voting mode of the `TokenVoting` contract.
-    uint8 private constant VOTE_REPLACEMENT_MODE = uint8(IToucanVoting.VotingMode.VoteReplacement);
 
     /// @notice Thrown if passed helpers array is of wrong length.
     /// @param length The array length of passed helpers.
@@ -85,68 +83,31 @@ contract ToucanReceiverSetup is PluginSetup {
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         (address lzEndpoint, address _votingPlugin) = abi.decode(_data, (address, address));
 
+        // check the voting plugin and fetch the associated token
         ToucanVoting votingPlugin = validateVotingPlugin(_votingPlugin);
         address token = address(votingPlugin.getVotingToken());
+
+        // deploy our plugin, adapter and action relay
         plugin = toucanReceiverBase.deployUUPSProxy(
             abi.encodeCall(ToucanReceiver.initialize, (token, lzEndpoint, _dao, _votingPlugin))
         );
-        address adapter = _deployAdapter({
-            _token: token,
-            _receiver: plugin,
-            _lzEndpoint: lzEndpoint,
-            _dao: _dao
-        });
 
-        address actionRelay = _deployActionRelay({_lzEndpoint: lzEndpoint, _dao: _dao});
+        address adapter = oftAdapterBase.deployUUPSProxy(
+            abi.encodeCall(GovernanceOFTAdapter.initialize, (token, plugin, lzEndpoint, _dao))
+        );
 
-        // TODO: run through all the bespoke permissions and check that
-        // they are set here
-        PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](5);
+        address actionRelay = actionRelayBase.deployUUPSProxy(
+            abi.encodeCall(ActionRelay.initialize, (lzEndpoint, _dao))
+        );
 
-        // give the DAO OApp Administrator permissions on the receiver and the adapter
-        permissions[0] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAPP_ADMINISTRATOR_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: plugin
-        });
-
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAPP_ADMINISTRATOR_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: adapter
-        });
-
-        // dao can manage the action relay
-        permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: OAPP_ADMINISTRATOR_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: actionRelay
-        });
-
-        // dao can call xchain execute
-        permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: ActionRelay(actionRelay).XCHAIN_ACTION_RELAYER_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: actionRelay
-        });
-
-        // dao can sweep the receiver
-        permissions[4] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            permissionId: ToucanReceiver(payable(plugin)).SWEEP_COLLECTOR_ID(),
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: plugin
-        });
+        // encode our setup data with permissions and helpers
+        PermissionLib.MultiTargetPermission[] memory permissions = getPermissions(
+            _dao,
+            payable(plugin),
+            adapter,
+            actionRelay,
+            PermissionLib.Operation.Grant
+        );
 
         address[] memory helpers = new address[](2);
         helpers[0] = adapter;
@@ -169,38 +130,11 @@ contract ToucanReceiverSetup is PluginSetup {
             revert InvalidInterface();
         }
 
-        if (!(uint8(votingPlugin.votingMode()) == VOTE_REPLACEMENT_MODE)) {
+        if (!(uint(votingPlugin.votingMode()) == uint(IToucanVoting.VotingMode.VoteReplacement))) {
             revert NotInVoteReplacementMode();
         }
 
         return votingPlugin;
-    }
-
-    /// @notice Deploys the `GovernanceOFTAdapter` helper contract behind a proxy.
-    function _deployAdapter(
-        address _token,
-        address _receiver,
-        address _lzEndpoint,
-        address _dao
-    ) internal virtual returns (address) {
-        return
-            oftAdapterBase.deployUUPSProxy(
-                abi.encodeWithSelector(
-                    GovernanceOFTAdapter.initialize.selector,
-                    _token,
-                    _receiver,
-                    _lzEndpoint,
-                    _dao
-                )
-            );
-    }
-
-    /// @notice Deploys the `ActionRelay` helper contract behind a proxy.
-    function _deployActionRelay(address _lzEndpoint, address _dao) internal returns (address) {
-        return
-            actionRelayBase.deployUUPSProxy(
-                abi.encodeWithSelector(ActionRelay.initialize.selector, _lzEndpoint, _dao)
-            );
     }
 
     /// @inheritdoc IPluginSetup
@@ -216,47 +150,101 @@ contract ToucanReceiverSetup is PluginSetup {
         address adapter = _payload.currentHelpers[0];
         address actionRelay = _payload.currentHelpers[1];
 
-        // revert the permissions
-        permissions = new PermissionLib.MultiTargetPermission[](5);
+        permissions = getPermissions(
+            _dao,
+            payable(_payload.plugin),
+            adapter,
+            actionRelay,
+            PermissionLib.Operation.Revoke
+        );
+    }
 
+    /// @notice Returns the permissions required for the plugin install and uninstall.
+    /// @param _dao The DAO address on this chain.
+    /// @param _plugin The plugin proxy address.
+    /// @param _adapter The address of the GovernanceOFTAdapter helper.
+    /// @param _actionRelay The address of the ActionRelay helper.
+    /// @param _grantOrRevoke The operation to perform.
+    function getPermissions(
+        address _dao,
+        address payable _plugin,
+        address _adapter,
+        address _actionRelay,
+        PermissionLib.Operation _grantOrRevoke
+    ) public view returns (PermissionLib.MultiTargetPermission[] memory) {
+        PermissionLib.MultiTargetPermission[]
+            memory permissions = new PermissionLib.MultiTargetPermission[](8);
+
+        // Set the permissions for the plugin
         permissions[0] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
+            operation: _grantOrRevoke,
             permissionId: OAPP_ADMINISTRATOR_ID,
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
-            where: _payload.plugin
+            where: _plugin
         });
 
+        // Set the permissions for the adapter
         permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
+            operation: _grantOrRevoke,
             permissionId: OAPP_ADMINISTRATOR_ID,
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
-            where: adapter
+            where: _adapter
         });
 
+        // Set the permissions for the action relay
         permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
+            operation: _grantOrRevoke,
             permissionId: OAPP_ADMINISTRATOR_ID,
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
-            where: actionRelay
+            where: _actionRelay
         });
 
+        // Set the XChain action relayer permission for the action relay
         permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
-            permissionId: ActionRelay(actionRelay).XCHAIN_ACTION_RELAYER_ID(),
+            operation: _grantOrRevoke,
+            permissionId: ActionRelay(_actionRelay).XCHAIN_ACTION_RELAYER_ID(),
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
-            where: actionRelay
+            where: _actionRelay
         });
 
+        // Set the sweep collector permission for the plugin
         permissions[4] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
-            permissionId: ToucanReceiver(payable(_payload.plugin)).SWEEP_COLLECTOR_ID(),
+            operation: _grantOrRevoke,
+            permissionId: ToucanReceiver(_plugin).SWEEP_COLLECTOR_ID(),
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
-            where: _payload.plugin
+            where: _plugin
         });
+
+        // allow the DAO to upgrade the proxies
+        permissions[5] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: _plugin
+        });
+
+        permissions[6] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: _adapter
+        });
+
+        permissions[7] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
+            condition: PermissionLib.NO_CONDITION,
+            who: _dao,
+            where: _actionRelay
+        });
+
+        return permissions;
     }
 }

@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-
 pragma solidity ^0.8.8;
 
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
-import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
-import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
-import {ProxyLib} from "@libs/ProxyLib.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
+import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 /// @title AdminXChainSetup
 /// @author Aragon X
@@ -20,13 +19,15 @@ contract AdminXChainSetup is PluginSetup {
     /// @notice The ID of the permission required to call the `execute` function.
     bytes32 internal constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
-    address public immutable adminXChainBase;
+    /// @notice The address of the `AdminXChain` implementation contract.
+    address private immutable adminXChainBase;
 
     /// @notice The constructor setting the `Admin` implementation contract to clone from.
     constructor(AdminXChain _implementation) PluginSetup() {
         adminXChainBase = address(_implementation);
     }
 
+    /// @return The address of the `AdminXChain` implementation.
     function implementation() external view returns (address) {
         return adminXChainBase;
     }
@@ -38,42 +39,15 @@ contract AdminXChainSetup is PluginSetup {
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         address lzEndpoint = abi.decode(_data, (address));
 
-        // Clone and initialize the plugin contract.
+        // initialize the plugin contract.
         bytes memory initData = abi.encodeCall(AdminXChain.initialize, (_dao, lzEndpoint));
-        plugin = adminXChainBase.deployMinimalProxy(initData);
+        plugin = adminXChainBase.deployUUPSProxy(initData);
 
-        // Prepare permissions
-        PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](3);
-
-        // Grant the DAO OApp admin
-        permissions[0] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(payable(plugin)).OAPP_ADMINISTRATOR_ID()
-        });
-
-        // Grant `EXECUTE_PERMISSION` on the DAO to the plugin.
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: _dao,
-            who: plugin,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: EXECUTE_PERMISSION_ID
-        });
-
-        // sweep on the DAO
-        permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(payable(plugin)).SWEEP_COLLECTOR_ID()
-        });
-
-        preparedSetupData.permissions = permissions;
+        preparedSetupData.permissions = getPermissions(
+            _dao,
+            payable(plugin),
+            PermissionLib.Operation.Grant
+        );
     }
 
     /// @inheritdoc IPluginSetup
@@ -81,31 +55,57 @@ contract AdminXChainSetup is PluginSetup {
         address _dao,
         SetupPayload calldata _payload
     ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        permissions = new PermissionLib.MultiTargetPermission[](3);
+        permissions = getPermissions(
+            _dao,
+            payable(_payload.plugin),
+            PermissionLib.Operation.Revoke
+        );
+    }
+
+    /// @notice Returns the permissions required for the plugin install and uninstall.
+    /// @param _dao The DAO address on this chain.
+    /// @param _plugin The plugin proxy address.
+    /// @param _grantOrRevoke The operation to perform.
+    function getPermissions(
+        address _dao,
+        address payable _plugin,
+        PermissionLib.Operation _grantOrRevoke
+    ) public view returns (PermissionLib.MultiTargetPermission[] memory) {
+        PermissionLib.MultiTargetPermission[]
+            memory permissions = new PermissionLib.MultiTargetPermission[](4);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
+            operation: _grantOrRevoke,
+            where: _plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: AdminXChain(_plugin).OAPP_ADMINISTRATOR_ID()
+        });
+
+        permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
             where: _dao,
-            who: _payload.plugin,
+            who: _plugin,
             condition: PermissionLib.NO_CONDITION,
             permissionId: EXECUTE_PERMISSION_ID
         });
 
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
-            where: _payload.plugin,
+        permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            where: _plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(payable(_payload.plugin)).SWEEP_COLLECTOR_ID()
+            permissionId: AdminXChain(_plugin).SWEEP_COLLECTOR_ID()
         });
 
-        // remove OApp Adminstration IDs
-        permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
-            where: _dao,
-            who: _payload.plugin,
+        permissions[3] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            where: _plugin,
+            who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(payable(_payload.plugin)).OAPP_ADMINISTRATOR_ID()
+            permissionId: AdminXChain(_plugin).UPGRADE_PLUGIN_PERMISSION_ID()
         });
+
+        return permissions;
     }
 }

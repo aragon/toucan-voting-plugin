@@ -157,61 +157,86 @@ contract TestToucanReceiverSetup is TestHelpers {
         );
 
         // dao should have XChain execute on xchain relay
-        assertEq(
+        assertTrue(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.XCHAIN_ACTION_RELAYER_ID(),
                 _data: ""
             }),
-            true,
             "DAO should have XChain execute on xchain relay"
         );
 
         // dao should be sweeper on the receiver
-        assertEq(
+        assertTrue(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(receiver),
                 _permissionId: receiver.SWEEP_COLLECTOR_ID(),
                 _data: ""
             }),
-            true,
             "DAO should be able to sweep refunds from adminXChain"
         );
 
         // dao should be oapp admin of the receiver, adapter and action relay
-        assertEq(
+        assertTrue(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(receiver),
                 _permissionId: receiver.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            true,
             "DAO should be oapp admin of the receiver"
         );
 
-        assertEq(
+        assertTrue(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(adapter),
                 _permissionId: adapter.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            true,
             "DAO should be oapp admin of the adapter"
         );
 
-        assertEq(
+        assertTrue(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            true,
             "DAO should be oapp admin of the action relay"
+        );
+
+        assertTrue(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(actionRelay),
+                _permissionId: actionRelay.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the action relay"
+        );
+
+        assertTrue(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(adapter),
+                _permissionId: adapter.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the adapter"
+        );
+
+        assertTrue(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(receiver),
+                _permissionId: receiver.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the receiver"
         );
 
         // adapter should delegate to the receiver
@@ -280,62 +305,84 @@ contract TestToucanReceiverSetup is TestHelpers {
 
         dao.applyMultiTargetPermissions(permissions);
 
-        // dao should not have XChain execute on xchain relay
-        assertEq(
+        assertFalse(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.XCHAIN_ACTION_RELAYER_ID(),
                 _data: ""
             }),
-            false,
             "DAO should have XChain execute on xchain relay"
         );
 
-        // dao should not be sweeper on the receiver
-        assertEq(
+        assertFalse(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(receiver),
                 _permissionId: receiver.SWEEP_COLLECTOR_ID(),
                 _data: ""
             }),
-            false,
             "DAO should be able to sweep refunds from adminXChain"
         );
 
-        // dao should not be oapp admin of the receiver, adapter and action relay
-        assertEq(
+        assertFalse(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(receiver),
                 _permissionId: receiver.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            false,
             "DAO should be oapp admin of the receiver"
         );
 
-        assertEq(
+        assertFalse(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(adapter),
                 _permissionId: adapter.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            false,
             "DAO should be oapp admin of the adapter"
         );
 
-        assertEq(
+        assertFalse(
             dao.hasPermission({
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.OAPP_ADMINISTRATOR_ID(),
                 _data: ""
             }),
-            false,
             "DAO should be oapp admin of the action relay"
+        );
+
+        assertFalse(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(actionRelay),
+                _permissionId: actionRelay.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the action relay"
+        );
+
+        assertFalse(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(adapter),
+                _permissionId: adapter.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the adapter"
+        );
+
+        assertFalse(
+            dao.hasPermission({
+                _who: address(dao),
+                _where: address(receiver),
+                _permissionId: receiver.UPGRADE_PLUGIN_PERMISSION_ID(),
+                _data: ""
+            }),
+            "DAO should be able to upgrade the receiver"
         );
     }
 

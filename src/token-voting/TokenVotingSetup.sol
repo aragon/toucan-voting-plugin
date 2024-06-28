@@ -20,7 +20,7 @@ import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {TokenVoting} from "./TokenVoting.sol";
 import {ITokenVoting} from "./ITokenVoting.sol";
 
-import {ProxyLib} from "./libs/ProxyLib.sol";
+import {ProxyLib} from "@libs/ProxyLib.sol";
 
 // import "hardhat/console.sol";
 

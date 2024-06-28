@@ -20,8 +20,8 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {_applyRatioCeiled, RatioOutOfBounds, RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 
 import {ITokenVoting} from "./ITokenVoting.sol";
-import {TallyMath} from "./libs/TallyMath.sol";
-import {ProposalIdCodec} from "./libs/ProposalIdCodec.sol";
+import {TallyMath} from "@libs/TallyMath.sol";
+import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 /// @title TokenVoting
 /// @author Aragon X - 2021-2024

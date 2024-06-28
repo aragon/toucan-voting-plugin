@@ -114,15 +114,7 @@ contract TestVotingChainOSx is TestHelpers {
         mockPSP.queueSetup(address(toucanRelaySetup));
 
         // prepare the installation
-        bytes memory data = abi.encode(
-            ToucanRelaySetup.InstallationParams({
-                lzEndpoint: address(lzEndpoint),
-                token: address(0),
-                bridge: address(0),
-                name: "vTestToken",
-                symbol: "vTT"
-            })
-        );
+        bytes memory data = abi.encode(address(lzEndpoint), "vTestToken", "vTT");
         (
             address toucanRelayAddress,
             IPluginSetup.PreparedSetupData memory toucanRelaySetupData

@@ -4,11 +4,11 @@ pragma solidity ^0.8.17;
 import {IERC20Metadata, IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IOFT} from "@lz-oft/interfaces/IOFT.sol";
-
-import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
-import {SafeERC20Upgradeable as SafeERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-
 import {IERC20MintableBurnableUpgradeable as IERC20MintableBurnable} from "@interfaces/IERC20MintableBurnable.sol";
+
+import {SafeERC20Upgradeable as SafeERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
 import {OFTCoreUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTCoreUpgradeable.sol";
 
@@ -24,7 +24,7 @@ import {OFTCoreUpgradeable} from "@oapp-upgradeable/aragon-oft/OFTCoreUpgradeabl
 /// TODO Operator guide on shared decimals
 /// @dev The OFT Standard implements a shared decimals model which limits the amount of precision
 /// that can be sent across chains.
-contract OFTTokenBridge is OFTCoreUpgradeable {
+contract OFTTokenBridge is OFTCoreUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice UPGRADES removed immutablility.
@@ -41,12 +41,6 @@ contract OFTTokenBridge is OFTCoreUpgradeable {
         __OFTCore_init(IERC20Metadata(_token).decimals(), _lzEndpoint, _dao);
         underlyingToken_ = IERC20MintableBurnable(_token);
     }
-
-    // /// @dev overrides the default behavior of 6 decimals as we only use EVM chains
-    // /// TODO some weirdness with trying to return the decimals as the override function is pure
-    // function sharedDecimals() public pure override returns (uint8) {
-    //     return 18;
-    // }
 
     /// @notice Retrieves interfaceID and the version of the OFT.
     /// @return interfaceId The interface ID for IOFT.
@@ -108,6 +102,15 @@ contract OFTTokenBridge is OFTCoreUpgradeable {
         underlyingToken_.mint(_to, _amountLD);
         return _amountLD;
     }
+
+    /// @notice Returns the address of the implementation contract in the [proxy storage slot](https://eips.ethereum.org/EIPS/eip-1967) slot the [UUPS proxy](https://eips.ethereum.org/EIPS/eip-1822) is pointing to.
+    /// @return The address of the implementation contract.
+    function implementation() public view returns (address) {
+        return _getImplementation();
+    }
+
+    /// @notice Internal method authorizing the upgrade of the contract via the [upgradeability mechanism for UUPS proxies](https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable) (see [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822)).
+    function _authorizeUpgrade(address) internal virtual override auth(OAPP_ADMINISTRATOR_ID) {}
 
     /// @dev Added for future storage slots.
     uint256[49] private __gap;

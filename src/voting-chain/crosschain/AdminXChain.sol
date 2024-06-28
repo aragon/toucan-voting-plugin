@@ -9,7 +9,7 @@ import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/mat
 
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {PluginCloneable} from "@aragon/osx/core/plugin/PluginCloneable.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
@@ -24,7 +24,7 @@ import {bytes32ToAddress} from "@utils/converters.sol";
 /// In the case of LayerZero, we trust that both the origin EID and the sender address are validated, and that the peer is corectly set.
 /// @custom:security-contact sirt@aragon.org
 contract AdminXChain is
-    PluginCloneable,
+    PluginUUPSUpgradeable,
     ProposalUpgradeable,
     OAppReceiverUpgradeable,
     SweeperUpgradeable
@@ -80,7 +80,7 @@ contract AdminXChain is
     /// @return Returns `true` if the interface is supported.
     function supportsInterface(
         bytes4 _interfaceId
-    ) public view override(PluginCloneable, ProposalUpgradeable) returns (bool) {
+    ) public view override(PluginUUPSUpgradeable, ProposalUpgradeable) returns (bool) {
         return
             _interfaceId == type(IOAppReceiver).interfaceId ||
             super.supportsInterface(_interfaceId);

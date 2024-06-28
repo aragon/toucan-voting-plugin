@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 
 import {OAppSenderUpgradeable, MessagingFee} from "@oapp-upgradeable/aragon-oapp/OAppSenderUpgradeable.sol";
@@ -12,7 +13,7 @@ import {bytes32ToAddress} from "@utils/converters.sol";
 /// @title ActionRelay
 /// @author Aragon
 /// @notice A LayerZero-compatible OApp that allows for sending arbitrary action data across chains.
-contract ActionRelay is OAppSenderUpgradeable {
+contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     using OptionsBuilder for bytes;
     using SafeCast for uint256;
 
@@ -106,4 +107,13 @@ contract ActionRelay is OAppSenderUpgradeable {
 
         emit ActionsRelayed(_callId, _params.dstEid);
     }
+
+    /// @notice Returns the address of the implementation contract in the [proxy storage slot](https://eips.ethereum.org/EIPS/eip-1967) slot the [UUPS proxy](https://eips.ethereum.org/EIPS/eip-1822) is pointing to.
+    /// @return The address of the implementation contract.
+    function implementation() public view returns (address) {
+        return _getImplementation();
+    }
+
+    /// @notice Internal method authorizing the upgrade of the contract via the [upgradeability mechanism for UUPS proxies](https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable) (see [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822)).
+    function _authorizeUpgrade(address) internal virtual override auth(OAPP_ADMINISTRATOR_ID) {}
 }

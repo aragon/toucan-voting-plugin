@@ -114,7 +114,6 @@ contract ToucanRelay is
     event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
 
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
-    /// TODO Unit tests for the events
     event VotesDispatched(uint256 indexed proposalId, Tally votes);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
