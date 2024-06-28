@@ -51,7 +51,7 @@ interface ITokenVoting is IVoteContainer {
         VotingMode votingMode;
         uint32 supportThreshold;
         uint32 minParticipation;
-        uint64 minDuration;
+        uint32 minDuration;
         uint256 minProposerVotingPower;
     }
 
@@ -80,14 +80,24 @@ interface ITokenVoting is IVoteContainer {
     /// @param startDate The start date of the proposal vote.
     /// @param endDate The end date of the proposal vote.
     /// @param snapshotBlock The number of the block prior to the proposal creation.
+    /// @param snapshotTimestamp The timestamp of the block prior to the proposal creation.
     /// @param minVotingPower The minimum voting power needed.
     struct ProposalParameters {
         VotingMode votingMode;
         uint32 supportThreshold;
-        uint64 startDate;
-        uint64 endDate;
-        uint64 snapshotBlock;
+        uint32 startDate;
+        uint32 endDate;
+        uint32 snapshotBlock;
+        uint32 snapshotTimestamp;
         uint256 minVotingPower;
+    }
+
+    /// @notice A container for the snapshot block when the proposal was created.
+    /// @param number The block number before the proposal creation.
+    /// @param timestamp The block timestamp before the proposal creation.
+    struct SnapshotBlock {
+        uint32 number;
+        uint32 timestamp;
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -113,8 +123,8 @@ interface ITokenVoting is IVoteContainer {
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
-        uint64 _startDate,
-        uint64 _endDate,
+        uint32 _startDate,
+        uint32 _endDate,
         Tally memory _votes,
         bool _tryEarlyExecution
     ) external returns (uint256 proposalId);
@@ -192,7 +202,7 @@ interface ITokenVoting is IVoteContainer {
 
     /// @notice Returns the minimum duration parameter stored in the voting settings.
     /// @return The minimum duration parameter.
-    function minDuration() external view returns (uint64);
+    function minDuration() external view returns (uint32);
 
     /// @notice Returns the minimum voting power required to create a proposal stored in the voting settings.
     /// @return The minimum voting power required to create a proposal.
@@ -243,15 +253,4 @@ interface ITokenVoting is IVoteContainer {
     /// @param _proposalId The ID of the proposal to be checked.
     /// @return True if the proposal can be executed, false otherwise.
     function canExecute(uint256 _proposalId) external view returns (bool);
-
-    /// @notice Returns the proposal ID for a given proposal.
-    /// @param _startDate The start date of the proposal vote.
-    /// @param _endDate The end date of the proposal vote.
-    /// @param _snapshotBlockTimestamp The block timestamp when the proposal was created.
-    /// @return proposalId The ID of the proposal encoded as (plugin, startTimestamp, endTimestamp, blockSnapshotTimestamp)
-    function getProposalId(
-        uint256 _startDate,
-        uint256 _endDate,
-        uint256 _snapshotBlockTimestamp
-    ) external view returns (uint256 proposalId);
 }

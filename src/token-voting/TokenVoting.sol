@@ -21,7 +21,6 @@ import {_applyRatioCeiled, RatioOutOfBounds, RATIO_BASE} from "@aragon/osx/plugi
 
 import {ITokenVoting} from "./ITokenVoting.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 /// @title TokenVoting
 /// @author Aragon X - 2021-2024
@@ -41,7 +40,6 @@ contract TokenVoting is
     using SafeCastUpgradeable for uint256;
     using SafeMathUpgradeable for uint256;
     using TallyMath for Tally;
-    using ProposalIdCodec for uint256;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- STATE ----------
@@ -66,9 +64,6 @@ contract TokenVoting is
     /// @notice A mapping between proposal IDs and proposal information.
     // solhint-disable-next-line named-parameters-mapping
     mapping(uint256 => Proposal) internal proposals;
-
-    /// @dev TODO: added during offsite to allow aragonette to fetch via incrementing proposal IDs
-    uint256[] public proposalIdsByCount;
 
     /// @notice The struct storing the voting settings.
     VotingSettings private votingSettings;
@@ -257,7 +252,7 @@ contract TokenVoting is
 
     /// @notice Returns the minimum duration parameter stored in the voting settings.
     /// @return The minimum duration parameter.
-    function minDuration() public view virtual returns (uint64) {
+    function minDuration() public view virtual returns (uint32) {
         return votingSettings.minDuration;
     }
 
@@ -282,8 +277,8 @@ contract TokenVoting is
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
-        uint64 _startDate,
-        uint64 _endDate,
+        uint32 _startDate,
+        uint32 _endDate,
         Tally memory _votes,
         bool _tryEarlyExecution
     ) external returns (uint256 proposalId) {
@@ -304,14 +299,10 @@ contract TokenVoting is
             }
         }
 
-        uint256 snapshotBlock;
-        unchecked {
-            // The snapshot block must be mined already to
-            // protect the transaction against backrunning transactions causing census changes.
-            snapshotBlock = block.number - 1;
-        }
+        // Take a snapshot of the timestamp and block number
+        SnapshotBlock memory snapshotBlock = _takeSnapshot();
 
-        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
+        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock.number);
 
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();
@@ -333,7 +324,8 @@ contract TokenVoting is
 
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
-        proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
+        proposal_.parameters.snapshotBlock = snapshotBlock.number;
+        proposal_.parameters.snapshotTimestamp = snapshotBlock.timestamp;
         proposal_.parameters.votingMode = votingMode();
         proposal_.parameters.supportThreshold = supportThreshold();
         proposal_.parameters.minVotingPower = _applyRatioCeiled(
@@ -358,63 +350,14 @@ contract TokenVoting is
         }
     }
 
-    /// @notice Internal function to create a proposal.
-    /// @param _metadata The proposal metadata.
-    /// @param _startDate The start date of the proposal in seconds.
-    /// @param _endDate The end date of the proposal in seconds.
-    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
-    /// @param _actions The actions that will be executed after the proposal passes.
-    /// @return proposalId The ID of the proposal.
-    function _createProposal(
-        address _creator,
-        bytes calldata _metadata,
-        uint64 _startDate,
-        uint64 _endDate,
-        IDAO.Action[] calldata _actions,
-        uint256 _allowFailureMap
-    ) internal override returns (uint256 proposalId) {
-        proposalId = _createProposalId({_startDate: _startDate, _endDate: _endDate});
+    /// @return snapshot A struct containing the current block number and timestamp.
+    function _takeSnapshot() internal virtual returns (SnapshotBlock memory snapshot) {
+        // The snapshot block must be mined already to
+        // protect the transaction against backrunning transactions causing census changes.
+        snapshot.number = (block.number - 1).toUint32();
 
-        emit ProposalCreated({
-            proposalId: proposalId,
-            creator: _creator,
-            metadata: _metadata,
-            startDate: _startDate,
-            endDate: _endDate,
-            actions: _actions,
-            allowFailureMap: _allowFailureMap
-        });
-    }
-
-    /// @notice Creates a propsalId with timestamp and plugin data encoded. Also increases the proposal count.
-    /// @dev This is a useful reference for timestamp based clocks on other chains.
-    /// @param _startDate The start date of the proposal in seconds.
-    /// @param _endDate The end date of the proposal in seconds.
-    /// @return proposalId The ID of the proposal, encoded as plugin+timestamps.
-    /// @dev The block timestamp is used rather than the block number as the block number is saved
-    /// in the Propsal struct and only has meaning on this chain.
-    function _createProposalId(
-        uint64 _startDate,
-        uint64 _endDate
-    ) internal returns (uint256 proposalId) {
-        _incrementProposalCount();
-
-        proposalId = getProposalId({
-            _startDate: _startDate,
-            _endDate: _endDate,
-            _snapshotBlockTimestamp: block.timestamp
-        });
-
-        // TODO: added to allow querying by count
-        proposalIdsByCount.push(proposalId);
-
-        return proposalId;
-    }
-
-    /// @notice Increases the total proposal count by one.
-    /// @dev We cannot override `_createProposalId`, so this is a more idomatic way to increment the proposal count.
-    function _incrementProposalCount() private {
-        _createProposalId();
+        // TODO: is timestamp -1 sufficient to protect ts manipulation?
+        snapshot.timestamp = (block.timestamp - 1).toUint32();
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -629,26 +572,6 @@ contract TokenVoting is
         allowFailureMap = proposal_.allowFailureMap;
     }
 
-    /// @dev TODO Added to keep API same when querying by autoincrementing counter
-    function getProposalByIndex(
-        uint _idx
-    )
-        public
-        view
-        virtual
-        returns (
-            bool open,
-            bool executed,
-            ProposalParameters memory parameters,
-            Tally memory tally,
-            IDAO.Action[] memory actions,
-            uint256 allowFailureMap
-        )
-    {
-        uint proposalId = proposalIdsByCount[_idx];
-        return getProposal(proposalId);
-    }
-
     /// @inheritdoc ITokenVoting
     function isSupportThresholdReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
@@ -694,7 +617,7 @@ contract TokenVoting is
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
     function _isProposalOpen(Proposal storage proposal_) internal view virtual returns (bool) {
-        uint64 currentTime = block.timestamp.toUint64();
+        uint32 currentTime = block.timestamp.toUint32();
 
         return
             proposal_.parameters.startDate <= currentTime &&
@@ -709,10 +632,10 @@ contract TokenVoting is
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
     function _validateProposalDates(
-        uint64 _start,
-        uint64 _end
-    ) internal view virtual returns (uint64 startDate, uint64 endDate) {
-        uint64 currentTimestamp = block.timestamp.toUint64();
+        uint32 _start,
+        uint32 _end
+    ) internal view virtual returns (uint32 startDate, uint32 endDate) {
+        uint32 currentTimestamp = block.timestamp.toUint32();
 
         if (_start == 0) {
             startDate = currentTimestamp;
@@ -724,9 +647,9 @@ contract TokenVoting is
             }
         }
         // Since `minDuration` is limited to 1 year,
-        // `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`.
+        // `startDate + minDuration` can only overflow if the `startDate` is after `type(uint32).max - minDuration`.
         // In this case, the proposal creation will revert and another date can be picked.
-        uint64 earliestEndDate = startDate + votingSettings.minDuration;
+        uint32 earliestEndDate = startDate + votingSettings.minDuration;
 
         if (_end == 0) {
             endDate = earliestEndDate;
@@ -737,21 +660,6 @@ contract TokenVoting is
                 revert DateOutOfBounds({limit: earliestEndDate, actual: endDate});
             }
         }
-    }
-
-    /// @inheritdoc ITokenVoting
-    function getProposalId(
-        uint256 _startDate,
-        uint256 _endDate,
-        uint256 _snapshotBlockTimestamp
-    ) public view returns (uint256 proposalId) {
-        return
-            ProposalIdCodec.encode({
-                _plugin: address(this),
-                _proposalStartTimestamp: uint(_startDate).toUint32(),
-                _proposalEndTimestamp: uint(_endDate).toUint32(),
-                _proposalBlockSnapshotTimestamp: uint(_snapshotBlockTimestamp).toUint32()
-            });
     }
 
     /// @dev This empty reserved space is put in place to allow future versions to add new
