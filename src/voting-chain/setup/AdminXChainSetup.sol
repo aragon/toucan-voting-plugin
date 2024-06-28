@@ -73,7 +73,7 @@ contract AdminXChainSetup is PluginSetup {
         PermissionLib.Operation _grantOrRevoke
     ) public view returns (PermissionLib.MultiTargetPermission[] memory) {
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](4);
+            memory permissions = new PermissionLib.MultiTargetPermission[](3);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: _grantOrRevoke,
@@ -97,14 +97,6 @@ contract AdminXChainSetup is PluginSetup {
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
             permissionId: AdminXChain(_plugin).SWEEP_COLLECTOR_ID()
-        });
-
-        permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: _grantOrRevoke,
-            where: _plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: AdminXChain(_plugin).UPGRADE_PLUGIN_PERMISSION_ID()
         });
 
         return permissions;
