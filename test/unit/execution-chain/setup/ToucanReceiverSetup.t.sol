@@ -209,36 +209,6 @@ contract TestToucanReceiverSetup is TestHelpers {
             "DAO should be oapp admin of the action relay"
         );
 
-        assertTrue(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(actionRelay),
-                _permissionId: actionRelay.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the action relay"
-        );
-
-        assertTrue(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(adapter),
-                _permissionId: adapter.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the adapter"
-        );
-
-        assertTrue(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(receiver),
-                _permissionId: receiver.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the receiver"
-        );
-
         // adapter should delegate to the receiver
         assertEq(
             token.delegates(address(adapter)),
@@ -353,36 +323,6 @@ contract TestToucanReceiverSetup is TestHelpers {
                 _data: ""
             }),
             "DAO should be oapp admin of the action relay"
-        );
-
-        assertFalse(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(actionRelay),
-                _permissionId: actionRelay.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the action relay"
-        );
-
-        assertFalse(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(adapter),
-                _permissionId: adapter.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the adapter"
-        );
-
-        assertFalse(
-            dao.hasPermission({
-                _who: address(dao),
-                _where: address(receiver),
-                _permissionId: receiver.UPGRADE_PLUGIN_PERMISSION_ID(),
-                _data: ""
-            }),
-            "DAO should be able to upgrade the receiver"
         );
     }
 

@@ -59,7 +59,7 @@ function deployMockToucanRelayLzMock(
     // encode the initalizer
     bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
     // deploy and return the proxy
-    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockToucanRelayLzMock(deployed);
 }
 
@@ -117,7 +117,7 @@ function deployGovernanceOFTAdapter(
     );
 
     // deploy and return the proxy
-    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
     return GovernanceOFTAdapter(deployed);
 }
 
@@ -126,7 +126,7 @@ function deployActionRelay(address _lzEndpoint, address _dao) returns (ActionRel
     // encode the initalizer
     bytes memory data = abi.encodeCall(ActionRelay.initialize, (_lzEndpoint, _dao));
     // deploy and return the proxy
-    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
     return ActionRelay(deployed);
 }
 
@@ -135,7 +135,7 @@ function deployMockActionRelay(address _lzEndpoint, address _dao) returns (MockA
     // encode the initalizer
     bytes memory data = abi.encodeCall(ActionRelay.initialize, (_lzEndpoint, _dao));
     // deploy and return the proxy
-    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockActionRelay(deployed);
 }
 
@@ -144,7 +144,7 @@ function deployAdminXChain(address _lzEndpoint, address _dao) returns (AdminXCha
     // encode the initalizer
     bytes memory data = abi.encodeCall(AdminXChain.initialize, (_dao, _lzEndpoint));
     // deploy and return the proxy
-    address deployed = ProxyLib.deployMinimalProxy(base, data);
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
     return AdminXChain(payable(deployed));
 }
 

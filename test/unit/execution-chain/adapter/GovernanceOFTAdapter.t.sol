@@ -14,6 +14,7 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 
 import {deployGovernanceOFTAdapter} from "@utils/deployers.sol";
 
@@ -105,5 +106,21 @@ contract TestGovernanceOFTAdapter is TestHelpers, IVoteContainer {
         adapter.delegate(_newDelegate);
 
         assertEq(token.delegates(address(adapter)), _newDelegate);
+    }
+
+    function test_adapterCanUUPSUpgrade() public {
+        address oldImplementation = adapter.implementation();
+        dao.grant({
+            _who: address(this),
+            _where: address(adapter),
+            _permissionId: adapter.OAPP_ADMINISTRATOR_ID()
+        });
+
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        adapter.upgradeTo(address(newImplementation));
+
+        assertEq(adapter.implementation(), address(newImplementation));
+        assertNotEq(adapter.implementation(), oldImplementation);
+        assertEq(MockUpgradeTo(address(adapter)).v2Upgraded(), true);
     }
 }

@@ -350,4 +350,13 @@ contract ToucanReceiver is
         );
         return params.snapshotBlock;
     }
+
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /// -------- UPGRADE FUNCTIONS --------
+    /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /// @dev Keeps permissions lean by giving OApp administrator the ability to upgrade.
+    /// The alternative would be to define a separate permission which adds complexity.
+    /// As this contract is upgradeable, this can be changed in the future.
+    function _authorizeUpgrade(address) internal override auth(OAPP_ADMINISTRATOR_ID) {}
 }

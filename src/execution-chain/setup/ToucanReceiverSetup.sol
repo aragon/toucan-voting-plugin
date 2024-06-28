@@ -34,8 +34,9 @@ contract ToucanReceiverSetup is PluginSetup {
 
     /// @notice The identifier of the `EXECUTE_PERMISSION` permission.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
+
+    /// @notice The identifier of the `OAPP_ADMINISTRATOR` permission.
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
-    bytes32 public constant UPGRADE_PLUGIN_PERMISSION_ID = keccak256("UPGRADE_PLUGIN_PERMISSION");
 
     /// @notice The interface ID of the `ITokenVoting` interface.
     bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
@@ -173,7 +174,7 @@ contract ToucanReceiverSetup is PluginSetup {
         PermissionLib.Operation _grantOrRevoke
     ) public view returns (PermissionLib.MultiTargetPermission[] memory) {
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](8);
+            memory permissions = new PermissionLib.MultiTargetPermission[](5);
 
         // Set the permissions for the plugin
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -218,31 +219,6 @@ contract ToucanReceiverSetup is PluginSetup {
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: _plugin
-        });
-
-        // allow the DAO to upgrade the proxies
-        permissions[5] = PermissionLib.MultiTargetPermission({
-            operation: _grantOrRevoke,
-            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: _plugin
-        });
-
-        permissions[6] = PermissionLib.MultiTargetPermission({
-            operation: _grantOrRevoke,
-            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: _adapter
-        });
-
-        permissions[7] = PermissionLib.MultiTargetPermission({
-            operation: _grantOrRevoke,
-            permissionId: UPGRADE_PLUGIN_PERMISSION_ID,
-            condition: PermissionLib.NO_CONDITION,
-            who: _dao,
-            where: _actionRelay
         });
 
         return permissions;

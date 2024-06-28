@@ -72,9 +72,20 @@ contract ToucanRelaySetup is PluginSetup {
             (address, string, string)
         );
 
-        // deploy the token, bridge and relay
-        address token = deployToken({_dao: _dao, _name: tokenName, _symbol: tokenSymbol});
-        address bridge = deployBridge({_dao: _dao, _token: token, _lzEndpoint: lzEndpoint});
+        // check the token name and symbol are not empty
+        if (isEmpty(tokenName) || isEmpty(tokenSymbol)) revert InvalidTokenNameOrSymbol();
+
+        // deploy the voting token, bridge and relay
+        address token = votingTokenBase.deployUUPSProxy(
+            abi.encodeCall(
+                GovernanceERC20VotingChain.initialize,
+                (IDAO(_dao), tokenName, tokenSymbol)
+            )
+        );
+
+        address bridge = bridgeBase.deployUUPSProxy(
+            abi.encodeCall(OFTTokenBridge.initialize, (token, lzEndpoint, _dao))
+        );
 
         plugin = relayBase.deployUUPSProxy(
             abi.encodeCall(ToucanRelay.initialize, (token, lzEndpoint, _dao))
@@ -140,30 +151,7 @@ contract ToucanRelaySetup is PluginSetup {
         address _dao,
         string memory _name,
         string memory _symbol
-    ) public returns (address) {
-        if (isEmpty(_name) || isEmpty(_symbol)) {
-            revert InvalidTokenNameOrSymbol();
-        }
-        return
-            votingTokenBase.deployUUPSProxy(
-                abi.encodeCall(GovernanceERC20VotingChain.initialize, (IDAO(_dao), _name, _symbol))
-            );
-    }
-
-    /// @notice Deploys the OFTTokenBridge contract.
-    /// @param _dao The DAO address on this chain.
-    /// @param _token The address of the token on this chain.
-    /// @param _lzEndpoint The address of the LayerZero endpoint on this chain.
-    function deployBridge(
-        address _dao,
-        address _token,
-        address _lzEndpoint
-    ) public returns (address) {
-        return
-            bridgeBase.deployUUPSProxy(
-                abi.encodeCall(OFTTokenBridge.initialize, (_token, _lzEndpoint, _dao))
-            );
-    }
+    ) public returns (address) {}
 
     /// @inheritdoc IPluginSetup
     /// @dev The relay will be uninstalled but we keep the bridge setup as-is.

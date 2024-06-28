@@ -43,6 +43,7 @@ contract AdminXChainSetup is PluginSetup {
         bytes memory initData = abi.encodeCall(AdminXChain.initialize, (_dao, lzEndpoint));
         plugin = adminXChainBase.deployUUPSProxy(initData);
 
+        // no helpers but prepare the permissions.
         preparedSetupData.permissions = getPermissions(
             _dao,
             payable(plugin),

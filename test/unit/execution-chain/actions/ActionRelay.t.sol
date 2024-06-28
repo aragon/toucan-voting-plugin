@@ -13,6 +13,7 @@ import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockActionRelay} from "@mocks/MockActionRelay.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
@@ -155,5 +156,21 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
 
         bytes memory expectedMessage = abi.encode(_proposalId, _actions, _allowFailureMap);
         assertEq(keccak256(receipt.message), keccak256(expectedMessage));
+    }
+
+    function test_canUUPSUpgrade() public {
+        address oldImplementation = relay.implementation();
+        dao.grant({
+            _who: address(this),
+            _where: address(relay),
+            _permissionId: relay.OAPP_ADMINISTRATOR_ID()
+        });
+
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        relay.upgradeTo(address(newImplementation));
+
+        assertEq(relay.implementation(), address(newImplementation));
+        assertNotEq(relay.implementation(), oldImplementation);
+        assertEq(MockUpgradeTo(address(relay)).v2Upgraded(), true);
     }
 }

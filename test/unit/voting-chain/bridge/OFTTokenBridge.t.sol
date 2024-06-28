@@ -12,6 +12,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockTokenBridge, OFTTokenBridge} from "@mocks/MockTokenBridge.sol";
 
@@ -112,5 +113,20 @@ contract TestOFTTokenBridge is TestHelpers, IVoteContainer {
 
         assertEq(balanceAfter, _amountLD);
         assertEq(received, _amountLD);
+    }
+
+    function test_canUUPSUpgrade() public {
+        address oldImplementataion = bridge.implementation();
+        dao.grant({
+            _who: address(this),
+            _where: address(bridge),
+            _permissionId: bridge.OAPP_ADMINISTRATOR_ID()
+        });
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        bridge.upgradeTo(address(newImplementation));
+
+        assertEq(bridge.implementation(), address(newImplementation));
+        assertNotEq(bridge.implementation(), oldImplementataion);
+        assertEq(MockUpgradeTo(address(bridge)).v2Upgraded(), true);
     }
 }

@@ -17,6 +17,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
@@ -190,5 +191,15 @@ contract AdminXChainTest is TestHelpers, IVoteContainer {
 
         assertEq(admin.xChainActionMetadata(0).received, 0);
         assertEq(admin.xChainActionMetadata(1).received, 100);
+    }
+
+    function test_canUUPSUpgrade() public {
+        address oldImplementation = admin.implementation();
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        admin.upgradeTo(address(newImplementation));
+
+        assertEq(admin.implementation(), address(newImplementation));
+        assertNotEq(admin.implementation(), oldImplementation);
+        assertEq(MockUpgradeTo(address(admin)).v2Upgraded(), true);
     }
 }

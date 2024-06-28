@@ -12,6 +12,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 
@@ -106,5 +107,19 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
     ) public {
         plugin.setSnapshotBlock(_proposalId, _blockSnapshot);
         assertEq(receiver.getProposalBlockSnapshot(_proposalId), _blockSnapshot);
+    }
+
+    function test_canUUPSUpgrade() public {
+        dao.grant({
+            _who: address(this),
+            _where: address(receiver),
+            _permissionId: receiver.OAPP_ADMINISTRATOR_ID()
+        });
+
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        receiver.upgradeTo(address(newImplementation));
+
+        assertEq(receiver.implementation(), address(newImplementation));
+        assertEq(MockUpgradeTo(address(receiver)).v2Upgraded(), true);
     }
 }

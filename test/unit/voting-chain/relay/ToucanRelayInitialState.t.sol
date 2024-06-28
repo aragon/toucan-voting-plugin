@@ -15,6 +15,7 @@ import {deployToucanRelay} from "@utils/deployers.sol";
 import "@utils/converters.sol";
 import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
+import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 
 import "forge-std/console2.sol";
 
@@ -76,5 +77,21 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         vm.expectRevert(revertData);
         Origin memory o;
         relay._lzReceive(new bytes(0), o, new bytes(0));
+    }
+
+    function test_canUUPSUpgrade() public {
+        address oldImplementation = relay.implementation();
+        dao.grant({
+            _who: address(this),
+            _where: address(relay),
+            _permissionId: relay.OAPP_ADMINISTRATOR_ID()
+        });
+
+        MockUpgradeTo newImplementation = new MockUpgradeTo();
+        relay.upgradeTo(address(newImplementation));
+
+        assertEq(relay.implementation(), address(newImplementation));
+        assertNotEq(relay.implementation(), oldImplementation);
+        assertEq(MockUpgradeTo(address(relay)).v2Upgraded(), true);
     }
 }
