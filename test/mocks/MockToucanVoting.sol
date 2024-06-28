@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
+import {IToucanVoting} from "@toucan-voting/IToucanVoting.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 contract MockToucanVoting {
     function vote(uint256, IVoteContainer.Tally memory, bool) public {}
 
-    mapping(uint256 => ITokenVoting.Proposal) internal proposals;
+    mapping(uint256 => IToucanVoting.Proposal) internal proposals;
     bool open_;
 
     function setProposalData(
         uint256 proposalId,
         bool executed,
-        ITokenVoting.ProposalParameters memory parameters,
-        ITokenVoting.Tally memory tally,
+        IToucanVoting.ProposalParameters memory parameters,
+        IToucanVoting.Tally memory tally,
         IDAO.Action[] memory actions,
         uint256 allowFailureMap,
         address[] memory lastVoters,
-        ITokenVoting.Tally[] memory lastVotes,
+        IToucanVoting.Tally[] memory lastVotes,
         bool open
     ) public {
-        ITokenVoting.Proposal storage proposal = proposals[proposalId];
+        IToucanVoting.Proposal storage proposal = proposals[proposalId];
         proposal.executed = executed;
         proposal.parameters = parameters;
         proposal.tally = tally;
@@ -45,12 +45,12 @@ contract MockToucanVoting {
 
     function setParameters(
         uint256 proposalId,
-        ITokenVoting.ProposalParameters memory parameters
+        IToucanVoting.ProposalParameters memory parameters
     ) public {
         proposals[proposalId].parameters = parameters;
     }
 
-    function setVotingMode(uint256 proposalId, ITokenVoting.VotingMode votingMode) public {
+    function setVotingMode(uint256 proposalId, IToucanVoting.VotingMode votingMode) public {
         proposals[proposalId].parameters.votingMode = votingMode;
     }
 
@@ -58,15 +58,15 @@ contract MockToucanVoting {
         proposals[proposalId].parameters.supportThreshold = supportThreshold;
     }
 
-    function setStartDate(uint256 proposalId, uint64 startDate) public {
+    function setStartDate(uint256 proposalId, uint32 startDate) public {
         proposals[proposalId].parameters.startDate = startDate;
     }
 
-    function setEndDate(uint256 proposalId, uint64 endDate) public {
+    function setEndDate(uint256 proposalId, uint32 endDate) public {
         proposals[proposalId].parameters.endDate = endDate;
     }
 
-    function setSnapshotBlock(uint256 proposalId, uint64 snapshotBlock) public {
+    function setSnapshotBlock(uint256 proposalId, uint32 snapshotBlock) public {
         proposals[proposalId].parameters.snapshotBlock = snapshotBlock;
     }
 
@@ -74,7 +74,7 @@ contract MockToucanVoting {
         proposals[proposalId].parameters.minVotingPower = minVotingPower;
     }
 
-    function setTally(uint256 proposalId, ITokenVoting.Tally memory tally) public {
+    function setTally(uint256 proposalId, IToucanVoting.Tally memory tally) public {
         proposals[proposalId].tally = tally;
     }
 
@@ -92,7 +92,7 @@ contract MockToucanVoting {
     function setLastVotes(
         uint256 proposalId,
         address[] memory lastVoters,
-        ITokenVoting.Tally[] memory lastVotes
+        IToucanVoting.Tally[] memory lastVotes
     ) public {
         require(lastVoters.length == lastVotes.length, "Mismatched array lengths");
         for (uint256 i = 0; i < lastVoters.length; i++) {
@@ -113,13 +113,13 @@ contract MockToucanVoting {
         returns (
             bool open,
             bool executed,
-            ITokenVoting.ProposalParameters memory parameters,
-            ITokenVoting.Tally memory tally,
+            IToucanVoting.ProposalParameters memory parameters,
+            IToucanVoting.Tally memory tally,
             IDAO.Action[] memory actions,
             uint256 allowFailureMap
         )
     {
-        ITokenVoting.Proposal storage proposal_ = proposals[_proposalId];
+        IToucanVoting.Proposal storage proposal_ = proposals[_proposalId];
 
         open = _isProposalOpen(proposal_);
         executed = proposal_.executed;
@@ -129,14 +129,14 @@ contract MockToucanVoting {
         allowFailureMap = proposal_.allowFailureMap;
     }
 
-    function _isProposalOpen(ITokenVoting.Proposal storage) internal view returns (bool) {
+    function _isProposalOpen(IToucanVoting.Proposal storage) internal view returns (bool) {
         return open_;
     }
 }
 
 contract MockVotingPluginValidator {
     bytes4 _iface;
-    ITokenVoting.VotingMode _votingMode;
+    IToucanVoting.VotingMode _votingMode;
 
     function setIface(bytes4 iface) public {
         _iface = iface;
@@ -146,11 +146,11 @@ contract MockVotingPluginValidator {
         return _interfaceId == _iface;
     }
 
-    function votingMode() public view returns (ITokenVoting.VotingMode) {
+    function votingMode() public view returns (IToucanVoting.VotingMode) {
         return _votingMode;
     }
 
-    function setVotingMode(ITokenVoting.VotingMode _mode) public {
+    function setVotingMode(IToucanVoting.VotingMode _mode) public {
         _votingMode = _mode;
     }
 }

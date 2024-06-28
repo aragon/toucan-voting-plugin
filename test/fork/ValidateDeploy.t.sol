@@ -65,9 +65,9 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
-import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
-import {ITokenVoting, IVoteContainer} from "@aragon/token-voting/ITokenVoting.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
+import {ToucanVoting as ToucanVoting} from "@toucan-voting/ToucanVoting.sol";
+import {IToucanVoting, IVoteContainer} from "@toucan-voting/IToucanVoting.sol";
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -218,7 +218,7 @@ abstract contract BaseContracts {
     uint32 constant MIN_PARTICIPATION = 1;
     uint64 constant MIN_DURATION = 3600;
     uint constant MIN_PROPOSER_VOTING_POWER = 1;
-    ToucanVoting.VotingMode constant MODE = ITokenVoting.VotingMode.VoteReplacement;
+    ToucanVoting.VotingMode constant MODE = IToucanVoting.VotingMode.VoteReplacement;
 
     uint256 PROPOSAL_2 =
         64664270401656640812369971395693734794954279304534741224351048272538191464264;
@@ -239,7 +239,7 @@ abstract contract BaseContracts {
                 _actions: actions,
                 _allowFailureMap: 0,
                 _startDate: 0, // start now
-                _endDate: uint64(block.timestamp + 1 days),
+                _endDate: uint32(block.timestamp + 1 days),
                 _tryEarlyExecution: false,
                 _votes: tally
             });

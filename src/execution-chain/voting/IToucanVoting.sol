@@ -17,11 +17,11 @@ interface IVoteContainer {
     }
 }
 
-/// @title ITokenVoting
+/// @title IToucanVoting
 /// @author Aragon X - 2024
-/// @notice Interface for Aragon IVotes-based voting and proposal plugin "TokenVoting".
+/// @notice Interface for Aragon IVotes-based voting and proposal plugin "ToucanVoting".
 /// @custom:security-contact sirt@aragon.org
-interface ITokenVoting is IVoteContainer {
+interface IToucanVoting is IVoteContainer {
     /// @notice The different voting modes available.
     /// @param Standard In standard mode, early execution and vote replacement are disabled.
     /// @param EarlyExecution In early execution mode, a proposal can be executed

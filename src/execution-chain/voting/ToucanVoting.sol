@@ -19,19 +19,19 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {_applyRatioCeiled, RatioOutOfBounds, RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 
-import {ITokenVoting} from "./ITokenVoting.sol";
+import {IToucanVoting} from "./IToucanVoting.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 
-/// @title TokenVoting
+/// @title ToucanVoting
 /// @author Aragon X - 2021-2024
 /// @notice The majority voting implementation using an
 /// [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
 /// compatible governance token.
 /// @dev v2.0 (Release 2, Build 0)
 /// @custom:security-contact sirt@aragon.org
-contract TokenVoting is
+contract ToucanVoting is
     IMembership,
-    ITokenVoting,
+    IToucanVoting,
     Initializable,
     ERC165Upgradeable,
     PluginUUPSUpgradeable,
@@ -178,7 +178,7 @@ contract TokenVoting is
         return
             _interfaceId == TOKEN_VOTING_INTERFACE_ID ||
             _interfaceId == type(IMembership).interfaceId ||
-            _interfaceId == type(ITokenVoting).interfaceId ||
+            _interfaceId == type(IToucanVoting).interfaceId ||
             super.supportsInterface(_interfaceId);
     }
 
@@ -186,7 +186,7 @@ contract TokenVoting is
     /// -------- SETTINGS ---------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function updateVotingSettings(
         VotingSettings calldata _votingSettings
     ) external virtual auth(UPDATE_VOTING_SETTINGS_PERMISSION_ID) {
@@ -230,22 +230,22 @@ contract TokenVoting is
         });
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function getVotingToken() public view returns (IVotesUpgradeable) {
         return votingToken;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function totalVotingPower(uint256 _blockNumber) public view returns (uint256) {
         return votingToken.getPastTotalSupply(_blockNumber);
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function supportThreshold() public view virtual returns (uint32) {
         return votingSettings.supportThreshold;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function minParticipation() public view virtual returns (uint32) {
         return votingSettings.minParticipation;
     }
@@ -272,7 +272,7 @@ contract TokenVoting is
     /// -------- PROPOSALS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function createProposal(
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
@@ -287,7 +287,7 @@ contract TokenVoting is
             uint256 minProposerVotingPower_ = minProposerVotingPower();
 
             if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `TokenVotingSetup`, we can assume that `votingToken`
+                // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
                 // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
                 if (
                     votingToken.getVotes(_msgSender()) < minProposerVotingPower_ &&
@@ -364,7 +364,7 @@ contract TokenVoting is
     /// --------- VOTING ----------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function vote(
         uint256 _proposalId,
         Tally memory _votes,
@@ -416,7 +416,7 @@ contract TokenVoting is
         }
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function canVote(
         uint256 _proposalId,
         address _voter,
@@ -467,7 +467,7 @@ contract TokenVoting is
     /// -------- EXECUTION --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function execute(uint256 _proposalId) public virtual {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
@@ -488,7 +488,7 @@ contract TokenVoting is
         );
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function canExecute(uint256 _proposalId) public view virtual returns (bool) {
         return _canExecute(_proposalId);
     }
@@ -538,7 +538,7 @@ contract TokenVoting is
             IERC20Upgradeable(address(votingToken)).balanceOf(_account) > 0;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function getVotes(
         uint256 _proposalId,
         address _voter
@@ -546,7 +546,7 @@ contract TokenVoting is
         return proposals[_proposalId].voters[_voter];
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function getProposal(
         uint256 _proposalId
     )
@@ -572,7 +572,7 @@ contract TokenVoting is
         allowFailureMap = proposal_.allowFailureMap;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function isSupportThresholdReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
@@ -583,7 +583,7 @@ contract TokenVoting is
             proposal_.parameters.supportThreshold * proposal_.tally.no;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function isSupportThresholdReachedEarly(
         uint256 _proposalId
     ) public view virtual returns (bool) {
@@ -601,7 +601,7 @@ contract TokenVoting is
             proposal_.parameters.supportThreshold * noVotesWorstCase;
     }
 
-    /// @inheritdoc ITokenVoting
+    /// @inheritdoc IToucanVoting
     function isMinParticipationReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 

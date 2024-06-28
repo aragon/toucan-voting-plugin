@@ -64,7 +64,7 @@
               "description": "The token symbol. This parameter is only relevant if the token address is `address(0)`."
             }
           ],
-          "internalType": "struct TokenVotingSetup.TokenSettings",
+          "internalType": "struct ToucanVotingSetup.TokenSettings",
           "name": "tokenSettings",
           "type": "tuple",
           "description": "The token settings that either specify an existing ERC-20 token (`token = address(0)`) or the name and symbol of a new `GovernanceERC20` token to be created."

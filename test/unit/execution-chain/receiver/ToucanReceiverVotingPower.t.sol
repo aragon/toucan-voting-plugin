@@ -6,8 +6,8 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
-import {TokenVoting, ITokenVoting} from "@aragon/token-voting/TokenVoting.sol";
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {ToucanVoting, IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
@@ -56,7 +56,7 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
     function testFuzz_noVotingPowerAtBlock(
         uint256 _proposalId,
         Tally memory _votes,
-        uint48 _snapshotBlock, // bounded by oz safecast erc20votes
+        uint32 _snapshotBlock,
         uint32 _rollTo, // bounded by ERC20Votes clock
         uint224 _mint // bounded by ERC20Votes max delegation
     ) public {
@@ -78,7 +78,7 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
     function testFuzz_sufficientVotingPowerAtBlock(
         uint256 _proposalId,
         Tally memory _votes,
-        uint48 _snapshotBlock, // bounded by oz safecast erc20votes
+        uint32 _snapshotBlock,
         uint32 _rollTo, // bounded by ERC20Votes clock
         uint224 _mint // bounded by ERC20Votes max delegation
     ) public {
@@ -104,7 +104,7 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
     function testFuzz_insufficientVotingPowerAtBlockExistingState(
         uint256 _proposalId,
         Tally memory _votes,
-        uint48 _snapshotBlock, // bounded by oz safecast erc20votes
+        uint32 _snapshotBlock,
         uint32 _rollTo, // bounded by ERC20Votes clock
         uint224 _mint, // bounded by ERC20Votes max delegation
         uint8 _divisor
@@ -141,7 +141,7 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
     function testFuzz_sufficientVotingPowerAtBlockExistingState(
         uint256 _proposalId,
         Tally memory _votes,
-        uint48 _snapshotBlock, // bounded by oz safecast erc20votes
+        uint32 _snapshotBlock,
         uint32 _rollTo, // bounded by ERC20Votes clock
         uint224 _mint, // bounded by ERC20Votes max delegation
         uint8 _divisor

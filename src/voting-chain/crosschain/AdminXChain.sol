@@ -13,7 +13,7 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {DAO, PermissionManager} from "@aragon/osx/core/dao/DAO.sol";
 
 import {OAppReceiverUpgradeable, Origin} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
-import {SweeperUpgradeable} from "src/SweeperUpgradeable.sol";
+import {SweeperUpgradeable} from "@utils/SweeperUpgradeable.sol";
 import {bytes32ToAddress} from "@utils/converters.sol";
 
 /// @title AdminXChain

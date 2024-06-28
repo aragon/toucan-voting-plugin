@@ -6,7 +6,7 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 
@@ -103,7 +103,7 @@ contract TestToucanReceiverInitialState is ToucanReceiverBaseTest {
 
     function testFuzz_testFetchingProposalBlockSnapshot(
         uint _proposalId,
-        uint64 _blockSnapshot
+        uint32 _blockSnapshot
     ) public {
         plugin.setSnapshotBlock(_proposalId, _blockSnapshot);
         assertEq(receiver.getProposalBlockSnapshot(_proposalId), _blockSnapshot);

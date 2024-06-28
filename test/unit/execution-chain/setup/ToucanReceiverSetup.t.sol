@@ -18,7 +18,7 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 
 import {ToucanReceiverSetup, ToucanReceiver, ActionRelay} from "@execution-chain/setup/ToucanReceiverSetup.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
-import {TokenVotingSetup, TokenVoting, GovernanceERC20, GovernanceWrappedERC20, ITokenVoting} from "@aragon/token-voting/TokenVotingSetup.sol";
+import {ToucanVotingSetup, ToucanVoting, GovernanceERC20, GovernanceWrappedERC20, IToucanVoting} from "@toucan-voting/ToucanVotingSetup.sol";
 import {AdminSetup, Admin} from "@aragon/admin/AdminSetup.sol";
 import {MockVotingPluginValidator as MockVotingPlugin} from "@mocks/MockToucanVoting.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
@@ -80,7 +80,7 @@ contract TestToucanReceiverSetup is TestHelpers {
         plugin = new MockVotingPlugin();
 
         // wrong inteface right voting mode
-        plugin.setVotingMode(ITokenVoting.VotingMode.VoteReplacement);
+        plugin.setVotingMode(IToucanVoting.VotingMode.VoteReplacement);
         plugin.setIface(_iface);
         bytes memory revertData = abi.encodeWithSelector(
             ToucanReceiverSetup.InvalidInterface.selector
@@ -97,7 +97,7 @@ contract TestToucanReceiverSetup is TestHelpers {
     function test_validatePluginMustBeInVoteReplacementMode() public {
         MockVotingPlugin plugin = new MockVotingPlugin();
         plugin.setIface(tokenVotingIface());
-        plugin.setVotingMode(ITokenVoting.VotingMode.Standard);
+        plugin.setVotingMode(IToucanVoting.VotingMode.Standard);
 
         bytes memory revertData = abi.encodeWithSelector(
             ToucanReceiverSetup.NotInVoteReplacementMode.selector
@@ -105,11 +105,11 @@ contract TestToucanReceiverSetup is TestHelpers {
         vm.expectRevert(revertData);
         setup.validateVotingPlugin(address(plugin));
 
-        plugin.setVotingMode(ITokenVoting.VotingMode.EarlyExecution);
+        plugin.setVotingMode(IToucanVoting.VotingMode.EarlyExecution);
         vm.expectRevert(revertData);
         setup.validateVotingPlugin(address(plugin));
 
-        plugin.setVotingMode(ITokenVoting.VotingMode.VoteReplacement);
+        plugin.setVotingMode(IToucanVoting.VotingMode.VoteReplacement);
         assertEq(address(setup.validateVotingPlugin(address(plugin))), address(plugin));
     }
 
@@ -128,7 +128,7 @@ contract TestToucanReceiverSetup is TestHelpers {
     // prepare installation
     function test_prepareInstallation() public {
         GovernanceERC20 token = deployToken();
-        TokenVoting voting = deployTokenVoting(dao, address(token));
+        ToucanVoting voting = deployToucanVoting(dao, address(token));
 
         bytes memory data = abi.encode(address(lzEndpoint), address(voting));
 
@@ -149,10 +149,10 @@ contract TestToucanReceiverSetup is TestHelpers {
         dao.applyMultiTargetPermissions(preparedData.permissions);
 
         // token voting should be in vote replacement mode
-        ITokenVoting.VotingMode votingMode = voting.votingMode();
+        IToucanVoting.VotingMode votingMode = voting.votingMode();
         assertEq(
             uint8(votingMode),
-            uint8(ITokenVoting.VotingMode.VoteReplacement),
+            uint8(IToucanVoting.VotingMode.VoteReplacement),
             "voting mode should be vote replacement"
         );
 
@@ -250,7 +250,7 @@ contract TestToucanReceiverSetup is TestHelpers {
 
     function test_prepareUninstallation() public {
         GovernanceERC20 token = deployToken();
-        TokenVoting voting = deployTokenVoting(dao, address(token));
+        ToucanVoting voting = deployToucanVoting(dao, address(token));
         bytes memory data = abi.encode(address(lzEndpoint), address(voting));
         (address plugin, IPluginSetup.PreparedSetupData memory preparedData) = setup
             .prepareInstallation(address(dao), data);
@@ -328,38 +328,38 @@ contract TestToucanReceiverSetup is TestHelpers {
 
     function tokenVotingIface() public pure returns (bytes4) {
         return
-            TokenVoting.initialize.selector ^
-            TokenVoting.getVotingToken.selector ^
-            TokenVoting.minDuration.selector ^
-            TokenVoting.minProposerVotingPower.selector ^
-            TokenVoting.votingMode.selector ^
-            TokenVoting.totalVotingPower.selector ^
-            TokenVoting.getProposal.selector ^
-            TokenVoting.updateVotingSettings.selector ^
-            TokenVoting.createProposal.selector;
+            ToucanVoting.initialize.selector ^
+            ToucanVoting.getVotingToken.selector ^
+            ToucanVoting.minDuration.selector ^
+            ToucanVoting.minProposerVotingPower.selector ^
+            ToucanVoting.votingMode.selector ^
+            ToucanVoting.totalVotingPower.selector ^
+            ToucanVoting.getProposal.selector ^
+            ToucanVoting.updateVotingSettings.selector ^
+            ToucanVoting.createProposal.selector;
     }
 
-    function deployTokenVoting(IDAO _dao, address _token) internal returns (TokenVoting) {
+    function deployToucanVoting(IDAO _dao, address _token) internal returns (ToucanVoting) {
         // prep the data
-        ITokenVoting.VotingSettings memory votingSettings = ITokenVoting.VotingSettings({
-            votingMode: ITokenVoting.VotingMode.VoteReplacement,
+        IToucanVoting.VotingSettings memory votingSettings = IToucanVoting.VotingSettings({
+            votingMode: IToucanVoting.VotingMode.VoteReplacement,
             supportThreshold: 1e5,
             minParticipation: 1e5,
             minDuration: 1 days,
             minProposerVotingPower: 1 ether
         });
         // deploy the plugin
-        TokenVoting pluginBase = new TokenVoting();
+        ToucanVoting pluginBase = new ToucanVoting();
 
         // create a proxy
         address plugin = address(pluginBase).deployUUPSProxy(
             abi.encodeCall(
-                TokenVoting.initialize,
+                ToucanVoting.initialize,
                 (IDAO(_dao), votingSettings, IVotesUpgradeable(_token))
             )
         );
 
-        return TokenVoting(plugin);
+        return ToucanVoting(plugin);
     }
 
     function deployToken() internal returns (GovernanceERC20) {

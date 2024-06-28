@@ -17,19 +17,19 @@ import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
-import {TokenVoting} from "./TokenVoting.sol";
-import {ITokenVoting} from "./ITokenVoting.sol";
+import {ToucanVoting} from "./ToucanVoting.sol";
+import {IToucanVoting} from "./IToucanVoting.sol";
 
 import {ProxyLib} from "@libs/ProxyLib.sol";
 
 // import "hardhat/console.sol";
 
-/// @title TokenVotingSetup
+/// @title ToucanVotingSetup
 /// @author Aragon X - 2022-2023
-/// @notice The setup contract of the `TokenVoting` plugin.
+/// @notice The setup contract of the `ToucanVoting` plugin.
 /// @dev v1.3 (Release 1, Build 3)
 /// @custom:security-contact sirt@aragon.org
-contract TokenVotingSetup is PluginSetup {
+contract ToucanVotingSetup is PluginSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
@@ -39,9 +39,9 @@ contract TokenVotingSetup is PluginSetup {
     /// @dev TODO: Migrate this constant to a common library that can be shared across plugins.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
-    /// @notice The address of the `TokenVoting` base contract.
+    /// @notice The address of the `ToucanVoting` base contract.
     // solhint-disable-next-line immutable-vars-naming
-    TokenVoting private immutable tokenVotingBase;
+    ToucanVoting private immutable tokenVotingBase;
 
     /// @notice The address of the `GovernanceERC20` base contract.
     // solhint-disable-next-line immutable-vars-naming
@@ -76,11 +76,11 @@ contract TokenVotingSetup is PluginSetup {
 
     /// @notice The contract constructor deploying the plugin implementation contract
     /// and receiving the governance token base contracts to proxy from.
-    /// @param _tokenVotingBase The base `TokenVoting` contract to create proxies from.
+    /// @param _tokenVotingBase The base `ToucanVoting` contract to create proxies from.
     /// @param _governanceERC20Base The base `GovernanceERC20` contract to create proxies from.
     /// @param _governanceWrappedERC20Base The base `GovernanceWrappedERC20` contract to create proxies from.
     constructor(
-        TokenVoting _tokenVotingBase,
+        ToucanVoting _tokenVotingBase,
         GovernanceERC20 _governanceERC20Base,
         GovernanceWrappedERC20 _governanceWrappedERC20Base
     ) PluginSetup() {
@@ -98,17 +98,17 @@ contract TokenVotingSetup is PluginSetup {
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-        // Decode `_data` to extract the params needed for deploying and initializing `TokenVoting` plugin,
+        // Decode `_data` to extract the params needed for deploying and initializing `ToucanVoting` plugin,
         // and the required helpers
         (
-            ITokenVoting.VotingSettings memory votingSettings,
+            IToucanVoting.VotingSettings memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20(token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             bool bypassTokenValidation
         ) = abi.decode(
                 _data,
-                (ITokenVoting.VotingSettings, TokenSettings, GovernanceERC20.MintSettings, bool)
+                (IToucanVoting.VotingSettings, TokenSettings, GovernanceERC20.MintSettings, bool)
             );
 
         address token = tokenSettings.addr;
@@ -158,7 +158,7 @@ contract TokenVotingSetup is PluginSetup {
         // Prepare and deploy plugin proxy.
         plugin = address(tokenVotingBase).deployUUPSProxy(
             abi.encodeCall(
-                TokenVoting.initialize,
+                ToucanVoting.initialize,
                 (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
             )
         );

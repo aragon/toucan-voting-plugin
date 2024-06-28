@@ -6,7 +6,7 @@ pragma solidity ^0.8.17;
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 // project
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
 

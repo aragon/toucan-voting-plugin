@@ -5,7 +5,7 @@ import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 

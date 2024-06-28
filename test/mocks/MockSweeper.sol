@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
-import {Sweeper, DaoAuthorizable} from "src/Sweeper.sol";
-import {SweeperUpgradeable, DaoAuthorizableUpgradeable} from "src/SweeperUpgradeable.sol";
+import {Sweeper, DaoAuthorizable} from "@utils/Sweeper.sol";
+import {SweeperUpgradeable, DaoAuthorizableUpgradeable} from "@utils/SweeperUpgradeable.sol";
 
 /// @dev Non abstract contract to test the abstract contract Sweeper
 contract MockSweeper is Sweeper {

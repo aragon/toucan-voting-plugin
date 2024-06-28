@@ -16,9 +16,9 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
-import {TokenVoting as ToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
-import {ITokenVoting, IVoteContainer} from "@aragon/token-voting/ITokenVoting.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
+import {ToucanVoting as ToucanVoting} from "@toucan-voting/ToucanVoting.sol";
+import {IToucanVoting, IVoteContainer} from "@toucan-voting/IToucanVoting.sol";
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -88,9 +88,9 @@ contract DeployToucan is Script {
     // voting params
     uint32 constant SUPPORT_THRESHOLD = 1;
     uint32 constant MIN_PARTICIPATION = 1;
-    uint64 constant MIN_DURATION = 3600;
+    uint32 constant MIN_DURATION = 3600;
     uint constant MIN_PROPOSER_VOTING_POWER = 1;
-    ToucanVoting.VotingMode constant MODE = ITokenVoting.VotingMode.VoteReplacement;
+    ToucanVoting.VotingMode constant MODE = IToucanVoting.VotingMode.VoteReplacement;
 
     modifier broadcast() {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -200,7 +200,7 @@ contract DeployToucan is Script {
         );
 
         // initalize the adapter, receiver and plugin
-        ToucanVoting.VotingSettings memory settings = ITokenVoting.VotingSettings({
+        ToucanVoting.VotingSettings memory settings = IToucanVoting.VotingSettings({
             votingMode: MODE,
             supportThreshold: SUPPORT_THRESHOLD,
             minParticipation: MIN_PARTICIPATION,

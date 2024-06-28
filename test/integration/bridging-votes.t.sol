@@ -9,7 +9,7 @@ import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 
 // test utils
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";

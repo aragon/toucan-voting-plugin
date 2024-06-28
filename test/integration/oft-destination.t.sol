@@ -20,7 +20,7 @@ import "forge-std/console2.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
-import {GovernanceERC20} from "@aragon/token-voting/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceERC20VotingChain as GovernanceERC20Burnable} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";

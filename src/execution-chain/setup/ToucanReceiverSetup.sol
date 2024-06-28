@@ -16,7 +16,7 @@ import {IGovernanceWrappedERC20} from "@interfaces/IGovernanceWrappedERC20.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
-import {TokenVoting as ToucanVoting, ITokenVoting as IToucanVoting} from "@aragon/token-voting/TokenVoting.sol";
+import {ToucanVoting as ToucanVoting, IToucanVoting as IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
@@ -38,7 +38,7 @@ contract ToucanReceiverSetup is PluginSetup {
     /// @notice The identifier of the `OAPP_ADMINISTRATOR` permission.
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
 
-    /// @notice The interface ID of the `ITokenVoting` interface.
+    /// @notice The interface ID of the `IToucanVoting` interface.
     bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
 
     /// @notice The base contract of the `ToucanReceiver` plugin from which to create proxies.
@@ -54,7 +54,7 @@ contract ToucanReceiverSetup is PluginSetup {
     /// @param length The array length of passed helpers.
     error WrongHelpersArrayLength(uint256 length);
 
-    /// @notice Thrown if the voting plugin does not support the `ITokenVoting` interface.
+    /// @notice Thrown if the voting plugin does not support the `IToucanVoting` interface.
     error InvalidInterface();
 
     /// @notice Thrown if the voting plugin is not in vote replacement mode.
@@ -118,7 +118,7 @@ contract ToucanReceiverSetup is PluginSetup {
         preparedSetupData.permissions = permissions;
     }
 
-    /// @notice Validates the voting plugin by checking if it supports the `ITokenVoting` interface
+    /// @notice Validates the voting plugin by checking if it supports the `IToucanVoting` interface
     /// and is in vote replacement mode.
     /// @param _votingPlugin The address of the voting plugin to validate.
     /// @return The `ToucanVoting` instance of the voting plugin, if it is valid, else reverts.

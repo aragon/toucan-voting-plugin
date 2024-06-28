@@ -16,7 +16,7 @@ import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 
 import {ToucanReceiverSetup, ToucanReceiver, ActionRelay} from "@execution-chain/setup/ToucanReceiverSetup.sol";
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
-import {TokenVotingSetup, TokenVoting, GovernanceERC20, GovernanceWrappedERC20, ITokenVoting} from "@aragon/token-voting/TokenVotingSetup.sol";
+import {ToucanVotingSetup, ToucanVoting, GovernanceERC20, GovernanceWrappedERC20, IToucanVoting} from "@toucan-voting/ToucanVotingSetup.sol";
 import {AdminSetup, Admin} from "@aragon/admin/AdminSetup.sol";
 
 import "@utils/converters.sol";
@@ -47,14 +47,14 @@ contract TestExecutionChainOSx is TestHelpers {
     // plugin setups
     AdminSetup adminSetup;
     ToucanReceiverSetup receiverSetup;
-    TokenVotingSetup votingSetup;
+    ToucanVotingSetup votingSetup;
 
     // plugins
     GovernanceERC20 token;
     GovernanceOFTAdapter adapter;
     Admin admin;
     ToucanReceiver receiver;
-    TokenVoting voting;
+    ToucanVoting voting;
     ActionRelay actionRelay;
 
     // setup
@@ -67,7 +67,7 @@ contract TestExecutionChainOSx is TestHelpers {
         _deployL0();
         _deployOSX();
         _deployDAOAndAdmin();
-        _prepareSetupTokenVoting();
+        _prepareSetupToucanVoting();
         _prepareSetupReceiver();
         _prepareUninstallAdmin();
 
@@ -110,7 +110,7 @@ contract TestExecutionChainOSx is TestHelpers {
         vm.label(trustedDeployer, "trustedDeployer");
     }
 
-    function _prepareSetupTokenVoting() internal {
+    function _prepareSetupToucanVoting() internal {
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings(
             new address[](1),
             new uint256[](1)
@@ -125,8 +125,8 @@ contract TestExecutionChainOSx is TestHelpers {
             mintSettings
         );
 
-        votingSetup = new TokenVotingSetup(
-            new TokenVoting(),
+        votingSetup = new ToucanVotingSetup(
+            new ToucanVoting(),
             baseToken,
             new GovernanceWrappedERC20(
                 IERC20Upgradeable(address(baseToken)),
@@ -139,15 +139,15 @@ contract TestExecutionChainOSx is TestHelpers {
         mockPSP.queueSetup(address(votingSetup));
 
         // prep the data
-        ITokenVoting.VotingSettings memory votingSettings = ITokenVoting.VotingSettings({
-            votingMode: ITokenVoting.VotingMode.VoteReplacement,
+        IToucanVoting.VotingSettings memory votingSettings = IToucanVoting.VotingSettings({
+            votingMode: IToucanVoting.VotingMode.VoteReplacement,
             supportThreshold: 1e5,
             minParticipation: 1e5,
             minDuration: 1 days,
             minProposerVotingPower: 1 ether
         });
 
-        TokenVotingSetup.TokenSettings memory tokenSettings = TokenVotingSetup.TokenSettings({
+        ToucanVotingSetup.TokenSettings memory tokenSettings = ToucanVotingSetup.TokenSettings({
             addr: address(0),
             symbol: "TT",
             name: "TestToken"
@@ -168,7 +168,7 @@ contract TestExecutionChainOSx is TestHelpers {
             votingPermissions.push(votingPluginPreparedSetupData.permissions[i]);
         }
 
-        voting = TokenVoting(votingPluginAddress);
+        voting = ToucanVoting(votingPluginAddress);
         address[] memory helpers = votingPluginPreparedSetupData.helpers;
         token = GovernanceERC20(helpers[0]);
 
@@ -301,10 +301,10 @@ contract TestExecutionChainOSx is TestHelpers {
 
     function _validateEndState() internal view {
         // token voting should be in vote replacement mode
-        ITokenVoting.VotingMode votingMode = voting.votingMode();
+        IToucanVoting.VotingMode votingMode = voting.votingMode();
         assertEq(
             uint8(votingMode),
-            uint8(ITokenVoting.VotingMode.VoteReplacement),
+            uint8(IToucanVoting.VotingMode.VoteReplacement),
             "voting mode should be vote replacement"
         );
 

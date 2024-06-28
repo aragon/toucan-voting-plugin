@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {ITokenVoting} from "@aragon/token-voting/ITokenVoting.sol";
+import {IToucanVoting} from "@toucan-voting/IToucanVoting.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
@@ -16,7 +16,7 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 
 import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
-import {SweeperUpgradeable} from "src/SweeperUpgradeable.sol";
+import {SweeperUpgradeable} from "@utils/SweeperUpgradeable.sol";
 
 /// @notice Events emitted by the ToucanReceiver contract.
 /// @dev Separation of events makes for easier testing.
@@ -77,7 +77,7 @@ contract ToucanReceiver is
     IVotes public governanceToken;
 
     /// @notice The address of the voting plugin. Must implement a vote function.
-    ITokenVoting public votingPlugin;
+    IToucanVoting public votingPlugin;
 
     /// @notice Stores all votes for a proposal across all chains and in aggregate.
     /// @dev proposalId => AggregateTally
@@ -149,7 +149,7 @@ contract ToucanReceiver is
 
     /// @dev Internal function to set the voting plugin, called by the public function and the constructor.
     function _setVotingPlugin(address _plugin) internal {
-        votingPlugin = ITokenVoting(_plugin);
+        votingPlugin = IToucanVoting(_plugin);
         emit NewVotingPluginSet(_plugin, msg.sender);
     }
 
@@ -345,7 +345,7 @@ contract ToucanReceiver is
     /// @notice Get the snapshot block for a proposal from the voting plugin.
     /// @return The snapshot block number or 0 if the proposal does not exist.
     function getProposalBlockSnapshot(uint256 _proposalId) public view virtual returns (uint256) {
-        (, , ITokenVoting.ProposalParameters memory params, , , ) = votingPlugin.getProposal(
+        (, , IToucanVoting.ProposalParameters memory params, , , ) = votingPlugin.getProposal(
             _proposalId
         );
         return params.snapshotBlock;
