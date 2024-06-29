@@ -39,7 +39,7 @@ contract ToucanReceiverSetup is PluginSetup {
     bytes32 public constant OAPP_ADMINISTRATOR_ID = keccak256("OAPP_ADMINISTRATOR");
 
     /// @notice The interface ID of the `IToucanVoting` interface.
-    bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x2366d905;
+    bytes4 public constant TOKEN_VOTING_INTERFACE_ID = 0x6122753f;
 
     /// @notice The base contract of the `ToucanReceiver` plugin from which to create proxies.
     address public immutable toucanReceiverBase;

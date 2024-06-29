@@ -4,44 +4,44 @@
 
 # Function to add 'abstract' prefix
 make_abstract() {
-    local file_path="$1"
-    local contract_name="$2"
+  local file_path="$1"
+  local contract_name="$2"
 
-    # Check if the string 'contract "$contract_name" is' exists
-    if ! grep -q "contract "$contract_name" is" "$file_path"; then
-        echo "Warning: 'contract "$contract_name" is' not found in the file."
-        return 1
-    fi
+  # Check if the string 'contract "$contract_name" is' exists
+  if ! grep -q "contract "$contract_name" is" "$file_path"; then
+    echo "Warning: 'contract "$contract_name" is' not found in the file."
+    return 1
+  fi
 
-    # Check if the string 'abstract contract "$contract_name" is' already exists
-    if grep -q "abstract contract "$contract_name" is" "$file_path"; then
-        echo "Warning: 'abstract contract "$contract_name" is' already present."
-        return 1
-    fi
+  # Check if the string 'abstract contract "$contract_name" is' already exists
+  if grep -q "abstract contract "$contract_name" is" "$file_path"; then
+    echo "Warning: 'abstract contract "$contract_name" is' already present."
+    return 1
+  fi
 
-    # Replace 'contract "$contract_name" is' with 'abstract contract "$contract_name" is'
-    sed -i "s/contract $contract_name is/abstract contract $contract_name is/" "$file_path"
-    echo "Replaced 'contract "$contract_name" is' with 'abstract contract "$contract_name" is' in file $file_path"
+  # Replace 'contract "$contract_name" is' with 'abstract contract "$contract_name" is'
+  sed -i "s/contract $contract_name is/abstract contract $contract_name is/" "$file_path"
+  echo "Replaced 'contract "$contract_name" is' with 'abstract contract "$contract_name" is' in file $file_path"
 }
 
 # Function to remove 'abstract' prefix
 remove_abstract() {
-    local file_path="$1"
-    local contract_name="$2"
+  local file_path="$1"
+  local contract_name="$2"
 
-    # Check if the string 'abstract contract "$contract_name" is' exists
-    if ! grep -q "abstract contract "$contract_name" is" "$file_path"; then
-        echo "Warning: 'abstract contract "$contract_name" is' not found in the file."
-        return 1
-    fi
+  # Check if the string 'abstract contract "$contract_name" is' exists
+  if ! grep -q "abstract contract "$contract_name" is" "$file_path"; then
+    echo "Warning: 'abstract contract "$contract_name" is' not found in the file."
+    return 1
+  fi
 
-    # Replace 'abstract contract "$contract_name" is' with 'contract "$contract_name" is'
-    sed -i "s/abstract contract $contract_name is/contract $contract_name is/" "$file_path"
-    echo "Replaced 'abstract contract "$contract_name" is' with 'contract "$contract_name" is' in file $file_path"
+  # Replace 'abstract contract "$contract_name" is' with 'contract "$contract_name" is'
+  sed -i "s/abstract contract $contract_name is/contract $contract_name is/" "$file_path"
+  echo "Replaced 'abstract contract "$contract_name" is' with 'contract "$contract_name" is' in file $file_path"
 }
 
 command_exists() {
-    command -v "$1" &>/dev/null
+  command -v "$1" &>/dev/null
 }
 
 ### BEGIN SCRIPT
@@ -61,8 +61,8 @@ TMP_DIR="tmp"
 
 # Check if lcov and genhtml are installed
 if ! command_exists lcov || ! command_exists genhtml; then
-    echo "Error: lcov or genhtml is not installed." >&2
-    exit 1
+  echo "Error: lcov or genhtml is not installed." >&2
+  exit 1
 fi
 
 # Create integration directory if it doesn't exist
@@ -84,10 +84,10 @@ make_abstract "$EndpointV2Alt" "EndpointV2Alt"
 # The layer zero contracts are imported directly and the pragma has been changed
 # we are not testing them directly
 forge coverage --report lcov &&
-    lcov --remove ./lcov.info -o ./lcov.info.pruned \
-        'test/**/*.sol' 'script/**/*.sol' 'test/*.sol' \
-        'script/*.sol' 'src/layer-zero/LayerZero-v2/**' &&
-    genhtml lcov.info.pruned -o report --branch-coverage
+  lcov --remove ./lcov.info -o ./lcov.info.pruned \
+    'test/**/*.sol' 'script/**/*.sol' 'test/*.sol' \
+    'script/*.sol' 'src/layer-zero/LayerZero-v2/**' &&
+  genhtml lcov.info.pruned -o report --branch-coverage
 
 status=$?
 

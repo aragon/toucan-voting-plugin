@@ -24,6 +24,12 @@ contract TestToucanReceiverProposalIds is ToucanReceiverBaseTest {
 
     function setUp() public override {
         super.setUp();
+
+        dao.grant({
+            _who: address(this),
+            _where: address(receiver),
+            _permissionId: receiver.OAPP_ADMINISTRATOR_ID()
+        });
     }
 
     function testFuzz_invalidPlugin(uint256 _proposalSeed, uint32 _warpTo) public {

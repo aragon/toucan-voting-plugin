@@ -25,6 +25,12 @@ contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
 
     function setUp() public override {
         super.setUp();
+
+        dao.grant({
+            _who: address(this),
+            _where: address(receiver),
+            _permissionId: receiver.OAPP_ADMINISTRATOR_ID()
+        });
     }
 
     function test_revertsOnInvalidProposal() public {
