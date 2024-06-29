@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-
+import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
@@ -13,17 +13,17 @@ import {TestHelpers} from "@helpers/TestHelpers.sol";
 import {deployMockToucanVoting} from "@utils/deployers.sol";
 import {_applyRatioCeiled, RatioOutOfBounds, RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 
-contract ToucanVotingTestBase is TestHelpers {
+contract ToucanVotingTestBase is TestHelpers, IVoteContainer {
     GovernanceERC20 token;
     ToucanVoting voting;
     DAO dao;
 
     // constants
-    uint8 constant STANDARD_VOTING_MODE = 0;
-    uint32 constant SUPPORT_THRESHOLD = 0;
-    uint32 constant MIN_PARTICIPATION = 0;
-    uint32 constant MIN_DURATION = 3600;
-    uint256 constant MIN_PROPOSER_VOTING_POWER = 0;
+    uint8 public constant STANDARD_VOTING_MODE = 0;
+    uint32 public constant SUPPORT_THRESHOLD = 0;
+    uint32 public constant MIN_PARTICIPATION = 0;
+    uint32 public constant MIN_DURATION = 3600;
+    uint256 public constant MIN_PROPOSER_VOTING_POWER = 0;
 
     /// cant fuzz enums
     struct VotingSettingTest {
@@ -55,17 +55,7 @@ contract ToucanVotingTestBase is TestHelpers {
             _permissionId: token.MINT_PERMISSION_ID()
         });
 
-        voting = deployMockToucanVoting(
-            address(dao),
-            _votingSettings(
-                STANDARD_VOTING_MODE,
-                SUPPORT_THRESHOLD,
-                MIN_PARTICIPATION,
-                MIN_DURATION,
-                MIN_PROPOSER_VOTING_POWER
-            ),
-            address(token)
-        );
+        voting = deployMockToucanVoting(address(dao), _defaultVotingSettings(), address(token));
 
         // this address can update voting settings
         dao.grant({
@@ -90,6 +80,17 @@ contract ToucanVotingTestBase is TestHelpers {
                 minDuration: _minDuration,
                 minProposerVotingPower: _minProposerVotingPower
             });
+    }
+
+    function _defaultVotingSettings() internal pure returns (IToucanVoting.VotingSettings memory) {
+        return
+            _votingSettings(
+                STANDARD_VOTING_MODE,
+                SUPPORT_THRESHOLD,
+                MIN_PARTICIPATION,
+                MIN_DURATION,
+                MIN_PROPOSER_VOTING_POWER
+            );
     }
 
     function _convertTestSettings(

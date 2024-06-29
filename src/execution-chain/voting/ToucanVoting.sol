@@ -276,24 +276,6 @@ contract ToucanVoting is
     /// -------- PROPOSALS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    /// @notice Check that the address owns enough tokens or has enough voting power from being a delegatee.
-    /// TODO: move to getter
-    function hasEnoughVotingPower(address _who) public view returns (bool) {
-        uint256 minProposerVotingPower_ = minProposerVotingPower();
-
-        if (minProposerVotingPower_ != 0) {
-            // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
-            // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-            if (
-                votingToken.getVotes(_who) < minProposerVotingPower_ &&
-                IERC20Upgradeable(address(votingToken)).balanceOf(_who) < minProposerVotingPower_
-            ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /// @inheritdoc IToucanVoting
     function createProposal(
         bytes calldata _metadata,
@@ -574,6 +556,23 @@ contract ToucanVoting is
         tally = proposal_.tally;
         actions = proposal_.actions;
         allowFailureMap = proposal_.allowFailureMap;
+    }
+
+    /// @notice Check that the address owns enough tokens or has enough voting power from being a delegatee.
+    function hasEnoughVotingPower(address _who) public view returns (bool) {
+        uint256 minProposerVotingPower_ = minProposerVotingPower();
+
+        if (minProposerVotingPower_ != 0) {
+            // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
+            // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
+            if (
+                votingToken.getVotes(_who) < minProposerVotingPower_ &&
+                IERC20Upgradeable(address(votingToken)).balanceOf(_who) < minProposerVotingPower_
+            ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// @inheritdoc IToucanVoting
