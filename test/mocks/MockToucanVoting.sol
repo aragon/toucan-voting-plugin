@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IToucanVoting} from "@toucan-voting/IToucanVoting.sol";
+import {ToucanVoting, IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
-contract MockToucanVoting {
+contract MockToucanProposal {
     function vote(uint256, IVoteContainer.Tally memory, bool) public {}
 
     mapping(uint256 => IToucanVoting.Proposal) internal proposals;
@@ -133,6 +133,8 @@ contract MockToucanVoting {
         return open_;
     }
 }
+
+contract MockToucanVoting is ToucanVoting {}
 
 contract MockVotingPluginValidator {
     bytes4 _iface;

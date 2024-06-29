@@ -13,9 +13,9 @@ import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
-import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
+import {MockToucanProposal} from "@mocks/MockToucanVoting.sol";
 
-import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanVoting} from "@utils/deployers.sol";
+import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanProposal} from "@utils/deployers.sol";
 
 /// @dev single chain testing for the relay
 contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverEvents {
@@ -23,7 +23,7 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
     MockLzEndpointMinimal lzEndpoint;
     MockToucanReceiver receiver;
     DAO dao;
-    MockToucanVoting plugin;
+    MockToucanProposal plugin;
 
     function assertErrEq(ToucanReceiver.ErrReason e1, ToucanReceiver.ErrReason e2) internal pure {
         assertEq(uint(e1), uint(e2));
@@ -51,7 +51,7 @@ contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverE
             _where: address(token),
             _permissionId: token.MINT_PERMISSION_ID()
         });
-        plugin = deployMockToucanVoting();
+        plugin = deployMockToucanProposal();
         receiver = deployMockToucanReceiver({
             _governanceToken: address(token),
             _lzEndpoint: address(lzEndpoint),

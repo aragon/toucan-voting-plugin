@@ -37,7 +37,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
 
     MockToucanRelay relay;
     MockToucanReceiver receiver;
-    MockToucanVoting plugin;
+    MockToucanProposal plugin;
 
     function setUp() public override {
         super.setUp();
@@ -51,7 +51,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         mintSettings.amounts[0] = 100 ether;
         token = new GovernanceERC20(IDAO(address(this)), "TestToken", "TT", mintSettings);
 
-        plugin = deployMockToucanVoting();
+        plugin = deployMockToucanProposal();
 
         _initalizeOApps();
 

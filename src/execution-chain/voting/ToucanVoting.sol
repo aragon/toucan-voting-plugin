@@ -46,7 +46,7 @@ contract ToucanVoting is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 internal constant TOKEN_VOTING_INTERFACE_ID =
+    bytes4 public constant TOKEN_VOTING_INTERFACE_ID =
         this.initialize.selector ^
             this.getVotingToken.selector ^
             this.minDuration.selector ^
@@ -141,6 +141,10 @@ contract ToucanVoting is
     /// ------- INITIALIZER -------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes the component.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
@@ -149,14 +153,14 @@ contract ToucanVoting is
     function initialize(
         IDAO _dao,
         VotingSettings calldata _votingSettings,
-        IVotesUpgradeable _token
+        address _token
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
         _updateVotingSettings(_votingSettings);
 
-        votingToken = _token;
+        votingToken = IVotesUpgradeable(_token);
 
-        emit MembershipContractAnnounced({definingContract: address(_token)});
+        emit MembershipContractAnnounced(_token);
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -272,6 +276,24 @@ contract ToucanVoting is
     /// -------- PROPOSALS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    /// @notice Check that the address owns enough tokens or has enough voting power from being a delegatee.
+    /// TODO: move to getter
+    function hasEnoughVotingPower(address _who) public view returns (bool) {
+        uint256 minProposerVotingPower_ = minProposerVotingPower();
+
+        if (minProposerVotingPower_ != 0) {
+            // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
+            // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
+            if (
+                votingToken.getVotes(_who) < minProposerVotingPower_ &&
+                IERC20Upgradeable(address(votingToken)).balanceOf(_who) < minProposerVotingPower_
+            ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /// @inheritdoc IToucanVoting
     function createProposal(
         bytes calldata _metadata,
@@ -282,33 +304,19 @@ contract ToucanVoting is
         Tally memory _votes,
         bool _tryEarlyExecution
     ) external returns (uint256 proposalId) {
-        // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
-        {
-            uint256 minProposerVotingPower_ = minProposerVotingPower();
-
-            if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
-                // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-                if (
-                    votingToken.getVotes(_msgSender()) < minProposerVotingPower_ &&
-                    IERC20Upgradeable(address(votingToken)).balanceOf(_msgSender()) <
-                    minProposerVotingPower_
-                ) {
-                    revert ProposalCreationForbidden(_msgSender());
-                }
-            }
-        }
-
         // Take a snapshot of the timestamp and block number
         SnapshotBlock memory snapshotBlock = _takeSnapshot();
 
+        // There must be some supply to create a proposal
         uint256 totalVotingPower_ = totalVotingPower(snapshotBlock.number);
+        if (totalVotingPower_ == 0) revert NoVotingPower();
 
-        if (totalVotingPower_ == 0) {
-            revert NoVotingPower();
+        // Check the user's voting power
+        if (!hasEnoughVotingPower(_msgSender())) {
+            revert ProposalCreationForbidden(_msgSender());
         }
 
-        (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
+        (_startDate, _endDate) = validateProposalDates(_startDate, _endDate);
 
         proposalId = _createProposal({
             _creator: _msgSender(),
@@ -438,14 +446,10 @@ contract ToucanVoting is
         Proposal storage proposal_ = proposals[_proposalId];
 
         // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen(proposal_)) {
-            return false;
-        }
+        if (!_isProposalOpen(proposal_)) return false;
 
         // The voter votes with zero votes which is not allowed.
-        if (_votes.isZero()) {
-            return false;
-        }
+        if (_votes.isZero()) return false;
 
         // The voter has insufficient voting power.
         if (votingToken.getPastVotes(_account, proposal_.parameters.snapshotBlock) < _votes.sum()) {
@@ -604,13 +608,9 @@ contract ToucanVoting is
     /// @inheritdoc IToucanVoting
     function isMinParticipationReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
-
         // The code below implements the formula of the
-        // participation criterion explained in the top of this file.
         // `N_yes + N_no + N_abstain >= minVotingPower = minParticipation * N_total`
-        return
-            proposal_.tally.yes + proposal_.tally.no + proposal_.tally.abstain >=
-            proposal_.parameters.minVotingPower;
+        return proposal_.tally.sum() >= proposal_.parameters.minVotingPower;
     }
 
     /// @notice Internal function to check if a proposal vote is still open.
@@ -625,16 +625,20 @@ contract ToucanVoting is
             !proposal_.executed;
     }
 
+    function isProposalOpen(uint256 _proposalId) public view virtual returns (bool) {
+        return _isProposalOpen(proposals[_proposalId]);
+    }
+
     /// @notice Validates and returns the proposal vote dates.
     /// @param _start The start date of the proposal vote.
     /// If 0, the current timestamp is used and the vote starts immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
-    function _validateProposalDates(
+    function validateProposalDates(
         uint32 _start,
         uint32 _end
-    ) internal view virtual returns (uint32 startDate, uint32 endDate) {
+    ) public view virtual returns (uint32 startDate, uint32 endDate) {
         uint32 currentTimestamp = block.timestamp.toUint32();
 
         if (_start == 0) {
@@ -665,5 +669,5 @@ contract ToucanVoting is
     /// @dev This empty reserved space is put in place to allow future versions to add new
     /// variables without shifting down storage in the inheritance chain.
     /// https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[46] private __gap;
+    uint256[47] private __gap;
 }

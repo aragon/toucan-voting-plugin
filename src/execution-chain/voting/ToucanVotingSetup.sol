@@ -157,10 +157,7 @@ contract ToucanVotingSetup is PluginSetup {
 
         // Prepare and deploy plugin proxy.
         plugin = address(tokenVotingBase).deployUUPSProxy(
-            abi.encodeCall(
-                ToucanVoting.initialize,
-                (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
-            )
+            abi.encodeCall(ToucanVoting.initialize, (IDAO(_dao), votingSettings, token))
         );
 
         // Prepare permissions

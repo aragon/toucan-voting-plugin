@@ -353,10 +353,7 @@ contract TestToucanReceiverSetup is TestHelpers {
 
         // create a proxy
         address plugin = address(pluginBase).deployUUPSProxy(
-            abi.encodeCall(
-                ToucanVoting.initialize,
-                (IDAO(_dao), votingSettings, IVotesUpgradeable(_token))
-            )
+            abi.encodeCall(ToucanVoting.initialize, (IDAO(_dao), votingSettings, (_token)))
         );
 
         return ToucanVoting(plugin);

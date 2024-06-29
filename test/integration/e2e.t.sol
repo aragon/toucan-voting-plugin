@@ -392,7 +392,7 @@ contract TestE2EToucan is TestHelper, AragonTest {
         // encode the initalizer
         bytes memory data = abi.encodeCall(
             ToucanVoting.initialize,
-            (IDAO(daoExecutionChain), settings, IVotesUpgradeable(tokenExecutionChain))
+            (IDAO(daoExecutionChain), settings, address(tokenExecutionChain))
         );
         // deploy and return the proxy
         address deployed = base.deployUUPSProxy(data);

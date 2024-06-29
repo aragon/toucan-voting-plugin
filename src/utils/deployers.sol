@@ -2,11 +2,13 @@
 pragma solidity ^0.8.17;
 
 import {ProxyLib} from "@libs/ProxyLib.sol";
+import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
 import {GovernanceOFTAdapter} from "@execution-chain/crosschain/GovernanceOFTAdapter.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
+import {ToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 
 import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
 import {AdminXChain} from "@voting-chain/crosschain/AdminXChain.sol";
@@ -14,7 +16,7 @@ import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 import {MockToucanRelay, MockToucanRelayLzMock} from "@mocks/MockToucanRelay.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
-import {MockToucanVoting} from "@mocks/MockToucanVoting.sol";
+import {MockToucanVoting, MockToucanProposal} from "@mocks/MockToucanVoting.sol";
 import {MockTokenBridge} from "@mocks/MockTokenBridge.sol";
 import {MockActionRelay} from "@mocks/MockActionRelay.sol";
 import {MockOAppUpgradeable as MockOApp, MockOFTUpgradeable as MockOFT} from "@mocks/MockOApp.sol";
@@ -99,8 +101,21 @@ function deployMockToucanReceiver(
     return MockToucanReceiver(payable(deployed));
 }
 
-function deployMockToucanVoting() returns (MockToucanVoting) {
-    return new MockToucanVoting();
+function deployMockToucanProposal() returns (MockToucanProposal) {
+    return new MockToucanProposal();
+}
+
+function deployMockToucanVoting(
+    address _dao,
+    ToucanVoting.VotingSettings memory _settings,
+    address _token
+) returns (MockToucanVoting) {
+    address base = address(new MockToucanVoting());
+    // encode the initalizer
+    bytes memory data = abi.encodeCall(ToucanVoting.initialize, (IDAO(_dao), _settings, _token));
+    // deploy and return the proxy
+    address deployed = ProxyLib.deployUUPSProxy(base, data);
+    return MockToucanVoting(deployed);
 }
 
 function deployGovernanceOFTAdapter(
