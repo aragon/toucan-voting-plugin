@@ -127,4 +127,7 @@ contract AdminXChain is
     /// The alternative would be to define a separate permission which adds complexity.
     /// As this contract is upgradeable, this can be changed in the future.
     function _authorizeUpgrade(address) internal override auth(OAPP_ADMINISTRATOR_ID) {}
+
+    /// @dev Gap to reserve space for future storage layout changes.
+    uint256[49] private __gap;
 }
