@@ -17,14 +17,16 @@ contract MockToucanReceiver is ToucanReceiver {
         Tally memory aggregateVotes,
         VotesByChain[] memory _votesByChain
     ) public {
-        votes[_proposalId].aggregateVotes = aggregateVotes;
+        _votes[votingPlugin][_proposalId].aggregateVotes = aggregateVotes;
         for (uint i = 0; i < _votesByChain.length; i++) {
-            votes[_proposalId].votesByChain[_votesByChain[i].chainId] = _votesByChain[i].votes;
+            _votes[votingPlugin][_proposalId].votesByChain[
+                _votesByChain[i].chainId
+            ] = _votesByChain[i].votes;
         }
     }
 
     function setAggregateVotes(uint _proposalId, Tally memory _aggregateVotes) public {
-        votes[_proposalId].aggregateVotes = _aggregateVotes;
+        _votes[votingPlugin][_proposalId].aggregateVotes = _aggregateVotes;
     }
 
     function receiveVotes(uint _votingChainId, uint _proposalId, Tally memory _votes) public {

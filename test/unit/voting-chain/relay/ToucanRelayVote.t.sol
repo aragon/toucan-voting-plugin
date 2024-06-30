@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import "@libs/TallyMath.sol";
 
 import "forge-std/Test.sol";
@@ -157,7 +157,7 @@ contract TestToucanRelayVote is ToucanRelayBaseTest {
     }
 
     function _validateState(State memory _state) internal {
-        _state.proposalId = _makeValidProposalIdFromSeed(_state.proposalId);
+        _state.proposalId = _makeValidProposalRefFromSeed(_state.proposalId);
 
         // sum of votes must not overflow
         vm.assume(!_state.voteOptions.overflows());

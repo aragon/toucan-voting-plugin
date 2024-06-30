@@ -5,7 +5,7 @@ pragma solidity ^0.8.17;
 import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
 // aragon contracts
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
@@ -70,7 +70,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         token.transfer(address(receiver), 100 ether);
 
         // encode a proposal id
-        uint proposalId = ProposalIdCodec.encode(address(plugin), 0, 100, 1);
+        uint proposalId = ProposalRefEncoder.encode(0, address(plugin), 0, 100, 1);
 
         plugin.setSnapshotBlock(proposalId, 1);
 
@@ -78,11 +78,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         relay.setProposalState(proposalId, Tally(abstentions, yesVotes, noVotes));
 
         // fetch a fee quote
-        MockToucanRelay.LzSendParams memory params = relay.quote(
-            proposalId,
-            EID_EXECUTION_CHAIN,
-            gasLimit
-        );
+        MockToucanRelay.LzSendParams memory params = relay.quote(proposalId, gasLimit);
         // move to ts 2
         vm.warp(2);
         vm.roll(2);
@@ -108,7 +104,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         assertEq(aggregateVotes.no, noVotes, "no votes wrong");
 
         // ensure we registered it against the right chain id
-        Tally memory chainVotes = receiver.getVotesByChain({
+        Tally memory chainVotes = receiver.votes({
             _proposalId: proposalId,
             _votingChainId: EVM_VOTING_CHAIN
         });
@@ -126,7 +122,7 @@ contract TestBridgingVotesCrossChain is TestHelper, IVoteContainer {
         address endpointExecutionChain = endpoints[EID_EXECUTION_CHAIN];
         address endpointVotingChain = endpoints[EID_VOTING_CHAIN];
 
-        relay = deployMockToucanRelay(address(1), endpointVotingChain, address(this));
+        relay = deployMockToucanRelay(address(1), endpointVotingChain, address(this), 0, 0);
         receiver = deployMockToucanReceiver(
             address(token),
             endpointExecutionChain,

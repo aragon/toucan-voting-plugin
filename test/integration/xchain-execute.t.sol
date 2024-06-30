@@ -20,7 +20,7 @@ import "forge-std/console2.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";
@@ -49,7 +49,7 @@ uint256 constant _EVM_VOTING_CHAIN = 420;
 contract TestXChainExecute is TestHelper, AragonTest {
     using OptionsBuilder for bytes;
     using ProxyLib for address;
-    using ProposalIdCodec for uint256;
+    using ProposalRefEncoder for uint256;
 
     // crosschain
     uint constant PROPOSAL_ID = 1234;

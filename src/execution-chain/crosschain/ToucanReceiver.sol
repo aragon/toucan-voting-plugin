@@ -81,7 +81,7 @@ contract ToucanReceiver is
 
     /// @notice Stores all votes for a proposal across all chains and in aggregate.
     /// @dev plugin => proposalId => AggregateTally
-    mapping(address => mapping(uint256 => AggregateTally)) public votes;
+    mapping(address => mapping(uint256 => AggregateTally)) internal _votes;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
@@ -163,7 +163,7 @@ contract ToucanReceiver is
     /// It can alternatively be called by anyone in the event that the relay runs out of gas but has stored the votes.
     function submitVotes(uint256 _proposalId) public virtual {
         // get the current aggregate votes
-        Tally memory aggregate = votes[votingPlugin][_proposalId].aggregateVotes;
+        Tally memory aggregate = _votes[votingPlugin][_proposalId].aggregateVotes;
 
         // if there are no votes, we don't call the plugin
         if (aggregate.isZero()) revert NoVotesToSubmit(_proposalId);
@@ -238,27 +238,27 @@ contract ToucanReceiver is
     /// @dev Internal function to receive votes from the ToucanRelay and update the local state.
     /// @param _votingChainId The EVM ChainID of the voting chain.
     /// @param _proposalId The ID of the proposal from the execution chain.
-    /// @param _votes The votes from the voting chain to be added to the proposal.
+    /// @param _tally The votes from the voting chain to be added to the proposal.
     function _receiveVotes(
         uint256 _votingChainId,
         uint256 _proposalId,
-        Tally memory _votes
+        Tally memory _tally
     ) internal {
-        AggregateTally storage proposalData = votes[votingPlugin][_proposalId];
+        AggregateTally storage proposalData = _votes[votingPlugin][_proposalId];
         Tally storage chainVotes = proposalData.votesByChain[_votingChainId];
 
         /// remove the existing vote from the aggregate
         proposalData.aggregateVotes = proposalData.aggregateVotes.sub(chainVotes);
 
         /// add the new vote to the aggregate
-        proposalData.aggregateVotes = proposalData.aggregateVotes.add(_votes);
+        proposalData.aggregateVotes = proposalData.aggregateVotes.add(_tally);
 
         /// update the chain vote
-        chainVotes.abstain = _votes.abstain;
-        chainVotes.yes = _votes.yes;
-        chainVotes.no = _votes.no;
+        chainVotes.abstain = _tally.abstain;
+        chainVotes.yes = _tally.yes;
+        chainVotes.no = _tally.no;
 
-        emit VotesReceived({proposalId: _proposalId, votingChainId: _votingChainId, votes: _votes});
+        emit VotesReceived({proposalId: _proposalId, votingChainId: _votingChainId, votes: _tally});
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -268,16 +268,16 @@ contract ToucanReceiver is
     /// @notice Checks if a quanity of votes can be received by a proposal.
     /// @dev Check the proposal is open and that the receiver has enough voting power to make the vote.
     /// @param _proposalId The ID of the proposal to check against.
-    /// @param _votes The votes to add to the proposal.
+    /// @param _tally The votes to add to the proposal.
     function canReceiveVotes(
         uint256 _proposalId,
-        Tally memory _votes
+        Tally memory _tally
     ) public view virtual returns (bool, ErrReason) {
-        if (_votes.isZero()) {
+        if (_tally.isZero()) {
             return (false, ErrReason.ZeroVotes);
         } else if (!isProposalOpen(_proposalId)) {
             return (false, ErrReason.ProposalNotOpen);
-        } else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _votes)) {
+        } else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _tally)) {
             return (false, ErrReason.InsufficientVotingPower);
         } else {
             return (true, ErrReason.None);
@@ -299,7 +299,7 @@ contract ToucanReceiver is
 
     /// @notice Checks if this contract has had enough voting power delegated to accommodate the new votes.
     /// @param _proposalId The ID of the proposal.
-    /// @param _votes The voting power to add to the current total.
+    /// @param _tally The voting power to add to the current total.
     /// @dev We fetch the voting power using the block snapshot directly from the voting plugin.
     /// If we receive more votes than we have delegated, something is wrong.
     /// In theory, this should not happen: new tokens can only be minted after
@@ -307,7 +307,7 @@ contract ToucanReceiver is
     /// provided the timestamp is valid. So this function is an extra defense.
     function hasEnoughVotingPowerForNewVotes(
         uint256 _proposalId,
-        Tally memory _votes
+        Tally memory _tally
     ) public view virtual returns (bool) {
         // if no snapshot block exists, we assume the proposal does not exist
         uint256 snapshotBlock = getProposalParams(_proposalId).snapshotBlock;
@@ -319,24 +319,30 @@ contract ToucanReceiver is
         // skip further checks if there is no voting power
         if (votingPowerAtStart == 0) return false;
 
-        Tally memory currentAggregate = votes[votingPlugin][_proposalId].aggregateVotes;
+        Tally memory currentAggregate = _votes[votingPlugin][_proposalId].aggregateVotes;
 
-        uint256 additionalVotes = _votes.sum();
+        uint256 additionalVotes = _tally.sum();
         uint256 currentVotes = currentAggregate.sum();
 
         if (currentVotes + additionalVotes > votingPowerAtStart) return false;
         else return true;
     }
 
+    /// @notice Fetches the total votes for a proposal across all chains.
+    /// @param _proposalId The ID of the proposal from the execution chain.
+    function votes(uint256 _proposalId) public view returns (Tally memory) {
+        return _votes[votingPlugin][_proposalId].aggregateVotes;
+    }
+
     /// @notice Fetches the last known votes for a proposal on a specific voting chain.
     /// @param _proposalId The ID of the proposal from the execution chain.
     /// @param _votingChainId The EVM ChainID of the voting chain.
     /// @dev This requires that the votes have been received and stored, and may not be up to date.
-    function getVotesByChain(
-        uint256 _votingChainId,
-        uint256 _proposalId
-    ) public view returns (Tally memory) {
-        return votes[votingPlugin][_proposalId].votesByChain[_votingChainId];
+    function votes(
+        uint256 _proposalId,
+        uint256 _votingChainId
+    ) external view returns (Tally memory) {
+        return votes(_proposalId, _votingChainId, votingPlugin);
     }
 
     /// @notice Fetches the last known votes for a proposal on a specific voting chain and for a specific plugin.
@@ -344,12 +350,12 @@ contract ToucanReceiver is
     /// @param _votingChainId The EVM ChainID of the voting chain.
     /// @param _votingPlugin The address of the voting plugin.
     /// @dev This requires that the votes have been received and stored, and may not be up to date.
-    function getVotesByChain(
-        uint256 _votingChainId,
+    function votes(
         uint256 _proposalId,
+        uint256 _votingChainId,
         address _votingPlugin
     ) public view returns (Tally memory) {
-        return votes[_votingPlugin][_proposalId].votesByChain[_votingChainId];
+        return _votes[_votingPlugin][_proposalId].votesByChain[_votingChainId];
     }
 
     /// @notice Fetches the proposal parameters from the voting plugin.

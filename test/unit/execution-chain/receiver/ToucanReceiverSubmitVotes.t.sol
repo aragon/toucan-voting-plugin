@@ -8,9 +8,10 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder, ProposalReference} from "@libs/ProposalRefEncoder.sol";
 
 import "forge-std/Test.sol";
+import "@utils/converters.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
 import {DAO, createTestDAO} from "@mocks/MockDAO.sol";
 import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
@@ -20,8 +21,8 @@ import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
-    using ProposalIdCodec for uint256;
-    using ProposalIdCodec for ProposalId;
+    using ProposalRefEncoder for uint256;
+    using ProposalRefEncoder for ProposalReference;
 
     function setUp() public override {
         super.setUp();
@@ -36,21 +37,21 @@ contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
     function test_revertsOnInvalidProposal() public {
         uint proposalId = 0;
         vm.expectRevert(
-            abi.encodeWithSelector(ToucanReceiver.InvalidProposalId.selector, proposalId)
+            abi.encodeWithSelector(ToucanReceiver.InvalidProposalReference.selector, proposalId)
         );
         receiver.submitVotes(proposalId);
     }
 
     // reverts if nothing to submit
     function testFuzz_revertsIfNothingToSubmit(uint _proposalSeed) public {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
 
-        address vp = _proposalId.getPlugin();
+        // address vp = _proposalId.getPlugin();
         uint32 openingTime = _proposalId.getStartTimestamp();
 
         vm.warp(openingTime + 1);
 
-        receiver.setVotingPlugin(vp);
+        // receiver.setVotingPlugin(vp);
 
         // write the voting plugin address to the proposal id
         vm.expectRevert(
@@ -61,11 +62,11 @@ contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
 
     // calls the vote function with the expected values
     function testFuzz_callsVoteWithExpectedValues(uint _proposalSeed, Tally memory _votes) public {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
 
         // write the voting plugin address to the proposal id
-        ProposalId memory p = _proposalId.toStruct();
-        p.plugin = address(plugin);
+        ProposalReference memory p = _proposalId.toStruct();
+        p.plugin = addressToUint128(address(plugin));
         _proposalId = p.fromStruct();
 
         uint32 openingTime = _proposalId.getStartTimestamp();

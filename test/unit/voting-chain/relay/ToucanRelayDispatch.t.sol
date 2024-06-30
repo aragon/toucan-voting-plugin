@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {IToucanRelayMessage, ToucanRelay, MessagingFee, OptionsBuilder} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
 import "forge-std/Test.sol";
@@ -23,7 +23,7 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 contract TestToucanRelayDispatch is ToucanRelayBaseTest {
     using TallyMath for Tally;
     using OverflowChecker for Tally;
-    using ProposalIdCodec for uint256;
+    using ProposalRefEncoder for uint256;
     using OptionsBuilder for bytes;
 
     function setUp() public override {
@@ -32,7 +32,9 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
         relay = deployMockToucanRelayLzMock({
             _token: address(token),
             _lzEndpoint: address(lzEndpoint),
-            _dao: address(dao)
+            _dao: address(dao),
+            _dstEid: 1,
+            _buffer: 0
         });
 
         dao.grant({
@@ -44,7 +46,6 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
 
     function testFuzz_quote(uint _proposalId, uint32 _dstEid, uint128 _gasLimit) public view {
         ToucanRelay.LzSendParams memory expectedParams = ToucanRelay.LzSendParams({
-            dstEid: _dstEid,
             gasLimit: _gasLimit,
             fee: MessagingFee(100, 0),
             options: OptionsBuilder.newOptions().addExecutorLzReceiveOption({
@@ -53,7 +54,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
             })
         });
 
-        ToucanRelay.LzSendParams memory params = relay.quote(_proposalId, _dstEid, _gasLimit);
+        ToucanRelay.LzSendParams memory params = relay.quote(_proposalId, _gasLimit);
 
         assertEq(keccak256(abi.encode(params)), keccak256(abi.encode(expectedParams)));
     }
@@ -82,6 +83,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
     function testFuzz_emitsEventOnDispatch(
         uint _proposalId,
         ToucanRelay.LzSendParams memory _params,
+        uint32 _dstEid,
         Tally memory _votes,
         address _peerAddress
     ) public {
@@ -89,7 +91,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
         // force the fee to be 100 in native only
         _params.fee = MessagingFee(100, 0);
 
-        relay.setPeer(_params.dstEid, addressToBytes32(_peerAddress));
+        relay.setPeer(_dstEid, addressToBytes32(_peerAddress));
 
         // this requires the correct mock
         (bool success, ) = address(relay).call(
@@ -108,15 +110,15 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
         MockToucanRelayLzMock.LzSendReceived memory receipt = MockToucanRelayLzMock(address(relay))
             .getLzSendReceived();
 
-        assertEq(receipt.dstEid, _params.dstEid);
+        assertEq(receipt.dstEid, _dstEid);
         assertEq(keccak256(abi.encode(receipt.fee)), keccak256(abi.encode(_params.fee)));
-        assertEq(receipt.refundAddress, relay.refundAddress(_params.dstEid));
+        assertEq(receipt.refundAddress, relay.refundAddress(_dstEid));
         assertEq(receipt.options, _params.options);
 
         bytes memory expectedMessage = abi.encode(
             IToucanRelayMessage.ToucanVoteMessage({
                 votingChainId: relay.chainId(),
-                proposalId: _proposalId,
+                proposalRef: _proposalId,
                 votes: _votes
             })
         );

@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver, IToucanReceiverEvents} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";

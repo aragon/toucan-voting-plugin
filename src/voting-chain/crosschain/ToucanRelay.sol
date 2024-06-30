@@ -71,11 +71,6 @@ contract ToucanRelay is
     /// @notice The voting token used by the relay. Must use a timestamp based clock on the voting chain.
     IVotes public token;
 
-    /// @notice The proposals are stored in a nested mapping by eid and proposal reference.
-    /// @dev This relies on a critical assumption of a single execution chain.
-    /// @dev dstEid => proposalRef => Proposal
-    mapping(uint32 => mapping(uint256 => Proposal)) public proposals;
-
     /// @notice The layer zero destination EID currently set for the relay.
     /// @dev This will be the chain that the votes are recorded against, and dispatched to.
     uint32 public dstEid;
@@ -85,6 +80,11 @@ contract ToucanRelay is
     /// that do not have time to be bridged.
     /// @dev The admin can set it to 0 to disable the buffer.
     uint32 public buffer;
+
+    /// @notice The proposals are stored in a nested mapping by eid and proposal reference.
+    /// @dev This relies on a critical assumption of a single execution chain.
+    /// @dev dstEid => proposalRef => Proposal
+    mapping(uint32 => mapping(uint256 => Proposal)) internal _proposals;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
@@ -196,7 +196,7 @@ contract ToucanRelay is
         if (!success) revert CannotVote(_proposalRef, msg.sender, _voteOptions, e);
 
         // get the proposal data
-        Proposal storage proposal = proposals[dstEid][_proposalRef];
+        Proposal storage proposal = _proposals[dstEid][_proposalRef];
         Tally storage lastVote = proposal.voters[msg.sender];
 
         // revert the last vote, doesn't matter if user hasn't voted before
@@ -228,11 +228,11 @@ contract ToucanRelay is
         if (!success) revert CannotDispatch(_proposalRef, e);
 
         // get the votes and encode the message
-        Tally memory proposalVotes = proposals[dstEid][_proposalRef].tally;
+        Tally memory proposalVotes = _proposals[dstEid][_proposalRef].tally;
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
-                proposalId: _proposalRef,
+                proposalRef: _proposalRef,
                 votes: proposalVotes
             })
         );
@@ -260,11 +260,11 @@ contract ToucanRelay is
         uint256 _proposalRef,
         uint128 _gasLimit
     ) external view returns (LzSendParams memory params) {
-        Proposal storage proposal = proposals[dstEid][_proposalRef];
+        Proposal storage proposal = _proposals[dstEid][_proposalRef];
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
-                proposalId: _proposalRef,
+                proposalRef: _proposalRef,
                 votes: proposal.tally
             })
         );
@@ -333,7 +333,7 @@ contract ToucanRelay is
         if (!isProposalOpen(_proposalRef)) return (false, ErrReason.ProposalNotOpen);
 
         // check that there are votes to dispatch
-        Tally memory proposalVotes = proposals[dstEid][_proposalRef].tally;
+        Tally memory proposalVotes = _proposals[dstEid][_proposalRef].tally;
         if (proposalVotes.isZero()) return (false, ErrReason.ZeroVotes);
 
         return (true, ErrReason.None);
@@ -376,12 +376,27 @@ contract ToucanRelay is
         uint256 _proposalRef,
         address _voter
     ) external view returns (Tally memory) {
-        return proposals[_dstEid][_proposalRef].voters[_voter];
+        return _proposals[_dstEid][_proposalRef].voters[_voter];
     }
 
     /// @return Vote data for a given proposal and voter, for the currently set destination chain.
     function getVotes(uint256 _proposalRef, address _voter) external view returns (Tally memory) {
-        return proposals[dstEid][_proposalRef].voters[_voter];
+        return _proposals[dstEid][_proposalRef].voters[_voter];
+    }
+
+    /// @notice External getter to fetch proposal votes.
+    /// @param _proposalRef The proposal reference to get the votes for.
+    /// @return The tally of votes for a given proposal and the current EID.
+    function proposals(uint256 _proposalRef) external view returns (Tally memory) {
+        return proposals(dstEid, _proposalRef);
+    }
+
+    /// @notice External getter to fetch proposal votes for a passed EID.
+    /// @param _dstEid The destination EID to get the proposal data for.
+    /// @param _proposalRef The proposal reference to get the votes for.
+    /// @return The tally of votes for a given proposal and EID.
+    function proposals(uint32 _dstEid, uint256 _proposalRef) public view returns (Tally memory) {
+        return _proposals[_dstEid][_proposalRef].tally;
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

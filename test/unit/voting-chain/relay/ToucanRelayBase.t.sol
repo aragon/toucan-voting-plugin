@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -46,7 +46,9 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
         relay = deployMockToucanRelay({
             _token: address(token),
             _lzEndpoint: address(lzEndpoint),
-            _dao: address(dao)
+            _dao: address(dao),
+            _dstEid: 0,
+            _buffer: 0
         });
 
         // set this address as the oapp admin for the relay

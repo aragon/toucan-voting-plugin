@@ -9,7 +9,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ToucanVoting, IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder, ProposalReference} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -18,13 +18,14 @@ import {MockToucanReceiver} from "@mocks/MockToucanReceiver.sol";
 
 import {deployToucanReceiver, deployMockToucanReceiver} from "@utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
+import "@utils/converters.sol";
 
 import "forge-std/Test.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
-    using ProposalIdCodec for uint256;
-    using ProposalIdCodec for ProposalId;
+    using ProposalRefEncoder for uint256;
+    using ProposalRefEncoder for ProposalReference;
     using TallyMath for Tally;
     using OverflowChecker for Tally;
 
@@ -33,7 +34,7 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
     }
 
     function testFuzz_canReceiveRevertsOnZeroVotes(uint _proposalSeed) public view {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
         Tally memory _votes = Tally(0, 0, 0);
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
@@ -45,13 +46,13 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
 
     function testFuzz_canReceiveRevertsOnInvalidProposalId(Tally memory _votes) public view {
         vm.assume(!_votes.isZero());
-        uint _proposalId = ProposalIdCodec.encode(address(0), 1, 0, 0);
+        uint _proposalId = ProposalRefEncoder.encode(0, address(0), 1, 0, 0);
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
             _votes
         );
         assertFalse(success);
-        assertErrEq(reason, ToucanReceiver.ErrReason.InvalidProposalId);
+        assertErrEq(reason, ToucanReceiver.ErrReason.ProposalNotOpen);
     }
 
     function testFuzz_canReceiveRevertsOnInsufficientVotingPower(
@@ -61,11 +62,11 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         vm.assume(!_votes.isZero());
         vm.assume(!_votes.overflows());
         vm.assume(_votes.sum() > 0);
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
 
         // write the voting plugin address to the proposal id
-        ProposalId memory p = _proposalId.toStruct();
-        p.plugin = address(plugin);
+        ProposalReference memory p = _proposalId.toStruct();
+        p.plugin = addressToUint128(address(plugin));
         _proposalId = p.fromStruct();
 
         // set to the right opening time
@@ -91,11 +92,11 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         token.mint(address(receiver), _votes.sum());
 
         // create a valid proposal id
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
 
         // write the voting plugin address to the proposal id
-        ProposalId memory p = _proposalId.toStruct();
-        p.plugin = address(plugin);
+        ProposalReference memory p = _proposalId.toStruct();
+        p.plugin = addressToUint128(address(plugin));
         _proposalId = p.fromStruct();
 
         // set the correct snapshot block on the proposal id to not be 0
@@ -161,19 +162,19 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
                 assertFalse(aggregateVotesP0.eq(aggregateVotesP1));
             }
 
-            assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[0]).eq(v0));
-            assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[1]).eq(v1));
+            assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v0));
+            assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
 
             // if the voting chains are equal then v{x} corresponds to proposalId
             if (votingChainsEqual) {
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[0]).eq(v0));
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v0));
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v1));
             }
 
             // else these should have no data
             if (!votingChainsEqual) {
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[0]).isZero());
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[1]).isZero());
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).isZero());
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).isZero());
             }
         }
 
@@ -188,21 +189,21 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
             if (!votingChainsEqual) {
                 assertTrue(aggregateVotesP0.eq(v0.add(v1)));
 
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[0]).eq(v0));
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v0));
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
 
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[1]).eq(v0));
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[0]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v0));
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v1));
             }
 
             if (votingChainsEqual) {
                 assertTrue(aggregateVotesP0.eq(v1));
 
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[0]).eq(v1));
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
 
-                assertTrue(receiver.getVotesByChain(_votingChainIds[0], _proposalIds[1]).eq(v1));
-                assertTrue(receiver.getVotesByChain(_votingChainIds[1], _proposalIds[0]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v1));
             }
         }
     }

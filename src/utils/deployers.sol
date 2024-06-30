@@ -26,12 +26,17 @@ import {MockOAppUpgradeable as MockOApp, MockOFTUpgradeable as MockOFT} from "@m
 function deployToucanRelay(
     address _token,
     address _lzEndpoint,
-    address _dao
+    address _dao,
+    uint32 _dstEid,
+    uint32 _buffer
 ) returns (ToucanRelay) {
     // deploy implementation
     address base = address(new ToucanRelay());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
+    bytes memory data = abi.encodeCall(
+        ToucanRelay.initialize,
+        (_token, _lzEndpoint, _dao, _dstEid, _buffer)
+    );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return ToucanRelay(deployed);
@@ -40,12 +45,17 @@ function deployToucanRelay(
 function deployMockToucanRelay(
     address _token,
     address _lzEndpoint,
-    address _dao
+    address _dao,
+    uint32 _dstEid,
+    uint32 _buffer
 ) returns (MockToucanRelay) {
     // deploy implementation
     address base = address(new MockToucanRelay());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
+    bytes memory data = abi.encodeCall(
+        ToucanRelay.initialize,
+        (_token, _lzEndpoint, _dao, _dstEid, _buffer)
+    );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockToucanRelay(deployed);
@@ -54,12 +64,17 @@ function deployMockToucanRelay(
 function deployMockToucanRelayLzMock(
     address _token,
     address _lzEndpoint,
-    address _dao
+    address _dao,
+    uint32 _dstEid,
+    uint32 _buffer
 ) returns (MockToucanRelayLzMock) {
     // deploy implementation
     address base = address(new MockToucanRelayLzMock());
     // encode the initalizer
-    bytes memory data = abi.encodeCall(ToucanRelay.initialize, (_token, _lzEndpoint, _dao));
+    bytes memory data = abi.encodeCall(
+        ToucanRelay.initialize,
+        (_token, _lzEndpoint, _dao, _dstEid, _buffer)
+    );
     // deploy and return the proxy
     address deployed = ProxyLib.deployUUPSProxy(base, data);
     return MockToucanRelayLzMock(deployed);

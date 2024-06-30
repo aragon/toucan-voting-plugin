@@ -32,7 +32,7 @@ import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 
 // internal test utils
 import "@utils/converters.sol";
@@ -57,7 +57,7 @@ contract DeployToucan is Script {
 
     using OptionsBuilder for bytes;
     using ProxyLib for address;
-    using ProposalIdCodec for uint256;
+    using ProposalRefEncoder for uint256;
 
     // execution chain
     uint32 EID_EXECUTION_CHAIN = SEPOLIA.eid;
@@ -243,7 +243,9 @@ contract DeployToucan is Script {
         relay = deployToucanRelay(
             address(tokenVotingChain),
             layerZeroEndpointVotingChain,
-            daoVotingChain
+            daoVotingChain,
+            EID_EXECUTION_CHAIN,
+            0
         );
 
         bridge = deployTokenBridge({

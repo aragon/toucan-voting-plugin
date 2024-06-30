@@ -9,7 +9,7 @@ import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 
 import {deployToucanRelay} from "@utils/deployers.sol";
 import "@utils/converters.sol";
@@ -30,10 +30,15 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
     function test_cannotCallImplementation() public {
         ToucanRelay impl = new ToucanRelay();
         vm.expectRevert(initializableError);
-        impl.initialize(address(0), address(lzEndpoint), address(dao));
+        impl.initialize(address(0), address(lzEndpoint), address(dao),0,0);
     }
 
-    function testFuzz_initializer(address _token, address _dao) public {
+    function testFuzz_initializer(
+        address _token,
+        address _dao,
+        uint32 _buffer,
+        uint32 _dstEid
+    ) public {
         // dao is checked by OApp
         vm.assume(_dao != address(0));
 
@@ -43,12 +48,16 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         ToucanRelay constructorRelay = deployToucanRelay({
             _token: _token,
             _lzEndpoint: address(lzEndpoint),
-            _dao: _dao
+            _dao: _dao,
+            _dstEid: _dstEid,
+            _buffer: _buffer
         });
 
         assertEq(address(constructorRelay.token()), _token);
         assertEq(address(constructorRelay.dao()), _dao);
         assertEq(address(constructorRelay.endpoint()), address(lzEndpoint));
+        assertEq(constructorRelay.dstEid(), _dstEid);
+        assertEq(constructorRelay.buffer(), _buffer);
     }
 
     function testRevert_initializer(address _dao) public {
@@ -56,7 +65,7 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         address impl = address(new ToucanRelay());
         bytes memory data = abi.encodeCall(
             ToucanRelay.initialize,
-            (address(0), address(lzEndpoint), _dao)
+            (address(0), address(lzEndpoint), _dao, 0, 0)
         );
 
         vm.expectRevert(abi.encodeWithSelector(ToucanRelay.InvalidToken.selector));

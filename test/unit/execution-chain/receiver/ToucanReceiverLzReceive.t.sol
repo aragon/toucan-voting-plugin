@@ -10,7 +10,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ToucanVoting, IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver, IToucanRelayMessage} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder, ProposalReference} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -23,8 +23,8 @@ import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 import "forge-std/Test.sol";
 
 contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMessage {
-    using ProposalIdCodec for uint256;
-    using ProposalIdCodec for ProposalId;
+    using ProposalRefEncoder for uint256;
+    using ProposalRefEncoder for ProposalReference;
     using TallyMath for Tally;
     using OverflowChecker for Tally;
 
@@ -44,7 +44,7 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
     // stores the votes if submitVotes fails and emits the event
     function testFuzz_storesVotesIfSubmitFails(
         uint _votingChainId,
-        uint _proposalId,
+        uint _proposaRef,
         bytes memory _reason,
         Tally memory _votes
     ) public {
@@ -55,13 +55,13 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         // OR (in our case) when we use this.method() instead of method()
         vm.mockCallRevert({
             callee: address(receiver),
-            data: abi.encodeCall(receiver.submitVotes, (_proposalId)),
+            data: abi.encodeCall(receiver.submitVotes, (_proposaRef)),
             revertData: _reason
         });
 
         ToucanVoteMessage memory message = ToucanVoteMessage({
             votingChainId: _votingChainId,
-            proposalId: _proposalId,
+            proposalRef: _proposaRef,
             votes: _votes
         });
 
@@ -69,7 +69,7 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         vm.expectEmit(false, false, false, true);
         emit SubmitVoteFailed({
             votingChainId: _votingChainId,
-            proposalId: _proposalId,
+            proposalId: _proposaRef,
             votes: _votes,
             revertData: _reason
         });
@@ -78,8 +78,8 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         receiver._lzReceive(abi.encode(message), o, bytes(""));
 
         // check the votes are stored
-        Tally memory totalVotes = receiver.votes(_proposalId);
-        Tally memory chainVotes = receiver.getVotesByChain(_votingChainId, _proposalId);
+        Tally memory totalVotes = receiver.votes(_proposaRef);
+        Tally memory chainVotes = receiver.votes(_votingChainId, _proposaRef);
 
         assertTrue(totalVotes.eq(_votes));
         assertTrue(chainVotes.eq(_votes));
@@ -103,7 +103,7 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         );
 
         bytes memory message = abi.encode(
-            ToucanVoteMessage({votingChainId: 0, proposalId: 0, votes: Tally(0, 0, 0)})
+            ToucanVoteMessage({votingChainId: 0, proposalRef: 0, votes: Tally(0, 0, 0)})
         );
 
         Origin memory o;

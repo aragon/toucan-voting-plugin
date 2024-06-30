@@ -87,9 +87,9 @@ contract ToucanRelaySetup is PluginSetup {
             abi.encodeCall(OFTTokenBridge.initialize, (token, lzEndpoint, _dao))
         );
 
-        plugin = relayBase.deployUUPSProxy(
-            abi.encodeCall(ToucanRelay.initialize, (token, lzEndpoint, _dao))
-        );
+        // plugin = relayBase.deployUUPSProxy(
+        //     abi.encodeCall(ToucanRelay.initialize, (token, lzEndpoint, _dao))
+        // );
 
         // setup permissions
         PermissionLib.MultiTargetPermission[]

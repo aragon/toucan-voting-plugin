@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import "@libs/TallyMath.sol";
 
 import {Test} from "forge-std/Test.sol";
@@ -21,7 +21,7 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 contract TestToucanRelayCanVote is ToucanRelayBaseTest {
     using TallyMath for Tally;
     using OverflowChecker for Tally;
-    using ProposalIdCodec for uint256;
+    using ProposalRefEncoder for uint256;
 
     function setUp() public override {
         super.setUp();
@@ -29,13 +29,13 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
     // test can vote:
     function testFuzz_cannotVoteBeforeStart(
-        uint256 _proposalId,
+        uint256 _proposalRef,
         address _voter,
         Tally memory _voteOptions,
         uint32 _warpTo
     ) public {
         // decode existing random proposal id
-        uint32 startTs = _proposalId.getStartTimestamp();
+        uint32 startTs = _proposalRef.getStartTimestamp();
 
         // assume that the startTs is greater than or equal the block ts we will move to
         vm.assume(startTs >= _warpTo);
@@ -44,23 +44,23 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         vm.warp(_warpTo);
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
-        assertFalse(relay.isProposalOpen(_proposalId));
+        assertFalse(relay.isProposalOpen(_proposalRef));
         assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
     }
 
     function testFuzz_cannotVoteAfterEnd(
-        uint256 _proposalId,
+        uint256 _proposalRef,
         address _voter,
         Tally memory _voteOptions,
         uint32 _warpTo
     ) public {
         // decode existing random proposal id
-        uint32 _endTs = _proposalId.getEndTimestamp();
+        uint32 _endTs = _proposalRef.getEndTimestamp();
 
         // assume that the endTs is less than or equal the block ts we will move to
         vm.assume(_endTs <= _warpTo);
@@ -69,12 +69,12 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         vm.warp(_warpTo);
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
         assertFalse(canVote);
-        assertFalse(relay.isProposalOpen(_proposalId));
+        assertFalse(relay.isProposalOpen(_proposalRef));
         assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
     }
 
@@ -84,15 +84,15 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         address _voter,
         uint32 _warpTo
     ) public {
-        uint256 _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
-        _warpToValidTs(_proposalId, _warpTo);
-        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
+        uint256 _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
+        _warpToValidTs(_proposalRef, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalRef), "Proposal should be open");
 
         // set the weight to zero
         Tally memory _voteOptions = Tally({yes: 0, no: 0, abstain: 0});
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
@@ -109,7 +109,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions
     ) public {
         // derive a proposal Id that is valid
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
 
         vm.assume(!_voteOptions.overflows());
 
@@ -124,12 +124,12 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
-        _warpToValidTs(_proposalId, _warpTo);
-        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
+        _warpToValidTs(_proposalRef, _warpTo);
+        assertTrue(relay.isProposalOpen(_proposalRef), "Proposal should be open");
 
         // set the weight to zero
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
@@ -145,9 +145,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        // derive a proposal Id that is valid
-        _proposalSeed = 328725153614203166;
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
 
         vm.assume(!_voteOptions.overflows());
 
@@ -168,14 +166,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
         // note the order of the calls
         // could just as easily be a transfer
-        _warpToValidTs(_proposalId, _warpTo);
+        _warpToValidTs(_proposalRef, _warpTo);
         token.mint({to: _voter, amount: _mintQty});
 
-        assertTrue(relay.isProposalOpen(_proposalId), "Proposal should be open");
+        assertTrue(relay.isProposalOpen(_proposalRef), "Proposal should be open");
         assertFalse(_voteOptions.isZero(), "Vote options should not be zero");
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
@@ -191,7 +189,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
         vm.assume(!_voteOptions.overflows());
         vm.assume(_voter != address(0));
         vm.assume(_mintQty > 0);
@@ -204,10 +202,10 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
-        _warpToValidTs(_proposalId, _warpTo);
+        _warpToValidTs(_proposalRef, _warpTo);
 
         (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });
@@ -223,7 +221,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         uint224 _mintQty /* this is the max value that can fit in ERC20 Votes */,
         Tally memory _voteOptions
     ) public {
-        uint _proposalId = _makeValidProposalIdFromSeed(_proposalSeed);
+        uint _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
         vm.assume(!_voteOptions.overflows());
         vm.assume(_voter != address(0));
         vm.assume(_mintQty > 0);
@@ -236,14 +234,14 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
 
         // note the order of the calls
         token.mint({to: _voter, amount: _mintQty});
-        _warpToValidTs(_proposalId, _warpTo);
+        _warpToValidTs(_proposalRef, _warpTo);
 
         // give the tokens away
         vm.prank(_voter);
         token.transfer({to: address(this), amount: _mintQty});
 
         (bool canVote, ) = relay.canVote({
-            _proposalId: _proposalId,
+            _proposalRef: _proposalRef,
             _voter: _voter,
             _voteOptions: _voteOptions
         });

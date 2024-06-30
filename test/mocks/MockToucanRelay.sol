@@ -16,20 +16,20 @@ contract MockToucanRelay is ToucanRelay {
     }
 
     function setProposalState(
-        uint256 _proposalId,
+        uint256 _proposalRef,
         Tally memory _tally,
         Voter[] memory _votes
     ) public {
-        proposals[_proposalId].tally = _tally;
+        _proposals[dstEid][_proposalRef].tally = _tally;
         for (uint256 i = 0; i < _votes.length; i++) {
             address voter = _votes[i].voter;
             Tally memory vote = _votes[i].vote;
-            proposals[_proposalId].voters[voter] = vote;
+            _proposals[dstEid][_proposalRef].voters[voter] = vote;
         }
     }
 
-    function setProposalState(uint256 _proposalId, Tally memory _tally) public {
-        proposals[_proposalId].tally = _tally;
+    function setProposalState(uint256 _proposalRef, Tally memory _tally) public {
+        _proposals[dstEid][_proposalRef].tally = _tally;
     }
 
     function setChainId(uint id) public {

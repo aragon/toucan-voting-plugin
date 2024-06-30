@@ -9,7 +9,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ToucanVoting, IToucanVoting} from "@toucan-voting/ToucanVoting.sol";
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder, ProposalReference} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";
@@ -23,8 +23,8 @@ import "forge-std/Test.sol";
 
 /// @dev single chain testing for the relay
 contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
-    using ProposalIdCodec for uint256;
-    using ProposalIdCodec for ProposalId;
+    using ProposalRefEncoder for uint256;
+    using ProposalRefEncoder for ProposalReference;
     using TallyMath for Tally;
     using OverflowChecker for Tally;
 
