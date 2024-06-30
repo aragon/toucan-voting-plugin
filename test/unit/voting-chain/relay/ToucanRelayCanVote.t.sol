@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 import "@libs/TallyMath.sol";
 
 import {Test} from "forge-std/Test.sol";

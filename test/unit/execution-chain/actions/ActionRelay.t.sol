@@ -7,7 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {ActionRelay, OptionsBuilder, MessagingFee} from "@execution-chain/crosschain/ActionRelay.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";

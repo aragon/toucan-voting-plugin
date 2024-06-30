@@ -14,7 +14,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalEncoding} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 import {SweeperUpgradeable} from "@utils/SweeperUpgradeable.sol";
 
@@ -57,7 +57,7 @@ contract ToucanReceiver is
     SweeperUpgradeable
 {
     using TallyMath for Tally;
-    using ProposalIdCodec for uint256;
+    using ProposalEncoding for uint256;
     using SafeCast for uint256;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,11 +77,11 @@ contract ToucanReceiver is
     IVotes public governanceToken;
 
     /// @notice The address of the voting plugin. Must implement a vote function.
-    IToucanVoting public votingPlugin;
+    address public votingPlugin;
 
     /// @notice Stores all votes for a proposal across all chains and in aggregate.
-    /// @dev proposalId => AggregateTally
-    mapping(uint256 => AggregateTally) public votes;
+    /// @dev plugin => proposalId => AggregateTally
+    mapping(address => mapping(uint256 => AggregateTally)) public votes;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
@@ -142,6 +142,7 @@ contract ToucanReceiver is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Updates the voting plugin in the case of a new voting plugin being released.
+    /// @dev Changing the plugin will cause all
     /// @param _plugin The address of the new voting plugin.
     function setVotingPlugin(address _plugin) public auth(OAPP_ADMINISTRATOR_ID) {
         _setVotingPlugin(_plugin);
@@ -149,7 +150,7 @@ contract ToucanReceiver is
 
     /// @dev Internal function to set the voting plugin, called by the public function and the constructor.
     function _setVotingPlugin(address _plugin) internal {
-        votingPlugin = IToucanVoting(_plugin);
+        votingPlugin = _plugin;
         emit NewVotingPluginSet(_plugin, msg.sender);
     }
 
@@ -165,7 +166,7 @@ contract ToucanReceiver is
         if (!isProposalIdValid(_proposalId)) revert InvalidProposalId(_proposalId);
 
         // get the current aggregate votes
-        Tally memory aggregate = votes[_proposalId].aggregateVotes;
+        Tally memory aggregate = votes[votingPlugin][_proposalId].aggregateVotes;
 
         // if there are no votes, we don't call the plugin
         if (aggregate.isZero()) revert NoVotesToSubmit(_proposalId);
@@ -173,7 +174,7 @@ contract ToucanReceiver is
         // send the votes to the plugin
         // We don't need to run further checks here because the plugin will check the proposal
         // data and the aggregate votes and we are not updating the state.
-        votingPlugin.vote(_proposalId, aggregate, false);
+        IToucanVoting(votingPlugin).vote(_proposalId, aggregate, false);
 
         emit SubmitVoteSuccess(_proposalId, address(votingPlugin), aggregate);
     }
@@ -359,4 +360,6 @@ contract ToucanReceiver is
     /// The alternative would be to define a separate permission which adds complexity.
     /// As this contract is upgradeable, this can be changed in the future.
     function _authorizeUpgrade(address) internal override auth(OAPP_ADMINISTRATOR_ID) {}
+
+    uint256[47] private __gap;
 }

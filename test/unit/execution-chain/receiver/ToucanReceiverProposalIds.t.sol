@@ -8,7 +8,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {GovernanceERC20} from "@toucan-voting/ERC20/governance/GovernanceERC20.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";

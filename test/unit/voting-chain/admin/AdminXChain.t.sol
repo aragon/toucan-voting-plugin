@@ -12,7 +12,7 @@ import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 
 import {OAppReceiverUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppReceiverUpgradeable.sol";
 import {AdminXChain, Origin} from "@voting-chain/crosschain/AdminXChain.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 
 import "forge-std/Test.sol";
 import {MockLzEndpointMinimal} from "@mocks/MockLzEndpoint.sol";

@@ -5,7 +5,7 @@ import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 
 import {TestHelpers} from "test/helpers/TestHelpers.sol";
 import {DAO, createTestDAO, createTestDAORevertFallback, MockDAORevertFallback} from "@mocks/MockDAO.sol";

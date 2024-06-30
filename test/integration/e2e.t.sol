@@ -28,7 +28,7 @@ import {OFTTokenBridge} from "@voting-chain/crosschain/OFTTokenBridge.sol";
 
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
 import {ToucanReceiver} from "@execution-chain/crosschain/ToucanReceiver.sol";
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 
 // internal test utils
 import "@utils/converters.sol";

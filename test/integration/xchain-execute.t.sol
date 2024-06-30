@@ -20,7 +20,7 @@ import "forge-std/console2.sol";
 import {TestHelper} from "@lz-oapp-test/TestHelper.sol";
 
 // internal contracts
-import {ProposalIdCodec} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec} from "@libs/ProposalRefEncoder.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {ActionRelay} from "@execution-chain/crosschain/ActionRelay.sol";

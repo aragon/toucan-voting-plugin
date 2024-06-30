@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
+import {ProposalIdCodec, ProposalId} from "@libs/ProposalRefEncoder.sol";
 
 contract ProposalIdCodecTest is Test {
     using ProposalIdCodec for uint256;

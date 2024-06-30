@@ -14,7 +14,7 @@ import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
 import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
-import {ProposalIdCodec, ProposalId} from "@libs/ProposalIdCodec.sol";
+import {ProposalReference, ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 import "@utils/converters.sol";
 
@@ -41,7 +41,7 @@ contract ToucanRelay is
     PluginUUPSUpgradeable
 {
     using OptionsBuilder for bytes;
-    using ProposalIdCodec for uint256;
+    using ProposalRefEncoder for uint256;
     using TallyMath for Tally;
     using SafeCast for uint256;
 
@@ -59,12 +59,10 @@ contract ToucanRelay is
     }
 
     /// @notice Additional Layer Zero params required to send a cross chain message.
-    /// @param dstEid The LayerZero endpoint ID of the execution chain.
     /// @param gasLimit The additional gas needed on the execution chain to process the message, surplus will be refunded.
     /// @param fee The messaging fee required to send the message, this is sent to LayerZero.
     /// @param options Additional options required to send the message, these are encoded as bytes.
     struct LzSendParams {
-        uint32 dstEid;
         uint128 gasLimit;
         MessagingFee fee;
         bytes options;
@@ -73,10 +71,20 @@ contract ToucanRelay is
     /// @notice The voting token used by the relay. Must use a timestamp based clock on the voting chain.
     IVotes public token;
 
-    /// @notice The proposals are stored in a nested mapping by  proposal ID.
+    /// @notice The proposals are stored in a nested mapping by eid and proposal reference.
     /// @dev This relies on a critical assumption of a single execution chain.
-    /// @dev proposalId => Proposal
-    mapping(uint256 => Proposal) public proposals;
+    /// @dev dstEid => proposalRef => Proposal
+    mapping(uint32 => mapping(uint256 => Proposal)) public proposals;
+
+    /// @notice The layer zero destination EID currently set for the relay.
+    /// @dev This will be the chain that the votes are recorded against, and dispatched to.
+    uint32 public dstEid;
+
+    /// @notice The buffer in seconds before a proposal closes that votes can no longer be cast.
+    /// @dev This is to allow for delays in cross chain communication that would prevent votes being cast
+    /// that do not have time to be bridged.
+    /// @dev The admin can set it to 0 to disable the buffer.
+    uint32 public buffer;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- ERRORS ---------
@@ -87,18 +95,20 @@ contract ToucanRelay is
     /// @param ProposalNotOpen The proposal is not open for voting.
     /// @param ZeroVotes The user is trying to vote with zero votes.
     /// @param InsufficientVotingPower The user has insufficient voting power to vote.
+    /// @param NotEnoughTimeToBridge The proposal does not have enough time remaining to bridge the votes.
     enum ErrReason {
         None,
         ZeroVotes,
         ProposalNotOpen,
-        InsufficientVotingPower
+        InsufficientVotingPower,
+        NotEnoughTimeToBridge
     }
 
     /// @notice Thrown if the voter fails the `canVote` check during the voting process.
-    error CannotVote(uint256 proposalId, address voter, Tally voteOptions, ErrReason reason);
+    error CannotVote(uint256 proposalRef, address voter, Tally voteOptions, ErrReason reason);
 
     /// @notice Thrown if the votes cannot be dispatched according to `canDispatch`.
-    error CannotDispatch(uint256 proposalId, ErrReason reason);
+    error CannotDispatch(uint256 proposalRef, ErrReason reason);
 
     /// @notice Thrown if this OAapp cannot receive messages.
     error CannotReceive();
@@ -111,10 +121,16 @@ contract ToucanRelay is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Emitted when a voter successfully casts a vote on a proposal.
-    event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
+    event VoteCast(uint32 dstEid, uint256 indexed proposalRef, address voter, Tally voteOptions);
 
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
-    event VotesDispatched(uint256 indexed proposalId, Tally votes);
+    event VotesDispatched(uint32 dstEid, uint256 indexed proposalRef, Tally votes);
+
+    /// @notice Emitted when the destination EID is updated.
+    event DestinationEidUpdated(uint32 dstEid);
+
+    /// @notice Emitted when the bridge delay buffer is updated.
+    event BrigeDelayBufferUpdated(uint32 buffer);
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// --------- INITIALIZER ---------
@@ -127,28 +143,60 @@ contract ToucanRelay is
     /// @param _token The voting token used by the relay. Should be a timestamp based voting token.
     /// @param _lzEndpoint The LayerZero endpoint address for the relay on this chain.
     /// @param _dao The DAO address that will be the owner of this relay and will control permissions.
-    function initialize(address _token, address _lzEndpoint, address _dao) external initializer {
+    function initialize(
+        address _token,
+        address _lzEndpoint,
+        address _dao,
+        uint32 _dstEid,
+        uint32 _buffer
+    ) external initializer {
         __OApp_init(_lzEndpoint, _dao);
         // don't call plugin init as this would re-initilize.
         if (_token == address(0)) revert InvalidToken();
         token = IVotes(_token);
+        _setDstEid(_dstEid);
+        _setBridgeDelayBuffer(_buffer);
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// -------- STATE MODIFYING FUNCTIONS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    /// @notice Sets the destination chain ID for the relay.
+    /// @dev Once set, votes will be held against and dispatched to this chain.
+    function setDstEid(uint32 _dstEid) external auth(OAPP_ADMINISTRATOR_ID) {
+        _setDstEid(_dstEid);
+    }
+
+    /// @dev Internal function to set the destination chain ID and emit an event.
+    function _setDstEid(uint32 _dstEid) internal {
+        dstEid = _dstEid;
+        emit DestinationEidUpdated(_dstEid);
+    }
+
+    /// @notice Sets the bridge delay for the relay. This is a window before the proposal officially
+    /// closes where votes can no longer be cast. This is to allow for cross chain communication.
+    /// @param _buffer The delay in seconds.
+    function setBridgeDelayBuffer(uint32 _buffer) external auth(OAPP_ADMINISTRATOR_ID) {
+        _setBridgeDelayBuffer(_buffer);
+    }
+
+    function _setBridgeDelayBuffer(uint32 _buffer) internal {
+        buffer = _buffer;
+        emit BrigeDelayBufferUpdated(_buffer);
+    }
+
     /// @notice Anyone with a voting token that has voting power can vote on a proposal.
-    /// @param _proposalId The proposal ID to vote on. Must be fetched from the Execution Chain
-    /// as it is not validated here.
+    /// @param _proposalRef The proposal reference to vote on.
+    /// @dev Must be computed from execution chain proposal params as it is not validated here.
     /// @param _voteOptions Votes split between yes no and abstain up to the voter's total voting power.
-    function vote(uint256 _proposalId, Tally calldata _voteOptions) external nonReentrant {
+    function vote(uint256 _proposalRef, Tally calldata _voteOptions) external nonReentrant {
         // check that the user can actually vote given their voting power and the proposal
-        (bool success, ErrReason e) = canVote(_proposalId, msg.sender, _voteOptions);
-        if (!success) revert CannotVote(_proposalId, msg.sender, _voteOptions, e);
+        (bool success, ErrReason e) = canVote(_proposalRef, msg.sender, _voteOptions);
+        if (!success) revert CannotVote(_proposalRef, msg.sender, _voteOptions, e);
 
         // get the proposal data
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal storage proposal = proposals[dstEid][_proposalRef];
         Tally storage lastVote = proposal.voters[msg.sender];
 
         // revert the last vote, doesn't matter if user hasn't voted before
@@ -163,39 +211,39 @@ contract ToucanRelay is
         lastVote.yes = _voteOptions.yes;
         lastVote.no = _voteOptions.no;
 
-        emit VoteCast({proposalId: _proposalId, voter: msg.sender, voteOptions: _voteOptions});
+        emit VoteCast(dstEid, _proposalRef, msg.sender, _voteOptions);
     }
 
     /// @notice This function will take the votes for a given proposal ID and dispatch them to the execution chain.
-    /// @param _proposalId The proposal ID to dispatch the votes for.
+    /// @param _proposalRef The proposal reference to dispatch the votes for.
     /// @param _params Additional parameters required to send the message cross chain.
     /// @dev _params can be constructed using the `quote` function or defined manually.
     /// @dev This is a payable function. The msg.value should be set to the fee.
     function dispatchVotes(
-        uint256 _proposalId,
+        uint256 _proposalRef,
         LzSendParams memory _params
     ) external payable nonReentrant {
         // check if we can dispatch the votes
-        (bool success, ErrReason e) = canDispatch(_proposalId);
-        if (!success) revert CannotDispatch(_proposalId, e);
+        (bool success, ErrReason e) = canDispatch(_proposalRef);
+        if (!success) revert CannotDispatch(_proposalRef, e);
 
         // get the votes and encode the message
-        Tally memory proposalVotes = proposals[_proposalId].tally;
+        Tally memory proposalVotes = proposals[dstEid][_proposalRef].tally;
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
-                proposalId: _proposalId,
+                proposalId: _proposalRef,
                 votes: proposalVotes
             })
         );
 
         // refund should be somewhere safe on the dst chain
-        address refund = refundAddress(_params.dstEid);
+        address refund = refundAddress(dstEid);
 
         // dispatch the votes via the lz endpoint
-        _lzSend(_params.dstEid, message, _params.options, _params.fee, refund);
+        _lzSend(dstEid, message, _params.options, _params.fee, refund);
 
-        emit VotesDispatched({proposalId: _proposalId, votes: proposalVotes});
+        emit VotesDispatched(dstEid, _proposalRef, proposalVotes);
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -203,22 +251,20 @@ contract ToucanRelay is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Quotes the total gas fee to dispatch the votes cross chain.
-    /// @param _proposalId Proposal ID of a current proposal. Is used to fetch vote data.
-    /// @param _dstEid LayerZero Endpoint ID for the execution chain.
+    /// @param _proposalRef Proposal reference of a current proposal. Is used to fetch vote data.
     /// @param _gasLimit Total additional gas required for operations on the execution chain.
     /// @dev Refunds will be sent to the refundAddress on the execution chain.
     /// @return params The additional parameters required to be sent with the cross chain message.
     /// @dev These can be manually constructed but the defaults provided save some boilerplate.
     function quote(
-        uint256 _proposalId,
-        uint32 _dstEid,
+        uint256 _proposalRef,
         uint128 _gasLimit
     ) external view returns (LzSendParams memory params) {
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal storage proposal = proposals[dstEid][_proposalRef];
         bytes memory message = abi.encode(
             ToucanVoteMessage({
                 votingChainId: _chainId(),
-                proposalId: _proposalId,
+                proposalId: _proposalRef,
                 votes: proposal.tally
             })
         );
@@ -227,20 +273,20 @@ contract ToucanRelay is
             _value: 0
         });
         MessagingFee memory fee = _quote({
-            _dstEid: _dstEid,
+            _dstEid: dstEid,
             _message: message,
             _options: options,
             _payInLzToken: false
         });
-        return LzSendParams({dstEid: _dstEid, gasLimit: _gasLimit, fee: fee, options: options});
+        return LzSendParams(_gasLimit, fee, options);
     }
 
     /// @notice Checks if a voter can vote on a proposal.
-    /// @param _proposalId The proposal ID to check, will be decoded to get the start and end timestamps.
+    /// @param _proposalRef The proposal reference to check, will be decoded to get timestamps for start end and block.
     /// @param _voter The address of the voter to check.
     /// @param _voteOptions The vote options to check against the voter's voting power.
     function canVote(
-        uint256 _proposalId,
+        uint256 _proposalRef,
         address _voter,
         Tally memory _voteOptions
     ) public view returns (bool, ErrReason) {
@@ -248,10 +294,13 @@ contract ToucanRelay is
         if (_voteOptions.isZero()) return (false, ErrReason.ZeroVotes);
 
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
+        if (!isProposalOpen(_proposalRef)) return (false, ErrReason.ProposalNotOpen);
+
+        // Check if the proposal has enough time to bridge
+        if (!hasEnoughTimeToBridge(_proposalRef)) return (false, ErrReason.NotEnoughTimeToBridge);
 
         // this could re-enter with a malicious governance token
-        uint256 votingPower = token.getPastVotes(_voter, _proposalId.getBlockSnapshotTimestamp());
+        uint256 votingPower = token.getPastVotes(_voter, _proposalRef.getBlockSnapshotTimestamp());
 
         // the user has insufficient voting power to vote
         if (_totalVoteWeight(_voteOptions) > votingPower)
@@ -261,27 +310,42 @@ contract ToucanRelay is
         return (true, ErrReason.None);
     }
 
+    /// @notice Checks if a proposal has enough time to bridge votes.
+    function hasEnoughTimeToBridge(uint256 _proposalRef) public view returns (bool) {
+        if (buffer == 0) return true;
+
+        // get the end time of the proposal
+        uint32 endTs = _proposalRef.getEndTimestamp();
+
+        // get the current time
+        uint256 currentTime = block.timestamp;
+
+        // check if the proposal has enough time to bridge
+        // cast buffer to uint256 to avoid overflow from addition
+        return currentTime + uint256(buffer) < endTs;
+    }
+
     /// @notice Checks if the votes for a proposal can be dispatched cross chain.
-    /// @param _proposalId The proposal ID to check.
+    /// @param _proposalRef The proposal reference to check.
     /// @return Whether a proposal is open and has votes to dispatch.
-    function canDispatch(uint256 _proposalId) public view virtual returns (bool, ErrReason) {
+    function canDispatch(uint256 _proposalRef) public view virtual returns (bool, ErrReason) {
         // Check the proposal is open as defined by the timestamps in the proposal ID
-        if (!isProposalOpen(_proposalId)) return (false, ErrReason.ProposalNotOpen);
+        if (!isProposalOpen(_proposalRef)) return (false, ErrReason.ProposalNotOpen);
 
         // check that there are votes to dispatch
-        Tally memory proposalVotes = proposals[_proposalId].tally;
+        Tally memory proposalVotes = proposals[dstEid][_proposalRef].tally;
         if (proposalVotes.isZero()) return (false, ErrReason.ZeroVotes);
 
         return (true, ErrReason.None);
     }
 
-    /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal ID.
+    /// @return If a proposal is accepting votes, as defined by the timestamps in the proposal reference.
     /// Note that we do not have any information in this implementation that validates if the proposal has already
     /// been executed. This remains the responsibility of the DAO and User.
-    function isProposalOpen(uint256 _proposalId) public view virtual returns (bool) {
+    function isProposalOpen(uint256 _proposalRef) public view virtual returns (bool) {
         // overflow check seems redundant but L2s sometimes have unique rules and edge cases
         uint32 currentTime = block.timestamp.toUint32();
-        return _proposalId.isOpen(currentTime);
+        return _proposalRef.isOpen(currentTime);
     }
 
     /// @return The sums of the votes in a Voting Tally.
@@ -305,10 +369,19 @@ contract ToucanRelay is
         return bytes32ToAddress(peers[_dstEid.toUint32()]);
     }
 
-    /// @return Vote data for a given proposal and voter.
+    /// @return Vote data for a given proposal, voter and chain.
     /// @dev Required due to nested mappings in the proposal struct.
-    function getVotes(uint256 _proposalId, address _voter) external view returns (Tally memory) {
-        return proposals[_proposalId].voters[_voter];
+    function getVotes(
+        uint32 _dstEid,
+        uint256 _proposalRef,
+        address _voter
+    ) external view returns (Tally memory) {
+        return proposals[_dstEid][_proposalRef].voters[_voter];
+    }
+
+    /// @return Vote data for a given proposal and voter, for the currently set destination chain.
+    function getVotes(uint256 _proposalRef, address _voter) external view returns (Tally memory) {
+        return proposals[dstEid][_proposalRef].voters[_voter];
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -335,4 +408,7 @@ contract ToucanRelay is
     /// The alternative would be to define a separate permission which adds complexity.
     /// As this contract is upgradeable, this can be changed in the future.
     function _authorizeUpgrade(address) internal override auth(OAPP_ADMINISTRATOR_ID) {}
+
+    /// @dev Gap to reserve space for future storage layout changes.
+    uint256[46] private __gap;
 }
