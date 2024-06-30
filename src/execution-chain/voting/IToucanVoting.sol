@@ -233,6 +233,11 @@ interface IToucanVoting is IVoteContainer {
     /// @return Returns `true` if the participation is greater than the minimum participation and `false` otherwise.
     function isMinParticipationReached(uint256 _proposalId) external view returns (bool);
 
+    /// @notice Checks if the proposal is open for voting at this time. 
+    /// @param _proposalId The ID of the proposal.
+    /// @return Returns `true` if the proposal timestamps indicate it's still open and hasn't been executed.
+    function isProposalOpen(uint256 _proposalId) external view returns (bool);
+
     /// @notice Checks if an account can participate on a proposal vote. This can be because the vote
     /// - has not started,
     /// - has ended,

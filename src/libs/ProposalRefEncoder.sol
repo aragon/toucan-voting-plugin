@@ -145,7 +145,7 @@ library ProposalRefEncoder {
     }
 
     /// @return True if the first 128 bits of the plugin address in the proposal reference match the given address.
-    function addressValid(uint256 _proposalRef, address _other) internal pure returns (bool) {
+    function pluginMatches(uint256 _proposalRef, address _other) internal pure returns (bool) {
         return getTruncatedPlugin(_proposalRef) == uint128(uint160(_other));
     }
 

@@ -14,7 +14,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {OAppUpgradeable} from "@oapp-upgradeable/aragon-oapp/OAppUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
-import {ProposalEncoding} from "@libs/ProposalRefEncoder.sol";
+import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 import {TallyMath} from "@libs/TallyMath.sol";
 import {SweeperUpgradeable} from "@utils/SweeperUpgradeable.sol";
 
@@ -57,7 +57,7 @@ contract ToucanReceiver is
     SweeperUpgradeable
 {
     using TallyMath for Tally;
-    using ProposalEncoding for uint256;
+    using ProposalRefEncoder for uint256;
     using SafeCast for uint256;
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -90,12 +90,11 @@ contract ToucanReceiver is
     /// @notice Error codes to be returned inside view functions to avoid reverting.
     /// @param None No error.
     /// @param ZeroVotes No votes were found for the proposal.
-    /// @param InvalidProposalId The proposal ID is invalid (ususally it is not open).
     /// @param InsufficientVotingPower The receiver does not have enough voting power to receive the votes.
     enum ErrReason {
         None,
         ZeroVotes,
-        InvalidProposalId,
+        ProposalNotOpen,
         InsufficientVotingPower
     }
 
@@ -107,8 +106,8 @@ contract ToucanReceiver is
         ErrReason reason
     );
 
-    /// @notice Thrown if one of the sliced elements of the proposal ID invalidates the ID.
-    error InvalidProposalId(uint256 proposalId);
+    /// @notice Thrown if one of the sliced elements of the proposal reference doesn't match the data passed.
+    error InvalidProposalReference(uint256 proposalRef);
 
     /// @notice Thrown if trying to submit votes to the plugin but there are no votes.
     error NoVotesToSubmit(uint256 proposalId);
@@ -142,7 +141,7 @@ contract ToucanReceiver is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Updates the voting plugin in the case of a new voting plugin being released.
-    /// @dev Changing the plugin will cause all
+    /// @dev Changing the plugin will change how all votes are stored.
     /// @param _plugin The address of the new voting plugin.
     function setVotingPlugin(address _plugin) public auth(OAPP_ADMINISTRATOR_ID) {
         _setVotingPlugin(_plugin);
@@ -163,8 +162,6 @@ contract ToucanReceiver is
     /// @dev This function is called by the ToucanRelay after all votes have been received.
     /// It can alternatively be called by anyone in the event that the relay runs out of gas but has stored the votes.
     function submitVotes(uint256 _proposalId) public virtual {
-        if (!isProposalIdValid(_proposalId)) revert InvalidProposalId(_proposalId);
-
         // get the current aggregate votes
         Tally memory aggregate = votes[votingPlugin][_proposalId].aggregateVotes;
 
@@ -172,8 +169,7 @@ contract ToucanReceiver is
         if (aggregate.isZero()) revert NoVotesToSubmit(_proposalId);
 
         // send the votes to the plugin
-        // We don't need to run further checks here because the plugin will check the proposal
-        // data and the aggregate votes and we are not updating the state.
+        // We don't need to run further checks here because the plugin will check this for us.
         IToucanVoting(votingPlugin).vote(_proposalId, aggregate, false);
 
         emit SubmitVoteSuccess(_proposalId, address(votingPlugin), aggregate);
@@ -197,17 +193,21 @@ contract ToucanReceiver is
     ) internal override {
         // OAppReceiver checks the origin to ensure that the sender is the endpoint
         // and the original sender is the peer. So we don't need to check it here.
-        // TODO: make sure you test for this though
 
         // deserialize inbound data
         IToucanRelayMessage.ToucanVoteMessage memory decoded = abi.decode(
             _message,
             (IToucanRelayMessage.ToucanVoteMessage)
         );
-
         uint256 votingChainId = decoded.votingChainId;
-        uint256 proposalId = decoded.proposalId;
+        uint256 proposalRef = decoded.proposalRef;
         Tally memory receivedVotes = decoded.votes;
+
+        // check that the passed proposal ref matches all elements of the proposal params
+        if (!isProposalRefValid(proposalRef)) revert InvalidProposalReference(proposalRef);
+
+        // use the proposal id from the reference from here onwards, now we know it's valid
+        uint256 proposalId = proposalRef.getProposalId();
 
         // check if the votes are valid and we can receive them
         (bool success, ErrReason reason) = canReceiveVotes(proposalId, receivedVotes);
@@ -224,7 +224,7 @@ contract ToucanReceiver is
         _receiveVotes(votingChainId, proposalId, receivedVotes);
 
         // attempt to submit to the plugin
-        // If this fails, the votes are still stored and resubmit attempts can be made.
+        // If this fails (i.e. OOG) the votes are still stored and resubmit attempts can be made.
         try this.submitVotes(proposalId) {} catch (bytes memory revertData) {
             emit SubmitVoteFailed({
                 proposalId: proposalId,
@@ -244,7 +244,7 @@ contract ToucanReceiver is
         uint256 _proposalId,
         Tally memory _votes
     ) internal {
-        AggregateTally storage proposalData = votes[_proposalId];
+        AggregateTally storage proposalData = votes[votingPlugin][_proposalId];
         Tally storage chainVotes = proposalData.votesByChain[_votingChainId];
 
         /// remove the existing vote from the aggregate
@@ -266,7 +266,7 @@ contract ToucanReceiver is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Checks if a quanity of votes can be received by a proposal.
-    /// @dev Will check the proposal Id for validity then also check the voting power delegated to this contract.
+    /// @dev Check the proposal is open and that the receiver has enough voting power to make the vote.
     /// @param _proposalId The ID of the proposal to check against.
     /// @param _votes The votes to add to the proposal.
     function canReceiveVotes(
@@ -275,8 +275,8 @@ contract ToucanReceiver is
     ) public view virtual returns (bool, ErrReason) {
         if (_votes.isZero()) {
             return (false, ErrReason.ZeroVotes);
-        } else if (!isProposalIdValid(_proposalId)) {
-            return (false, ErrReason.InvalidProposalId);
+        } else if (!isProposalOpen(_proposalId)) {
+            return (false, ErrReason.ProposalNotOpen);
         } else if (!hasEnoughVotingPowerForNewVotes(_proposalId, _votes)) {
             return (false, ErrReason.InsufficientVotingPower);
         } else {
@@ -284,19 +284,17 @@ contract ToucanReceiver is
         }
     }
 
-    /// @notice Checks if a proposal ID is valid for this contract. Does not check if the proposal exists.
-    /// @param _proposalId The ID of the proposal to check. Should be fetched from the voting plugin.
-    /// @dev Will check the plugin is the voting plugin and the timestamps are valid.
-    function isProposalIdValid(uint256 _proposalId) public view virtual returns (bool) {
-        if (_proposalId.getPlugin() != address(votingPlugin)) return false;
-        else if (!isProposalOpen(_proposalId)) return false;
-        else return true;
+    /// @notice Checks if the data encoded in the proposal reference matches the proposal parameters
+    /// that are stored in the voting plugin, as indicated by the proposal ID.
+    /// @param _proposalRef The encoded proposal reference to validiate.
+    function isProposalRefValid(uint256 _proposalRef) public view virtual returns (bool) {
+        uint256 _proposalId = _proposalRef.getProposalId();
+        return getProposalRef(_proposalId) == _proposalRef;
     }
 
-    /// @notice Checks if a proposal is open for voting based on the current block timestamp.
+    /// @notice Checks the voting plugin to see if a proposal is open.
     function isProposalOpen(uint256 _proposalId) public view virtual returns (bool) {
-        uint32 currentTime = block.timestamp.toUint32();
-        return _proposalId.isOpen(currentTime);
+        return IToucanVoting(votingPlugin).isProposalOpen(_proposalId);
     }
 
     /// @notice Checks if this contract has had enough voting power delegated to accommodate the new votes.
@@ -311,10 +309,8 @@ contract ToucanReceiver is
         uint256 _proposalId,
         Tally memory _votes
     ) public view virtual returns (bool) {
-        uint256 snapshotBlock = getProposalBlockSnapshot(_proposalId);
-
-        // TODO: this is a naive check that assumes a valid snapshot block doesn't include genesis
-        // Maybe there are valid cases where the snapshot block is 0
+        // if no snapshot block exists, we assume the proposal does not exist
+        uint256 snapshotBlock = getProposalParams(_proposalId).snapshotBlock;
         if (snapshotBlock == 0) return false;
 
         // check if adding the new votes will exceed the voting power when the snapshot was taken
@@ -323,7 +319,7 @@ contract ToucanReceiver is
         // skip further checks if there is no voting power
         if (votingPowerAtStart == 0) return false;
 
-        Tally memory currentAggregate = votes[_proposalId].aggregateVotes;
+        Tally memory currentAggregate = votes[votingPlugin][_proposalId].aggregateVotes;
 
         uint256 additionalVotes = _votes.sum();
         uint256 currentVotes = currentAggregate.sum();
@@ -340,16 +336,52 @@ contract ToucanReceiver is
         uint256 _votingChainId,
         uint256 _proposalId
     ) public view returns (Tally memory) {
-        return votes[_proposalId].votesByChain[_votingChainId];
+        return votes[votingPlugin][_proposalId].votesByChain[_votingChainId];
     }
 
-    /// @notice Get the snapshot block for a proposal from the voting plugin.
-    /// @return The snapshot block number or 0 if the proposal does not exist.
-    function getProposalBlockSnapshot(uint256 _proposalId) public view virtual returns (uint256) {
-        (, , IToucanVoting.ProposalParameters memory params, , , ) = votingPlugin.getProposal(
-            _proposalId
-        );
-        return params.snapshotBlock;
+    /// @notice Fetches the last known votes for a proposal on a specific voting chain and for a specific plugin.
+    /// @param _proposalId The ID of the proposal from the execution chain.
+    /// @param _votingChainId The EVM ChainID of the voting chain.
+    /// @param _votingPlugin The address of the voting plugin.
+    /// @dev This requires that the votes have been received and stored, and may not be up to date.
+    function getVotesByChain(
+        uint256 _votingChainId,
+        uint256 _proposalId,
+        address _votingPlugin
+    ) public view returns (Tally memory) {
+        return votes[_votingPlugin][_proposalId].votesByChain[_votingChainId];
+    }
+
+    /// @notice Fetches the proposal parameters from the voting plugin.
+    function getProposalParams(
+        uint256 _proposalId
+    ) public view virtual returns (IToucanVoting.ProposalParameters memory) {
+        (, , IToucanVoting.ProposalParameters memory params, , , ) = IToucanVoting(votingPlugin)
+            .getProposal(_proposalId);
+
+        return params;
+    }
+
+    /// @notice Fetches proposal data from the voting plugin and encodes it into a proposal reference.
+    /// @dev This reference can be used in cross chain voting in place of bridging the proposal data.
+    function getProposalRef(uint256 _proposalId) public view virtual returns (uint256) {
+        IToucanVoting.ProposalParameters memory params = getProposalParams(_proposalId);
+        return getProposalRef(_proposalId, params);
+    }
+
+    /// @notice Uses the proposal parameters to encode a proposal reference.
+    function getProposalRef(
+        uint256 _proposalId,
+        IToucanVoting.ProposalParameters memory _params
+    ) public view virtual returns (uint256) {
+        return
+            ProposalRefEncoder.encode({
+                _proposalId: _proposalId.toUint32(),
+                _plugin: votingPlugin,
+                _proposalStartTimestamp: _params.startDate,
+                _proposalEndTimestamp: _params.endDate,
+                _proposalBlockSnapshotTimestamp: _params.snapshotBlock
+            });
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -361,5 +393,6 @@ contract ToucanReceiver is
     /// As this contract is upgradeable, this can be changed in the future.
     function _authorizeUpgrade(address) internal override auth(OAPP_ADMINISTRATOR_ID) {}
 
+    /// @dev Gap for upgrade storage slots.
     uint256[47] private __gap;
 }
