@@ -24,8 +24,8 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     MockToucanRelay relay;
     DAO dao;
 
-    event VotesDispatched(uint256 indexed proposalId, Tally votes);
-    event VoteCast(uint256 indexed proposalId, address voter, Tally voteOptions);
+    event VoteCast(uint32 dstEid, uint256 indexed proposalRef, address voter, Tally voteOptions);
+    event VotesDispatched(uint32 dstEid, uint256 indexed proposalRef, Tally votes);
 
     function setUp() public virtual {
         // reset timestamps and blocks
@@ -47,7 +47,7 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
             _token: address(token),
             _lzEndpoint: address(lzEndpoint),
             _dao: address(dao),
-            _dstEid: 0,
+            _dstEid: 1,
             _buffer: 0
         });
 

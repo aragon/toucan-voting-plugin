@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console2.sol";
-
 struct ProposalReference {
     uint32 proposalId;
     uint128 plugin;
@@ -60,8 +58,8 @@ library ProposalRefEncoder {
         uint32 _proposalBlockSnapshotTimestamp
     ) internal pure returns (uint256 proposalRef) {
         return
-            (uint256(_proposalId) << 128) |
-            (_plugin << 96) |
+            (uint256(_proposalId) << 224) |
+            (uint256(_plugin) << 96) |
             (uint256(_proposalStartTimestamp) << 64) |
             (uint256(_proposalEndTimestamp) << 32) |
             uint256(_proposalBlockSnapshotTimestamp);
@@ -121,7 +119,7 @@ library ProposalRefEncoder {
 
     /// @return The proposal ID from a proposal reference.
     function getProposalId(uint256 _proposalRef) internal pure returns (uint32) {
-        return uint32(_proposalRef >> 128);
+        return uint32(_proposalRef >> 224);
     }
 
     /// @return The first 128 bits of the plugin address from a proposal reference.

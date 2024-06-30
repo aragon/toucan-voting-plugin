@@ -58,18 +58,29 @@ contract TestToucanRelaySetup is TestHelpers {
 
     function test_noEmptyStrings() public {
         vm.expectRevert(abi.encodeWithSelector(ToucanRelaySetup.InvalidTokenNameOrSymbol.selector));
-        setup.prepareInstallation(address(0), abi.encode(address(lzEndpoint), "", "string"));
+        setup.prepareInstallation(
+            address(0),
+            abi.encode(ToucanRelaySetup.InstallationParams(address(lzEndpoint), "", "string", 0, 0))
+        );
 
         vm.expectRevert(abi.encodeWithSelector(ToucanRelaySetup.InvalidTokenNameOrSymbol.selector));
-        setup.prepareInstallation(address(0), abi.encode(address(lzEndpoint), "string", ""));
+        setup.prepareInstallation(
+            address(0),
+            abi.encode(ToucanRelaySetup.InstallationParams(address(lzEndpoint), "string", "", 0, 0))
+        );
 
         vm.expectRevert(abi.encodeWithSelector(ToucanRelaySetup.InvalidTokenNameOrSymbol.selector));
-        setup.prepareInstallation(address(0), abi.encode(address(lzEndpoint), "", ""));
+        setup.prepareInstallation(
+            address(0),
+            abi.encode(ToucanRelaySetup.InstallationParams(address(lzEndpoint), "", "", 0, 0))
+        );
     }
 
     // prepare installation
     function test_prepareInstallation() public {
-        bytes memory data = abi.encode(address(lzEndpoint), "test", "TEST");
+        bytes memory data = abi.encode(
+            ToucanRelaySetup.InstallationParams(address(lzEndpoint), "test", "TEST", 1, 0)
+        );
 
         (address plugin, IPluginSetup.PreparedSetupData memory preparedData) = setup
             .prepareInstallation(address(dao), data);
@@ -147,7 +158,9 @@ contract TestToucanRelaySetup is TestHelpers {
     }
 
     function test_prepareUninstallation() public {
-        bytes memory data = abi.encode(address(lzEndpoint), "test", "TEST");
+        bytes memory data = abi.encode(
+            ToucanRelaySetup.InstallationParams(address(lzEndpoint), "test", "TEST", 1, 0)
+        );
 
         (address plugin, IPluginSetup.PreparedSetupData memory preparedData) = setup
             .prepareInstallation(address(dao), data);

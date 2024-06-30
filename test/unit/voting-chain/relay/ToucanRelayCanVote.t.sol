@@ -34,6 +34,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions,
         uint32 _warpTo
     ) public {
+        vm.assume(!_voteOptions.overflows() && _voteOptions.sum() > 0);
         // decode existing random proposal id
         uint32 startTs = _proposalRef.getStartTimestamp();
 
@@ -59,6 +60,7 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         Tally memory _voteOptions,
         uint32 _warpTo
     ) public {
+        vm.assume(!_voteOptions.overflows() && _voteOptions.sum() > 0);
         // decode existing random proposal id
         uint32 _endTs = _proposalRef.getEndTimestamp();
 
@@ -76,6 +78,52 @@ contract TestToucanRelayCanVote is ToucanRelayBaseTest {
         assertFalse(canVote);
         assertFalse(relay.isProposalOpen(_proposalRef));
         assertErrEq(reason, ToucanRelay.ErrReason.ProposalNotOpen);
+    }
+
+    function testFuzz_cannotVoteAfterBuffer(
+        uint256 _proposalSeed,
+        address _voter,
+        uint32 _warpTo
+    ) public {
+        uint256 _proposalRef = _makeValidProposalRefFromSeed(_proposalSeed);
+        _warpToValidTs(_proposalRef, _warpTo);
+
+        assertTrue(relay.isProposalOpen(_proposalRef), "Proposal should be open");
+
+        // check we have enough time to brige
+        assertTrue(
+            relay.hasEnoughTimeToBridge(_proposalRef),
+            "Proposal should have enough time to bridge"
+        );
+
+        // set the buffer to JUUUUST enough
+        uint32 endTs = _proposalRef.getEndTimestamp();
+        uint32 timeToFinish = endTs - uint32(block.timestamp);
+
+        relay.setBridgeDelayBuffer(timeToFinish - 1);
+
+        assertTrue(
+            relay.hasEnoughTimeToBridge(_proposalRef),
+            "Proposal should have enough time to bridge"
+        );
+
+        // increment it
+        relay.setBridgeDelayBuffer(timeToFinish);
+
+        assertFalse(
+            relay.hasEnoughTimeToBridge(_proposalRef),
+            "Proposal should not have enough time to bridge"
+        );
+
+        Tally memory _voteOptions = Tally({yes: 1, no: 0, abstain: 0});
+
+        (bool canVote, ToucanRelay.ErrReason reason) = relay.canVote({
+            _proposalRef: _proposalRef,
+            _voter: _voter,
+            _voteOptions: _voteOptions
+        });
+        assertFalse(canVote);
+        assertErrEq(reason, ToucanRelay.ErrReason.NotEnoughTimeToBridge);
     }
 
     // cannot vote if user is trying to vote with zero tokens

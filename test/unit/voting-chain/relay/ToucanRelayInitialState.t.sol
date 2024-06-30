@@ -6,6 +6,7 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
@@ -17,8 +18,6 @@ import {ToucanRelayBaseTest} from "./ToucanRelayBase.t.sol";
 import {ProxyLib} from "@libs/ProxyLib.sol";
 import {MockUpgradeTo} from "@mocks/MockUpgradeTo.sol";
 
-import "forge-std/console2.sol";
-
 /// @dev single chain testing for the relay
 contract TestToucanRelayInitialState is ToucanRelayBaseTest {
     function setUp() public override {
@@ -27,10 +26,13 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
 
     // TODO reentrancy gov token
 
+    event DestinationEidUpdated(uint32 dstEid);
+    event BrigeDelayBufferUpdated(uint32 buffer);
+
     function test_cannotCallImplementation() public {
         ToucanRelay impl = new ToucanRelay();
         vm.expectRevert(initializableError);
-        impl.initialize(address(0), address(lzEndpoint), address(dao),0,0);
+        impl.initialize(address(0), address(lzEndpoint), address(dao), 0, 0);
     }
 
     function testFuzz_initializer(
@@ -44,6 +46,8 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
 
         // token is checked by the relay
         vm.assume(_token != address(0));
+
+        vm.assume(_dstEid > 0);
 
         ToucanRelay constructorRelay = deployToucanRelay({
             _token: _token,
@@ -65,7 +69,7 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         address impl = address(new ToucanRelay());
         bytes memory data = abi.encodeCall(
             ToucanRelay.initialize,
-            (address(0), address(lzEndpoint), _dao, 0, 0)
+            (address(0), address(lzEndpoint), _dao, 1, 0)
         );
 
         vm.expectRevert(abi.encodeWithSelector(ToucanRelay.InvalidToken.selector));
@@ -102,5 +106,54 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         assertEq(relay.implementation(), address(newImplementation));
         assertNotEq(relay.implementation(), oldImplementation);
         assertEq(MockUpgradeTo(address(relay)).v2Upgraded(), true);
+    }
+
+    function test_dstEidRevertsOnZero() public {
+        vm.expectRevert(abi.encodeWithSelector(ToucanRelay.InvalidDestinationEid.selector));
+        relay.setDstEid(0);
+    }
+
+    function testFuzz_canSetDstEid(uint32 _dstEid, address _notThis) public {
+        vm.assume(_notThis != address(this));
+        vm.assume(_dstEid > 0);
+
+        vm.expectEmit(false, false, false, true);
+        emit DestinationEidUpdated(_dstEid);
+        relay.setDstEid(_dstEid);
+
+        assertEq(relay.dstEid(), _dstEid);
+
+        bytes memory data = abi.encodeWithSelector(
+            DaoUnauthorized.selector,
+            address(dao),
+            address(relay),
+            _notThis,
+            relay.OAPP_ADMINISTRATOR_ID()
+        );
+        vm.prank(_notThis);
+        vm.expectRevert(data);
+        relay.setDstEid(_dstEid);
+    }
+
+    function testFuzz_canSetBuffer(uint32 _buffer, address _notThis) public {
+        vm.assume(_notThis != address(this));
+
+        vm.expectEmit(false, false, false, true);
+        emit BrigeDelayBufferUpdated(_buffer);
+        relay.setBridgeDelayBuffer(_buffer);
+
+        assertEq(relay.buffer(), _buffer);
+
+        bytes memory data = abi.encodeWithSelector(
+            DaoUnauthorized.selector,
+            address(dao),
+            address(relay),
+            _notThis,
+            relay.OAPP_ADMINISTRATOR_ID()
+        );
+
+        vm.prank(_notThis);
+        vm.expectRevert(data);
+        relay.setBridgeDelayBuffer(_buffer);
     }
 }

@@ -20,8 +20,6 @@ import {MockToucanReceiver, MockToucanReceiverCanReceivePass} from "@mocks/MockT
 import "@utils/deployers.sol";
 import {ToucanReceiverBaseTest} from "./ToucanReceiverBase.t.sol";
 
-import "forge-std/Test.sol";
-
 contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMessage {
     using ProposalRefEncoder for uint256;
     using ProposalRefEncoder for ProposalReference;
@@ -44,32 +42,39 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
     // stores the votes if submitVotes fails and emits the event
     function testFuzz_storesVotesIfSubmitFails(
         uint _votingChainId,
-        uint _proposaRef,
+        uint _proposalRef,
         bytes memory _reason,
         Tally memory _votes
     ) public {
         vm.assume(!_votes.isZero());
+
+        // assume we have a valid ref
+        (bool ok, ) = address(receiver).call(abi.encodeWithSignature("setRefValid(bool)", true));
+        assertTrue(ok, "setRefValid failed");
+
+        uint256 proposalId = _proposalRef.getProposalId();
 
         // submit votes reverts
         // This only works on calls not called as part of function execution
         // OR (in our case) when we use this.method() instead of method()
         vm.mockCallRevert({
             callee: address(receiver),
-            data: abi.encodeCall(receiver.submitVotes, (_proposaRef)),
+            data: abi.encodeCall(receiver.submitVotes, (proposalId)),
             revertData: _reason
         });
 
         ToucanVoteMessage memory message = ToucanVoteMessage({
             votingChainId: _votingChainId,
-            proposalRef: _proposaRef,
+            proposalRef: _proposalRef,
             votes: _votes
         });
 
         // call the function
         vm.expectEmit(false, false, false, true);
         emit SubmitVoteFailed({
+            proposalId: proposalId,
             votingChainId: _votingChainId,
-            proposalId: _proposaRef,
+            plugin: address(plugin),
             votes: _votes,
             revertData: _reason
         });
@@ -77,22 +82,40 @@ contract TestToucanReceiverLzReceive is ToucanReceiverBaseTest, IToucanRelayMess
         Origin memory o;
         receiver._lzReceive(abi.encode(message), o, bytes(""));
 
-        // check the votes are stored
-        Tally memory totalVotes = receiver.votes(_proposaRef);
-        Tally memory chainVotes = receiver.votes(_votingChainId, _proposaRef);
+        // check the votes are stored_proposaId
+        Tally memory totalVotes = receiver.votes(proposalId);
+        Tally memory chainVotes = receiver.votes(proposalId, _votingChainId);
 
         assertTrue(totalVotes.eq(_votes));
         assertTrue(chainVotes.eq(_votes));
     }
 
+    function test_revertsIfInvalidRef(uint256 _proposalRef) public {
+        bytes memory revertData = abi.encodeWithSelector(
+            ToucanReceiver.InvalidProposalReference.selector,
+            _proposalRef
+        );
+
+        bytes memory message = abi.encode(
+            ToucanVoteMessage({votingChainId: 0, proposalRef: _proposalRef, votes: Tally(0, 0, 0)})
+        );
+
+        Origin memory o;
+
+        vm.expectRevert(revertData);
+        receiver._lzReceive(message, o, bytes(""));
+    }
+
     function test_revertsIfCannotReceiveVotes() public {
-        // we need the real receiver in this case
-        receiver = deployMockToucanReceiver({
-            _governanceToken: address(token),
-            _lzEndpoint: address(lzEndpoint),
-            _dao: address(dao),
-            _votingPlugin: address(plugin)
-        });
+        // use the real canreceive logic
+        (bool ok, ) = address(receiver).call(
+            abi.encodeWithSignature("setUseCanReceiveVotes(bool)", true)
+        );
+        assertTrue(ok, "setUseCanReceiveVotes failed");
+
+        // assume valid ref
+        (ok, ) = address(receiver).call(abi.encodeWithSignature("setRefValid(bool)", true));
+        assertTrue(ok, "setRefValid failed");
 
         bytes memory revertData = abi.encodeWithSelector(
             ToucanReceiver.CannotReceiveVotes.selector,

@@ -21,6 +21,20 @@ import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20Vot
 contract ToucanRelaySetup is PluginSetup {
     using ProxyLib for address;
 
+    /// @notice The parameters required to install the `ToucanRelay` plugin.
+    /// @param lzEndpoint The address of the LayerZero endpoint on this chain.
+    /// @param dstEid The destination chain EID that the relay will initially be pointed to.
+    /// @param votingBridgeBuffer Time before the vote closes to cut off votes to allow for bridging.
+    /// @param tokenName The name that will be used for the voting token.
+    /// @param tokenSymbol The symbol that will be used for the voting token.
+    struct InstallationParams {
+        address lzEndpoint;
+        string tokenName;
+        string tokenSymbol;
+        uint32 dstEid;
+        uint32 votingBridgeBuffer;
+    }
+
     /// @notice Thrown if the token name or symbol is empty.
     error InvalidTokenNameOrSymbol();
 
@@ -67,29 +81,30 @@ contract ToucanRelaySetup is PluginSetup {
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         // decode the data
-        (address lzEndpoint, string memory tokenName, string memory tokenSymbol) = abi.decode(
-            _data,
-            (address, string, string)
-        );
+        InstallationParams memory params = abi.decode(_data, (InstallationParams));
 
         // check the token name and symbol are not empty
-        if (isEmpty(tokenName) || isEmpty(tokenSymbol)) revert InvalidTokenNameOrSymbol();
+        if (isEmpty(params.tokenName) || isEmpty(params.tokenSymbol))
+            revert InvalidTokenNameOrSymbol();
 
         // deploy the voting token, bridge and relay
         address token = votingTokenBase.deployUUPSProxy(
             abi.encodeCall(
                 GovernanceERC20VotingChain.initialize,
-                (IDAO(_dao), tokenName, tokenSymbol)
+                (IDAO(_dao), params.tokenName, params.tokenSymbol)
             )
         );
 
         address bridge = bridgeBase.deployUUPSProxy(
-            abi.encodeCall(OFTTokenBridge.initialize, (token, lzEndpoint, _dao))
+            abi.encodeCall(OFTTokenBridge.initialize, (token, params.lzEndpoint, _dao))
         );
 
-        // plugin = relayBase.deployUUPSProxy(
-        //     abi.encodeCall(ToucanRelay.initialize, (token, lzEndpoint, _dao))
-        // );
+        plugin = relayBase.deployUUPSProxy(
+            abi.encodeCall(
+                ToucanRelay.initialize,
+                (token, params.lzEndpoint, _dao, params.dstEid, params.votingBridgeBuffer)
+            )
+        );
 
         // setup permissions
         PermissionLib.MultiTargetPermission[]

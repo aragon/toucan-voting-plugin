@@ -42,12 +42,31 @@ contract MockToucanReceiver is ToucanReceiver {
 
 // This contract is used when we need to bypass canReceiveVotes checks
 contract MockToucanReceiverCanReceivePass is MockToucanReceiver {
+    bool refValid;
+    bool useCanReceiveVotes = false;
+
     constructor() {}
 
+    function setRefValid(bool _refValid) public {
+        refValid = _refValid;
+    }
+
+    function setUseCanReceiveVotes(bool _useCanReceiveVotes) public {
+        useCanReceiveVotes = _useCanReceiveVotes;
+    }
+
+    function isProposalRefValid(uint256) public view override returns (bool) {
+        return refValid;
+    }
+
     function canReceiveVotes(
-        uint256,
-        Tally memory
-    ) public pure override returns (bool, ToucanReceiver.ErrReason) {
+        uint256 _proposalId,
+        Tally memory tally
+    ) public view override returns (bool, ToucanReceiver.ErrReason) {
+        if (useCanReceiveVotes) {
+            return super.canReceiveVotes(_proposalId, tally);
+        }
+
         return (true, ErrReason.None);
     }
 }

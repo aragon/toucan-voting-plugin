@@ -44,7 +44,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
         });
     }
 
-    function testFuzz_quote(uint _proposalId, uint32 _dstEid, uint128 _gasLimit) public view {
+    function testFuzz_quote(uint _proposalRef, uint128 _gasLimit) public view {
         ToucanRelay.LzSendParams memory expectedParams = ToucanRelay.LzSendParams({
             gasLimit: _gasLimit,
             fee: MessagingFee(100, 0),
@@ -54,13 +54,13 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
             })
         });
 
-        ToucanRelay.LzSendParams memory params = relay.quote(_proposalId, _gasLimit);
+        ToucanRelay.LzSendParams memory params = relay.quote(_proposalRef, _gasLimit);
 
         assertEq(keccak256(abi.encode(params)), keccak256(abi.encode(expectedParams)));
     }
 
     function testFuzz_revertsIfCannotDispatch(
-        uint _proposalId,
+        uint _proposalRef,
         ToucanRelay.LzSendParams memory _params
     ) public {
         // this requires the correct mock
@@ -72,26 +72,29 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
 
         bytes memory revertData = abi.encodeWithSelector(
             ToucanRelay.CannotDispatch.selector,
-            _proposalId,
+            _proposalRef,
             ToucanRelay.ErrReason.None
         );
 
         vm.expectRevert(revertData);
-        relay.dispatchVotes(_proposalId, _params);
+        relay.dispatchVotes(_proposalRef, _params);
     }
 
     function testFuzz_emitsEventOnDispatch(
-        uint _proposalId,
+        uint _proposalRef,
         ToucanRelay.LzSendParams memory _params,
         uint32 _dstEid,
         Tally memory _votes,
         address _peerAddress
     ) public {
         vm.assume(_peerAddress != address(0));
+        vm.assume(_dstEid > 0);
+        
         // force the fee to be 100 in native only
         _params.fee = MessagingFee(100, 0);
 
         relay.setPeer(_dstEid, addressToBytes32(_peerAddress));
+        relay.setDstEid(_dstEid);
 
         // this requires the correct mock
         (bool success, ) = address(relay).call(
@@ -100,11 +103,11 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
 
         assertTrue(success, "setAllowDispatch failed");
 
-        relay.setProposalState(_proposalId, _votes);
+        relay.setProposalState(_proposalRef, _votes);
 
         vm.expectEmit(true, false, false, true);
-        emit VotesDispatched(_proposalId, _votes);
-        relay.dispatchVotes{value: 100}(_proposalId, _params);
+        emit VotesDispatched(_dstEid, _proposalRef, _votes);
+        relay.dispatchVotes{value: 100}(_proposalRef, _params);
 
         // check the state sent was as expected
         MockToucanRelayLzMock.LzSendReceived memory receipt = MockToucanRelayLzMock(address(relay))
@@ -118,7 +121,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
         bytes memory expectedMessage = abi.encode(
             IToucanRelayMessage.ToucanVoteMessage({
                 votingChainId: relay.chainId(),
-                proposalRef: _proposalId,
+                proposalRef: _proposalRef,
                 votes: _votes
             })
         );

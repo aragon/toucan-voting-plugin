@@ -129,6 +129,10 @@ contract MockToucanProposal {
         allowFailureMap = proposal_.allowFailureMap;
     }
 
+    function isProposalOpen(uint256 _proposalId) public view returns (bool) {
+        return _isProposalOpen(proposals[_proposalId]);
+    }
+
     function _isProposalOpen(IToucanVoting.Proposal storage) internal view returns (bool) {
         return open_;
     }

@@ -31,10 +31,15 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
 
     function setUp() public override {
         super.setUp();
+
+        dao.grant({
+            _who: address(this),
+            _where: address(receiver),
+            _permissionId: receiver.OAPP_ADMINISTRATOR_ID()
+        });
     }
 
-    function testFuzz_canReceiveRevertsOnZeroVotes(uint _proposalSeed) public view {
-        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
+    function testFuzz_canReceiveRevertsOnZeroVotes(uint256 _proposalId) public view {
         Tally memory _votes = Tally(0, 0, 0);
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
@@ -44,9 +49,12 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         assertErrEq(reason, ToucanReceiver.ErrReason.ZeroVotes);
     }
 
-    function testFuzz_canReceiveRevertsOnInvalidProposalId(Tally memory _votes) public view {
+    function testFuzz_canReceiveRevertsOnInvalidProposalId(
+        uint256 _proposalId,
+        Tally memory _votes
+    ) public {
         vm.assume(!_votes.isZero());
-        uint _proposalId = ProposalRefEncoder.encode(0, address(0), 1, 0, 0);
+        plugin.setOpen(false);
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
             _votes
@@ -56,23 +64,14 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
     }
 
     function testFuzz_canReceiveRevertsOnInsufficientVotingPower(
-        uint _proposalSeed,
+        uint _proposalId,
         Tally memory _votes
     ) public {
         vm.assume(!_votes.isZero());
         vm.assume(!_votes.overflows());
         vm.assume(_votes.sum() > 0);
-        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
 
-        // write the voting plugin address to the proposal id
-        ProposalReference memory p = _proposalId.toStruct();
-        p.plugin = addressToUint128(address(plugin));
-        _proposalId = p.fromStruct();
-
-        // set to the right opening time
-        uint32 openingTime = _proposalId.getStartTimestamp();
-        vm.warp(openingTime + 1);
-
+        plugin.setOpen(true);
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
             _votes
@@ -82,7 +81,7 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
     }
 
     // same as above but we need to ensure the voting power is sufficient
-    function testFuzz_canReceiveVotesSuccess(uint _proposalSeed, Tally memory _votes) public {
+    function testFuzz_canReceiveVotesSuccess(uint _proposalId, Tally memory _votes) public {
         vm.assume(!_votes.isZero());
         vm.assume(!_votes.overflows());
         vm.assume(_votes.sum() > 0);
@@ -91,21 +90,13 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
         // delegate some voting power to the receiver
         token.mint(address(receiver), _votes.sum());
 
-        // create a valid proposal id
-        uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
-
-        // write the voting plugin address to the proposal id
-        ProposalReference memory p = _proposalId.toStruct();
-        p.plugin = addressToUint128(address(plugin));
-        _proposalId = p.fromStruct();
+        plugin.setOpen(true);
 
         // set the correct snapshot block on the proposal id to not be 0
         plugin.setSnapshotBlock(_proposalId, 1);
 
         // set to the right opening time
-        uint32 openingTime = _proposalId.getStartTimestamp();
         vm.roll(2); // this allows for lookup @ time == 1
-        vm.warp(openingTime + 1);
 
         (bool success, ToucanReceiver.ErrReason reason) = receiver.canReceiveVotes(
             _proposalId,
@@ -132,13 +123,13 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
 
         // receive votes
         vm.expectEmit(false, false, false, true);
-        emit VotesReceived(_votingChainIds[0], _proposalIds[0], v0);
-        receiver.receiveVotes(_votingChainIds[0], _proposalIds[0], v0);
+        emit VotesReceived(_proposalIds[0], _votingChainIds[0], address(plugin), v0);
+        receiver.receiveVotes(_proposalIds[0], _votingChainIds[0], v0);
 
         // receive votes
         vm.expectEmit(false, false, false, true);
-        emit VotesReceived(_votingChainIds[1], _proposalIds[1], v1);
-        receiver.receiveVotes(_votingChainIds[1], _proposalIds[1], v1);
+        emit VotesReceived(_proposalIds[1], _votingChainIds[1], address(plugin), v1);
+        receiver.receiveVotes(_proposalIds[1], _votingChainIds[1], v1);
 
         // get the votes
         Tally memory aggregateVotesP0 = receiver.votes(_proposalIds[0]);
@@ -162,19 +153,19 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
                 assertFalse(aggregateVotesP0.eq(aggregateVotesP1));
             }
 
-            assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v0));
-            assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
+            assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[0]).eq(v0));
+            assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[1]).eq(v1));
 
             // if the voting chains are equal then v{x} corresponds to proposalId
             if (votingChainsEqual) {
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v0));
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[1]).eq(v0));
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[0]).eq(v1));
             }
 
             // else these should have no data
             if (!votingChainsEqual) {
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).isZero());
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).isZero());
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[1]).isZero());
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[0]).isZero());
             }
         }
 
@@ -189,22 +180,58 @@ contract TestToucanReceiverReceive is ToucanReceiverBaseTest {
             if (!votingChainsEqual) {
                 assertTrue(aggregateVotesP0.eq(v0.add(v1)));
 
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v0));
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[0]).eq(v0));
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[1]).eq(v1));
 
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v0));
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[0]).eq(v0));
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[1]).eq(v1));
             }
 
             if (votingChainsEqual) {
                 assertTrue(aggregateVotesP0.eq(v1));
 
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[0]).eq(v1));
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[1]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[0]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[1]).eq(v1));
 
-                assertTrue(receiver.votes(_votingChainIds[0], _proposalIds[1]).eq(v1));
-                assertTrue(receiver.votes(_votingChainIds[1], _proposalIds[0]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[0], _votingChainIds[1]).eq(v1));
+                assertTrue(receiver.votes(_proposalIds[1], _votingChainIds[0]).eq(v1));
             }
         }
+    }
+
+    function testFuzz_receiveVotesAgainstAnotherPlugin(
+        uint[2] memory _votingChainIds,
+        uint[2] memory _proposalIds,
+        Tally memory _votes,
+        address _plugin,
+        uint8 _divisor
+    ) public {
+        vm.assume(!_votes.overflows());
+        vm.assume(_divisor != 0);
+        vm.assume(_plugin != address(plugin));
+
+        // divide votes into 2 parts
+        Tally memory v0 = _votes.div(_divisor);
+        Tally memory v1 = _votes.sub(v0);
+
+        // receive votes
+        vm.expectEmit(false, false, false, true);
+        emit VotesReceived(_proposalIds[0], _votingChainIds[0], address(plugin), v0);
+        receiver.receiveVotes(_proposalIds[0], _votingChainIds[0], v0);
+
+        receiver.setVotingPlugin(_plugin);
+
+        // receive votes
+        vm.expectEmit(false, false, false, true);
+        emit VotesReceived(_proposalIds[1], _votingChainIds[1], _plugin, v1);
+        receiver.receiveVotes(_proposalIds[1], _votingChainIds[1], v1);
+
+        // get the votes
+        Tally memory votesP0 = receiver.votes(_proposalIds[0], _votingChainIds[0], address(plugin));
+        Tally memory votesP1 = receiver.votes(_proposalIds[1], _votingChainIds[1], _plugin);
+
+        // check they get stored correctly
+        assertEq(votesP0.sum(), v0.sum());
+        assertEq(votesP1.sum(), v1.sum());
     }
 }

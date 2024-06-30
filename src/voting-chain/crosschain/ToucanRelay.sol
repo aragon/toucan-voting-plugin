@@ -116,6 +116,9 @@ contract ToucanRelay is
     /// @notice Thrown if the token address is zero.
     error InvalidToken();
 
+    /// @notice Thrown if the destination chain ID is zero.
+    error InvalidDestinationEid();
+
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
     /// ---------- EVENTS --------
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -170,6 +173,7 @@ contract ToucanRelay is
 
     /// @dev Internal function to set the destination chain ID and emit an event.
     function _setDstEid(uint32 _dstEid) internal {
+        if (_dstEid == 0) revert InvalidDestinationEid();
         dstEid = _dstEid;
         emit DestinationEidUpdated(_dstEid);
     }
@@ -296,7 +300,7 @@ contract ToucanRelay is
         // Check the proposal is open as defined by the timestamps in the proposal ID
         if (!isProposalOpen(_proposalRef)) return (false, ErrReason.ProposalNotOpen);
 
-        // Check if the proposal has enough time to bridge
+        // Check if the proposal has enough time remaining to dispatch a xchain vote
         if (!hasEnoughTimeToBridge(_proposalRef)) return (false, ErrReason.NotEnoughTimeToBridge);
 
         // this could re-enter with a malicious governance token

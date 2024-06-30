@@ -26,15 +26,21 @@ interface IToucanReceiverEvents {
 
     /// @notice Emitted when votes are received from the ToucanRelay and the local state updated.
     /// @dev Does not necessarily mean the votes have been submitted to the voting plugin.
-    event VotesReceived(uint256 votingChainId, uint256 proposalId, IVoteContainer.Tally votes);
+    event VotesReceived(
+        uint256 proposalId,
+        uint256 votingChainId,
+        address plugin,
+        IVoteContainer.Tally votes
+    );
 
     /// @notice Emitted when votes are successfully submitted to the voting plugin.
     event SubmitVoteSuccess(uint256 proposalId, address plugin, IVoteContainer.Tally votes);
 
     /// @notice Emitted when a vote is successfully received from the ToucanRelay but cannot be submitted to the plugin.
     event SubmitVoteFailed(
-        uint256 votingChainId,
         uint256 proposalId,
+        uint256 votingChainId,
+        address plugin,
         IVoteContainer.Tally votes,
         bytes revertData
     );
@@ -100,8 +106,8 @@ contract ToucanReceiver is
 
     /// @notice Thrown if the receiver cannot receive votes for a proposal and thus cannot adjust the vote.
     error CannotReceiveVotes(
-        uint256 votingChainId,
         uint256 proposalId,
+        uint256 votingChainId,
         Tally votes,
         ErrReason reason
     );
@@ -213,15 +219,19 @@ contract ToucanReceiver is
         (bool success, ErrReason reason) = canReceiveVotes(proposalId, receivedVotes);
         if (!success) {
             revert CannotReceiveVotes({
-                votingChainId: votingChainId,
                 proposalId: proposalId,
+                votingChainId: votingChainId,
                 votes: receivedVotes,
                 reason: reason
             });
         }
 
         // update our local state
-        _receiveVotes(votingChainId, proposalId, receivedVotes);
+        _receiveVotes({
+            _proposalId: proposalId,
+            _votingChainId: votingChainId,
+            _tally: receivedVotes
+        });
 
         // attempt to submit to the plugin
         // If this fails (i.e. OOG) the votes are still stored and resubmit attempts can be made.
@@ -229,6 +239,7 @@ contract ToucanReceiver is
             emit SubmitVoteFailed({
                 proposalId: proposalId,
                 votingChainId: votingChainId,
+                plugin: votingPlugin,
                 votes: receivedVotes,
                 revertData: revertData
             });
@@ -236,12 +247,12 @@ contract ToucanReceiver is
     }
 
     /// @dev Internal function to receive votes from the ToucanRelay and update the local state.
-    /// @param _votingChainId The EVM ChainID of the voting chain.
     /// @param _proposalId The ID of the proposal from the execution chain.
+    /// @param _votingChainId The EVM ChainID of the voting chain.
     /// @param _tally The votes from the voting chain to be added to the proposal.
     function _receiveVotes(
-        uint256 _votingChainId,
         uint256 _proposalId,
+        uint256 _votingChainId,
         Tally memory _tally
     ) internal {
         AggregateTally storage proposalData = _votes[votingPlugin][_proposalId];
@@ -258,7 +269,12 @@ contract ToucanReceiver is
         chainVotes.yes = _tally.yes;
         chainVotes.no = _tally.no;
 
-        emit VotesReceived({proposalId: _proposalId, votingChainId: _votingChainId, votes: _tally});
+        emit VotesReceived({
+            proposalId: _proposalId,
+            votingChainId: _votingChainId,
+            plugin: votingPlugin,
+            votes: _tally
+        });
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

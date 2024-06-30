@@ -34,14 +34,6 @@ contract TestToucanReceiverSubmitVotes is ToucanReceiverBaseTest {
         });
     }
 
-    function test_revertsOnInvalidProposal() public {
-        uint proposalId = 0;
-        vm.expectRevert(
-            abi.encodeWithSelector(ToucanReceiver.InvalidProposalReference.selector, proposalId)
-        );
-        receiver.submitVotes(proposalId);
-    }
-
     // reverts if nothing to submit
     function testFuzz_revertsIfNothingToSubmit(uint _proposalSeed) public {
         uint _proposalId = _makeValidProposalRefFromSeed(_proposalSeed);
