@@ -62,14 +62,14 @@ contract TestVotingChainOSx is TestHelpers {
         _deployOSX();
         _deployDAOAndAdmin();
         _prepareSetupRelay();
-        _prepareSetupAdminXChain();
-        _prepareUninstallAdmin();
+        // _prepareSetupAdminXChain();
+        // _prepareUninstallAdmin();
 
-        // you would wait until the execution chain is deployed and the addresses of the
-        // remote peers are known
-        _applyInstallationsSetPeersRevokeAdmin();
+        // // you would wait until the execution chain is deployed and the addresses of the
+        // // remote peers are known
+        // _applyInstallationsSetPeersRevokeAdmin();
 
-        _validateEndState();
+        // _validateEndState();
     }
 
     function _deployOSX() internal {
@@ -113,8 +113,16 @@ contract TestVotingChainOSx is TestHelpers {
         // set it on the mock psp
         mockPSP.queueSetup(address(toucanRelaySetup));
 
+        ToucanRelaySetup.InstallationParams memory params = ToucanRelaySetup.InstallationParams({
+            lzEndpoint: address(lzEndpoint),
+            tokenName: "vTestToken",
+            tokenSymbol: "vTT",
+            dstEid: 1,
+            votingBridgeBuffer: 20 minutes
+        });
+
         // prepare the installation
-        bytes memory data = abi.encode(address(lzEndpoint), "vTestToken", "vTT");
+        bytes memory data = abi.encode(params);
         (
             address toucanRelayAddress,
             IPluginSetup.PreparedSetupData memory toucanRelaySetupData

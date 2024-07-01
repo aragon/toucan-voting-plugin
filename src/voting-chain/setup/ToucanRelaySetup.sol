@@ -25,6 +25,7 @@ contract ToucanRelaySetup is PluginSetup {
     /// @param lzEndpoint The address of the LayerZero endpoint on this chain.
     /// @param dstEid The destination chain EID that the relay will initially be pointed to.
     /// @param votingBridgeBuffer Time before the vote closes to cut off votes to allow for bridging.
+    /// @dev Example: If Arb -> mainnet takes 2 - 10 minutes, close voting on Arb 10 minutes before the vote ends.
     /// @param tokenName The name that will be used for the voting token.
     /// @param tokenSymbol The symbol that will be used for the voting token.
     struct InstallationParams {
