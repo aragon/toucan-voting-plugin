@@ -381,16 +381,6 @@ contract ToucanReceiver is
         return getProposalRef(_proposalId, params);
     }
 
-    /// @notice Fetches the proposal parameters from the voting plugin.
-    function getProposalParams(
-        uint256 _proposalId
-    ) public view virtual returns (IToucanVoting.ProposalParameters memory) {
-        (, , IToucanVoting.ProposalParameters memory params, , , ) = IToucanVoting(votingPlugin)
-            .getProposal(_proposalId);
-
-        return params;
-    }
-
     /// @notice Uses the proposal parameters to encode a proposal reference.
     function getProposalRef(
         uint256 _proposalId,
@@ -404,6 +394,16 @@ contract ToucanReceiver is
                 _proposalEndTimestamp: _params.endDate,
                 _proposalBlockSnapshotTimestamp: _params.snapshotTimestamp
             });
+    }
+
+    /// @notice Fetches the proposal parameters from the voting plugin.
+    function getProposalParams(
+        uint256 _proposalId
+    ) public view virtual returns (IToucanVoting.ProposalParameters memory) {
+        (, , IToucanVoting.ProposalParameters memory params, , , ) = IToucanVoting(votingPlugin)
+            .getProposal(_proposalId);
+
+        return params;
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
