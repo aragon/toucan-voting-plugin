@@ -387,15 +387,15 @@ contract TestToucanVotingSetup is TestHelpers {
 }
 
 contract MockMinimalCustomVotes {
-    function getVotes(address _account) public view returns (uint256) {
+    function getVotes(address ) public pure returns (uint256) {
         return 0;
     }
 
-    function getPastTotalSupply(uint256 _block) public view returns (uint256) {
+    function getPastTotalSupply(uint256 ) public pure returns (uint256) {
         return 0;
     }
 
-    function getPastVotes(address _account, uint256 _block) public view returns (uint256) {
+    function getPastVotes(address , uint256 ) public pure returns (uint256) {
         return 0;
     }
 }

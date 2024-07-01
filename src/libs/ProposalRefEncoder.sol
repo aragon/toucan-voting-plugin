@@ -24,7 +24,7 @@ struct ProposalReference {
 /// Also note that if voting cross chain, there is a bridging delay to consider.
 library ProposalRefEncoder {
     /// @notice Encodes a proposal reference from the given parameters.
-    /// @param _proposalId The ID of the proposal.
+    /// @param _proposalId The ID of the proposal. Must be less than 2^32.
     /// @param _plugin The address of the plugin that created the proposal.
     /// @param _proposalStartTimestamp The timestamp when the proposal voting starts.
     /// @param _proposalEndTimestamp The timestamp when the proposal voting ends.
@@ -39,7 +39,7 @@ library ProposalRefEncoder {
     ) internal pure returns (uint256 proposalRef) {
         uint128 truncatedAddress = uint128(uint160(_plugin));
         return
-            encode(
+            _encode(
                 _proposalId,
                 truncatedAddress,
                 _proposalStartTimestamp,
@@ -50,7 +50,7 @@ library ProposalRefEncoder {
 
     /// @notice Encodes a proposal reference from the given parameters.
     /// @dev This function accepts the first 128 bits of the plugin address instead of the full address.
-    function encode(
+    function _encode(
         uint32 _proposalId,
         uint128 _plugin,
         uint32 _proposalStartTimestamp,
@@ -108,7 +108,7 @@ library ProposalRefEncoder {
     /// @notice Converts a proposal reference struct into a 256-bit encoded value.
     function fromStruct(ProposalReference memory _proposalRef) internal pure returns (uint256) {
         return
-            encode(
+            _encode(
                 _proposalRef.proposalId,
                 _proposalRef.plugin,
                 _proposalRef.startTimestamp,

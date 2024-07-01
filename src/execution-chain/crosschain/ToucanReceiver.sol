@@ -374,6 +374,13 @@ contract ToucanReceiver is
         return _votes[_votingPlugin][_proposalId].votesByChain[_votingChainId];
     }
 
+    /// @notice Fetches proposal data from the voting plugin and encodes it into a proposal reference.
+    /// @dev This reference can be used in cross chain voting in place of bridging the proposal data.
+    function getProposalRef(uint256 _proposalId) public view virtual returns (uint256) {
+        IToucanVoting.ProposalParameters memory params = getProposalParams(_proposalId);
+        return getProposalRef(_proposalId, params);
+    }
+
     /// @notice Fetches the proposal parameters from the voting plugin.
     function getProposalParams(
         uint256 _proposalId
@@ -382,13 +389,6 @@ contract ToucanReceiver is
             .getProposal(_proposalId);
 
         return params;
-    }
-
-    /// @notice Fetches proposal data from the voting plugin and encodes it into a proposal reference.
-    /// @dev This reference can be used in cross chain voting in place of bridging the proposal data.
-    function getProposalRef(uint256 _proposalId) public view virtual returns (uint256) {
-        IToucanVoting.ProposalParameters memory params = getProposalParams(_proposalId);
-        return getProposalRef(_proposalId, params);
     }
 
     /// @notice Uses the proposal parameters to encode a proposal reference.
@@ -402,7 +402,7 @@ contract ToucanReceiver is
                 _plugin: votingPlugin,
                 _proposalStartTimestamp: _params.startDate,
                 _proposalEndTimestamp: _params.endDate,
-                _proposalBlockSnapshotTimestamp: _params.snapshotBlock
+                _proposalBlockSnapshotTimestamp: _params.snapshotTimestamp
             });
     }
 

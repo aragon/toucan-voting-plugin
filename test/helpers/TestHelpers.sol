@@ -61,7 +61,7 @@ contract TestHelpers is Test {
         }
 
         // now write it back
-        uint256 proposalRef = ProposalRefEncoder.encode(
+        uint256 proposalRef = ProposalRefEncoder._encode(
             proposalId,
             plugin,
             _startTs,

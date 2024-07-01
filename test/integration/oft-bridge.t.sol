@@ -41,8 +41,6 @@ contract TestXChainOFTBridge is TestHelper {
     uint32 constant EID_VOTING_CHAIN = 2;
 
     function setUp() public override {
-        // no need to super the testHelper as it does nothing in its own setup
-
         // deploy the DAO
         dao = address(new MockDAO());
     }
