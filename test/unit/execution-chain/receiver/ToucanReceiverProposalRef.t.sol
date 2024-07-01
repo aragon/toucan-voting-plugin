@@ -50,8 +50,8 @@ contract TestToucanReceiverProposalRef is ToucanReceiverBaseTest {
                 supportThreshold: 0,
                 startDate: _startTs,
                 endDate: _endTs,
-                snapshotBlock: _blockTs,
-                snapshotTimestamp: 0,
+                snapshotBlock: 0,
+                snapshotTimestamp: _blockTs,
                 minVotingPower: 0
             })
         );
