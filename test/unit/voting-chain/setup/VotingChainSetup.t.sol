@@ -62,14 +62,14 @@ contract TestVotingChainOSx is TestHelpers {
         _deployOSX();
         _deployDAOAndAdmin();
         _prepareSetupRelay();
-        // _prepareSetupAdminXChain();
-        // _prepareUninstallAdmin();
+        _prepareSetupAdminXChain();
+        _prepareUninstallAdmin();
 
-        // // you would wait until the execution chain is deployed and the addresses of the
-        // // remote peers are known
-        // _applyInstallationsSetPeersRevokeAdmin();
+        // you would wait until the execution chain is deployed and the addresses of the
+        // remote peers are known
+        _applyInstallationsSetPeersRevokeAdmin();
 
-        // _validateEndState();
+        _validateEndState();
     }
 
     function _deployOSX() internal {

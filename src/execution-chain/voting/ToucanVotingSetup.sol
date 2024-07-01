@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.8;
 
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
@@ -17,12 +16,9 @@ import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
+import {ProxyLib} from "@libs/ProxyLib.sol";
 import {ToucanVoting} from "./ToucanVoting.sol";
 import {IToucanVoting} from "./IToucanVoting.sol";
-
-import {ProxyLib} from "@libs/ProxyLib.sol";
-
-// import "hardhat/console.sol";
 
 /// @title ToucanVotingSetup
 /// @author Aragon X - 2022-2023
@@ -31,12 +27,10 @@ import {ProxyLib} from "@libs/ProxyLib.sol";
 /// @custom:security-contact sirt@aragon.org
 contract ToucanVotingSetup is PluginSetup {
     using Address for address;
-    using Clones for address;
     using ERC165Checker for address;
     using ProxyLib for address;
 
     /// @notice The identifier of the `EXECUTE_PERMISSION` permission.
-    /// @dev TODO: Migrate this constant to a common library that can be shared across plugins.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
     /// @notice The address of the `ToucanVoting` base contract.
@@ -63,11 +57,9 @@ contract ToucanVotingSetup is PluginSetup {
     }
 
     /// @notice Thrown if token address is passed which is not a token.
-    /// @param token The token address
     error TokenNotContract(address token);
 
     /// @notice Thrown if token address is not ERC20.
-    /// @param token The token address
     error TokenNotERC20(address token);
 
     /// @notice Thrown if passed helpers array is of wrong length.
@@ -89,6 +81,7 @@ contract ToucanVotingSetup is PluginSetup {
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
     }
 
+    /// @return The address of the `ToucanVoting` implementation contract.
     function implementation() external view returns (address) {
         return address(tokenVotingBase);
     }
@@ -104,56 +97,48 @@ contract ToucanVotingSetup is PluginSetup {
             IToucanVoting.VotingSettings memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20(token is not passed)
-            GovernanceERC20.MintSettings memory mintSettings,
-            bool bypassTokenValidation
+            GovernanceERC20.MintSettings memory mintSettings
         ) = abi.decode(
                 _data,
-                (IToucanVoting.VotingSettings, TokenSettings, GovernanceERC20.MintSettings, bool)
+                (IToucanVoting.VotingSettings, TokenSettings, GovernanceERC20.MintSettings)
             );
 
         address token = tokenSettings.addr;
-        bool tokenAddressNotZero = token != address(0);
-        bool deployedAragonToken = false;
+        bool deployToken = token == address(0);
 
         // Prepare helpers.
         address[] memory helpers = new address[](1);
 
-        if (bypassTokenValidation) {
-            // do noting, essentially GOTO setting helpers
-        } else if (tokenAddressNotZero) {
-            if (!token.isContract()) {
-                revert TokenNotContract(token);
-            }
-
-            if (!_isERC20(token)) {
-                revert TokenNotERC20(token);
-            }
-
-            if (missingInterface(token)) {
-                token = governanceWrappedERC20Base.clone();
+        // If we pass an existing token, we need to check if it is an erc20votes
+        // And whether it can be wrapped
+        if (!deployToken) {
+            if (!token.isContract()) revert TokenNotContract(token);
+            if (!isERC20(token)) revert TokenNotERC20(token);
+            if (!isGovernanceToken(token)) {
                 // User already has a token. We need to wrap it in
                 // GovernanceWrappedERC20 in order to make the token
                 // include governance functionality.
-                GovernanceWrappedERC20(token).initialize(
-                    IERC20Upgradeable(tokenSettings.addr),
-                    tokenSettings.name,
-                    tokenSettings.symbol
+                token = governanceWrappedERC20Base.deployMinimalProxy(
+                    abi.encodeCall(
+                        GovernanceWrappedERC20.initialize,
+                        (
+                            IERC20Upgradeable(tokenSettings.addr),
+                            tokenSettings.name,
+                            tokenSettings.symbol
+                        )
+                    )
                 );
-                deployedAragonToken = true;
             }
+            // if no token is passed, we deploy a new GovernanceERC20 token
         } else {
-            // Clone a `GovernanceERC20`.
-            token = governanceERC20Base.clone();
-            GovernanceERC20(token).initialize(
-                IDAO(_dao),
-                tokenSettings.name,
-                tokenSettings.symbol,
-                mintSettings
+            // Create a new GovernanceERC20 token.
+            token = governanceERC20Base.deployMinimalProxy(
+                abi.encodeCall(
+                    GovernanceERC20.initialize,
+                    (IDAO(_dao), tokenSettings.name, tokenSettings.symbol, mintSettings)
+                )
             );
-            deployedAragonToken = true;
         }
-
-        helpers[0] = token;
 
         // Prepare and deploy plugin proxy.
         plugin = address(tokenVotingBase).deployUUPSProxy(
@@ -162,9 +147,7 @@ contract ToucanVotingSetup is PluginSetup {
 
         // Prepare permissions
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](
-                tokenAddressNotZero ? 2 : 3
-            );
+            memory permissions = new PermissionLib.MultiTargetPermission[](deployToken ? 4 : 3);
 
         // Set plugin permissions to be granted.
         // Grant the list of permissions of the plugin to the DAO.
@@ -185,10 +168,19 @@ contract ToucanVotingSetup is PluginSetup {
             permissionId: EXECUTE_PERMISSION_ID
         });
 
-        // If the token was our Governance ERC20, grant mint permission to the DAO.
-        // if we didn't deploy an aragon token, we can't guarantee mint permission will exist on the token.
-        if (deployedAragonToken) {
-            permissions[2] = PermissionLib.MultiTargetPermission({
+        // Grant the upgrade plugin permission to the DAO.
+        // Technically redundant as the DAO already has root.
+        permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            where: plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: tokenVotingBase.UPGRADE_PLUGIN_PERMISSION_ID()
+        });
+
+        // if the token was created in this setup, grant mint permission to the dao
+        if (deployToken) {
+            permissions[3] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: token,
                 who: _dao,
@@ -196,6 +188,9 @@ contract ToucanVotingSetup is PluginSetup {
                 permissionId: GovernanceERC20(token).MINT_PERMISSION_ID()
             });
         }
+
+        // set the return data for the prepared setup
+        helpers[0] = token;
 
         preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
@@ -225,9 +220,10 @@ contract ToucanVotingSetup is PluginSetup {
             revert WrongHelpersArrayLength({length: helperLength});
         }
 
-        permissions = new PermissionLib.MultiTargetPermission[](2);
+        permissions = new PermissionLib.MultiTargetPermission[](3);
 
         // Set permissions to be Revoked.
+        // We don't revoke mint as the DAO may still need to mint tokens.
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
             where: _payload.plugin,
@@ -243,46 +239,51 @@ contract ToucanVotingSetup is PluginSetup {
             condition: PermissionLib.NO_CONDITION,
             permissionId: EXECUTE_PERMISSION_ID
         });
-    }
 
-    /// @notice Retrieves the interface identifiers supported by the token contract.
-    /// @dev It is crucial to verify if the provided token address represents a valid contract before using the below.
-    /// @param token The token address
-    function _getTokenInterfaceIds(address token) private view returns (bool[] memory) {
-        bytes4[] memory interfaceIds = new bytes4[](3);
-        interfaceIds[0] = type(IERC20Upgradeable).interfaceId;
-        interfaceIds[1] = type(IVotesUpgradeable).interfaceId;
-        interfaceIds[2] = type(IGovernanceWrappedERC20).interfaceId;
-        return token.getSupportedInterfaces(interfaceIds);
+        permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: tokenVotingBase.UPGRADE_PLUGIN_PERMISSION_ID()
+        });
     }
 
     /// @notice Unsatisfiably determines if the contract is an ERC20 token.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
-    function _isERC20(address token) private view returns (bool) {
+    function isERC20(address token) public view returns (bool) {
         (bool success, bytes memory data) = token.staticcall(
             abi.encodeCall(IERC20Upgradeable.balanceOf, (address(this)))
         );
         return success && data.length == 0x20;
     }
 
-    /// @notice Uses ERC-165 checks to see if a passed token appears to support
-    /// the required interfaces for governance.
-    /// @dev As an unsatisfactory check, this can be skipped.
-    /// @param token The address of the governance token passed to 'prepareInstallation'.
-    function missingInterface(address token) public view returns (bool) {
-        // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
-        bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-        // If token supports none of them
-        // it's simply ERC20 which gets checked by _isERC20
-        // Currently, not a satisfiable check.
-        bool isVanillaERC20 = (!supportedIds[0] && !supportedIds[1] && !supportedIds[2]);
-
-        // If token supports IERC20, but neither
-        // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
-        bool missingGovernance = (supportedIds[0] && !supportedIds[1] && !supportedIds[2]);
-
-        return isVanillaERC20 || missingGovernance;
+    /// @notice Unsatisfiably determines if the contract is an ERC20Votes token.
+    /// @dev It's important to first check whether token is a contract prior to this call.
+    /// @dev Calling some of precompile addresses will cause this to return true.
+    /// TODO: is this an issue we care about.
+    /// @param token The token address
+    function isGovernanceToken(address token) public view returns (bool) {
+        (bool getVotesSuccess, bytes memory getVotesData) = token.staticcall(
+            abi.encodeWithSelector(IVotesUpgradeable.getVotes.selector, address(this))
+        );
+        (bool getPastVotesSuccess, bytes memory getPastVotesData) = token.staticcall(
+            abi.encodeWithSelector(
+                IVotesUpgradeable.getPastVotes.selector,
+                address(this),
+                block.number - 1
+            )
+        );
+        (bool getPastTotalSupplySuccess, bytes memory getPastTotalSupplyData) = token.staticcall(
+            abi.encodeWithSelector(IVotesUpgradeable.getPastTotalSupply.selector, block.number - 1)
+        );
+        return
+            getVotesSuccess &&
+            getVotesData.length == 0x20 &&
+            getPastVotesSuccess &&
+            getPastVotesData.length == 0x20 &&
+            getPastTotalSupplySuccess &&
+            getPastTotalSupplyData.length == 0x20;
     }
 }
