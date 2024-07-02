@@ -28,16 +28,12 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 
 /// execution chain
 import {ToucanVoting, ToucanVotingSetup, IToucanVoting, GovernanceERC20, GovernanceWrappedERC20} from "@toucan-voting/ToucanVotingSetup.sol";
-import {ToucanReceiver, ToucanReceiverSetup, GovernanceOFTAdapter} from "@execution-chain/setup/ToucanReceiverSetup.sol";
+import {ActionRelay, ToucanReceiver, ToucanReceiverSetup, GovernanceOFTAdapter} from "@execution-chain/setup/ToucanReceiverSetup.sol";
 
 /// voting chain
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay, ToucanRelaySetup, OFTTokenBridge} from "@voting-chain/setup/ToucanRelaySetup.sol";
 import {AdminXChain, AdminXChainSetup} from "@voting-chain/setup/AdminXChainSetup.sol";
-
-// utils
-import "@utils/converters.sol";
-import "@utils/deployers.sol";
 
 // test utils
 import {MockPluginSetupProcessor} from "@mocks/osx/MockPSP.sol";
@@ -106,14 +102,14 @@ contract SetupE2EBase is IVoteContainer, ISetup {
     using ProposalRefEncoder for uint256;
     using TallyMath for Tally;
 
-    function _deployOSX(ChainBase storage base) internal {
+    function _deployOSX(ChainBase memory base) internal {
         // deploy the mock PSP with the admin plugin
         base.adminSetup = new AdminSetup();
         base.psp = new MockPluginSetupProcessor(address(base.adminSetup));
         base.daoFactory = new MockDAOFactory(base.psp);
     }
 
-    function _deployDAOAndAdmin(ChainBase storage base) internal {
+    function _deployDAOAndAdmin(ChainBase memory base) internal {
         // use the OSx DAO factory with the Admin Plugin
         bytes memory data = abi.encode(base.deployer);
         base.dao = base.daoFactory.createDao(_mockDAOSettings(), _mockPluginSettings(data));
@@ -124,7 +120,7 @@ contract SetupE2EBase is IVoteContainer, ISetup {
         base.admin = Admin(computeAddress(address(base.adminSetup), 2));
     }
 
-    function _prepareUninstallAdmin(ChainBase storage base) internal {
+    function _prepareUninstallAdmin(ChainBase memory base) internal {
         // psp will use the admin setup in next call
         base.psp.queueSetup(address(base.adminSetup));
 
@@ -140,15 +136,12 @@ contract SetupE2EBase is IVoteContainer, ISetup {
             _mockPrepareUninstallationParams(payload)
         );
 
-        // cannot write to storage from memory memory so just push here
-        for (uint256 i = 0; i < permissions.length; i++) {
-            base.adminUninstallPermissions.push(permissions[i]);
-        }
+        base.adminUninstallPermissions = permissions;
     }
 }
 
 contract SetupExecutionChainE2E is SetupE2EBase {
-    function _prepareSetupToucanVoting(ExecutionChain storage chain) internal {
+    function _prepareSetupToucanVoting(ExecutionChain memory chain) internal {
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings(
             new address[](1),
             new uint256[](1)
@@ -204,17 +197,14 @@ contract SetupExecutionChainE2E is SetupE2EBase {
                 _mockPrepareInstallationParams(data)
             );
 
-        // cannot write to storage from memory memory so just push here
-        for (uint256 i = 0; i < votingPluginPreparedSetupData.permissions.length; i++) {
-            chain.votingPermissions.push(votingPluginPreparedSetupData.permissions[i]);
-        }
+        chain.votingPermissions = votingPluginPreparedSetupData.permissions;
 
         chain.voting = ToucanVoting(votingPluginAddress);
         address[] memory helpers = votingPluginPreparedSetupData.helpers;
         chain.token = GovernanceERC20(helpers[0]);
     }
 
-    function _prepareSetupReceiver(ExecutionChain storage chain) internal {
+    function _prepareSetupReceiver(ExecutionChain memory chain) internal {
         // deploy receiver and set it as next address for PSP to use
         chain.receiverSetup = new ToucanReceiverSetup(
             new ToucanReceiver(),
@@ -234,10 +224,7 @@ contract SetupExecutionChainE2E is SetupE2EBase {
                 _mockPrepareInstallationParams(data)
             );
 
-        // cannot write to storage from memory memory so just push here
-        for (uint256 i = 0; i < receiverPluginPreparedSetupData.permissions.length; i++) {
-            chain.receiverPermissions.push(receiverPluginPreparedSetupData.permissions[i]);
-        }
+        chain.receiverPermissions = receiverPluginPreparedSetupData.permissions;
 
         chain.receiver = ToucanReceiver(payable(receiverPluginAddress));
         address[] memory helpers = receiverPluginPreparedSetupData.helpers;
@@ -246,8 +233,8 @@ contract SetupExecutionChainE2E is SetupE2EBase {
     }
 
     function _executionActions(
-        ExecutionChain storage chain,
-        VotingChain storage votingChain
+        ExecutionChain memory chain,
+        VotingChain memory votingChain
     ) internal view returns (IDAO.Action[] memory) {
         IDAO.Action[] memory actions = new IDAO.Action[](6);
 
@@ -327,7 +314,7 @@ contract SetupExecutionChainE2E is SetupE2EBase {
 }
 
 contract SetupVotingChainE2E is SetupE2EBase {
-    function _prepareSetupRelay(VotingChain storage chain) internal {
+    function _prepareSetupRelay(VotingChain memory chain) internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
         chain.relaySetup = new ToucanRelaySetup(
             new ToucanRelay(),
@@ -356,10 +343,7 @@ contract SetupVotingChainE2E is SetupE2EBase {
                 _mockPrepareInstallationParams(data)
             );
 
-        // cannot write to storage from memory memory so just push here
-        for (uint256 i = 0; i < toucanRelaySetupData.permissions.length; i++) {
-            chain.toucanRelayPermissions.push(toucanRelaySetupData.permissions[i]);
-        }
+        chain.toucanRelayPermissions = toucanRelaySetupData.permissions;
 
         chain.relay = ToucanRelay(toucanRelayAddress);
         address[] memory helpers = toucanRelaySetupData.helpers;
@@ -367,7 +351,7 @@ contract SetupVotingChainE2E is SetupE2EBase {
         chain.bridge = OFTTokenBridge(helpers[1]);
     }
 
-    function _prepareSetupAdminXChain(VotingChain storage chain) internal {
+    function _prepareSetupAdminXChain(VotingChain memory chain) internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
         chain.adminXChainSetup = new AdminXChainSetup(new AdminXChain());
 
@@ -384,17 +368,13 @@ contract SetupVotingChainE2E is SetupE2EBase {
                 _mockPrepareInstallationParams(data)
             );
 
-        // cannot write to storage from memory memory so just push here
-        for (uint256 i = 0; i < adminXChainSetupData.permissions.length; i++) {
-            chain.adminXChainPermissions.push(adminXChainSetupData.permissions[i]);
-        }
-
+        chain.adminXChainPermissions = adminXChainSetupData.permissions;
         chain.adminXChain = AdminXChain(payable(adminXChainAddress));
     }
 
     function _votingActions(
-        VotingChain storage chain,
-        ExecutionChain storage executionChain
+        VotingChain memory chain,
+        ExecutionChain memory executionChain
     ) internal view returns (IDAO.Action[] memory) {
         IDAO.Action[] memory actions = new IDAO.Action[](6);
 

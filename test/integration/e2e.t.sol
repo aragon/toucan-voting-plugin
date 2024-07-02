@@ -68,9 +68,6 @@ import "forge-std/console2.sol";
 contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelper {
     using OptionsBuilder for bytes;
 
-    ExecutionChain e;
-    VotingChain v;
-
     address deployer = address(0x420);
 
     address eVoter = address(0x69);
@@ -86,36 +83,14 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     uint proposalId;
     uint proposalRef;
 
-    function setupExecutionChain() public {
-        e.base.chainName = "Ethereum";
-        e.base.chainid = 80085;
-        e.base.deployer = deployer;
-        e.voter = eVoter;
-
-        _deployOSX(e.base);
-        _deployDAOAndAdmin(e.base);
-    }
-
-    function setupVotingChain() public {
-        v.base.chainName = "ZkSync";
-        v.base.chainid = 1337;
-        v.base.deployer = deployer;
-        v.voter = vVoter0;
-
-        _deployOSX(v.base);
-        _deployDAOAndAdmin(v.base);
-    }
-
-    function setUp() public override {
-        super.setUp();
-
+    function testE2E() public {
         // reset clocks
         vm.warp(1);
         vm.roll(1);
 
         // initialize the chains
-        setupExecutionChain();
-        setupVotingChain();
+        ExecutionChain memory e = setupExecutionChain();
+        VotingChain memory v = setupVotingChain();
 
         // deploy layerZero: this is cross chain
         _deployLayerZero(e.base, v.base);
@@ -144,12 +119,56 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.deal(e.base.deployer, initialDeal);
         vm.deal(v.base.deployer, initialDeal);
 
-        _addLabels();
+        _addLabels(e, v);
+
+        // first we want a user to bridge
+        _bridgeTokens(e, v);
+        // then we want to create a proposal
+        _createProposal(e, v);
+        // then do a vote
+        // remote
+        // bridge back
+        _voteAndDispatch(e, v);
+
+        // then execute the proposal, which will uninstall the xchain admin
+        _executeBridgeProposal(e, v);
+
+        // check the end state:
+        // xchain admin should not have the permission
+        assertFalse(
+            v.base.dao.isGranted({
+                _who: address(v.adminXChain),
+                _where: address(v.base.dao),
+                _permissionId: v.base.dao.EXECUTE_PERMISSION_ID(),
+                _data: ""
+            }),
+            "xchainadmin should not have the permission"
+        );
+    }
+
+    function setupExecutionChain() public returns (ExecutionChain memory e) {
+        e.base.chainName = "Ethereum";
+        e.base.chainid = 80085;
+        e.base.deployer = deployer;
+        e.voter = eVoter;
+
+        _deployOSX(e.base);
+        _deployDAOAndAdmin(e.base);
+    }
+
+    function setupVotingChain() public returns (VotingChain memory v) {
+        v.base.chainName = "ZkSync";
+        v.base.chainid = 1337;
+        v.base.deployer = deployer;
+        v.voter = vVoter0;
+
+        _deployOSX(v.base);
+        _deployDAOAndAdmin(v.base);
     }
 
     function _applyInstallationsSetPeersRevokeAdmin(
-        ExecutionChain storage chain,
-        VotingChain storage votingChain
+        ExecutionChain memory chain,
+        VotingChain memory votingChain
     ) internal {
         IDAO.Action[] memory actions = _executionActions(chain, votingChain);
 
@@ -166,8 +185,8 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     }
 
     function _applyInstallationsSetPeersRevokeAdmin(
-        VotingChain storage chain,
-        ExecutionChain storage executionChain
+        VotingChain memory chain,
+        ExecutionChain memory executionChain
     ) internal {
         IDAO.Action[] memory actions = _votingActions(chain, executionChain);
 
@@ -183,7 +202,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.stopPrank();
     }
 
-    function _addLabels() internal {
+    function _addLabels(ExecutionChain memory e, VotingChain memory v) internal {
         vm.label(e.voter, "execution-chain-voter");
         vm.label(v.voter, "voting-chain-voter");
 
@@ -205,35 +224,9 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.label(address(e.actionRelay), "execution-chain-action-relay");
     }
 
-    function testE2E() public {
-        // first we want a user to bridge
-        _bridgeTokens();
-        // then we want to create a proposal
-        _createProposal();
-        // then do a vote
-        // remote
-        // bridge back
-        _voteAndDispatch();
-
-        // then execute the proposal, which will uninstall the xchain admin
-        _executeBridgeProposal();
-
-        // check the end state:
-        // xchain admin should not have the permission
-        assertFalse(
-            v.base.dao.isGranted({
-                _who: address(v.adminXChain),
-                _where: address(v.base.dao),
-                _permissionId: v.base.dao.EXECUTE_PERMISSION_ID(),
-                _data: ""
-            }),
-            "xchainadmin should not have the permission"
-        );
-    }
-
     function _deployLayerZero(
-        ChainBase storage executionChain,
-        ChainBase storage votingChain
+        ChainBase memory executionChain,
+        ChainBase memory votingChain
     ) internal {
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
@@ -247,7 +240,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     }
 
     // bridge tokens from the execution chain to the voting chain
-    function _bridgeTokens() internal {
+    function _bridgeTokens(ExecutionChain memory e, VotingChain memory v) internal {
         // the execution chain voter should have 1_000_000 toekens
         assertEq(e.token.balanceOf(e.voter), initialDeal);
 
@@ -288,20 +281,20 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.stopPrank();
 
         // process the bridge transaction
-        bridgeAdapterToOFTbridge();
+        bridgeAdapterToOFTbridge(v);
 
         // check that the tokens were received
         assertEq(v.token.balanceOf(v.voter), transferAmount);
     }
 
-    function _createProposal() internal {
+    function _createProposal(ExecutionChain memory e, VotingChain memory v) internal {
         vm.roll(100);
         vm.warp(100);
 
         vm.startPrank(e.voter);
         {
             Tally memory votes = Tally(100_000, 200_000, 300_000);
-            IDAO.Action[] memory actions = _createUninstallationProposal();
+            IDAO.Action[] memory actions = _createUninstallationProposal(e, v);
 
             proposalId = e.voting.createProposal({
                 _metadata: "",
@@ -320,7 +313,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     }
 
     // note that the clocks are synced automatically
-    function _voteAndDispatch() internal {
+    function _voteAndDispatch(ExecutionChain memory e, VotingChain memory v) internal {
         // warp it forward 1 second to allow voting
         vm.warp(block.timestamp + 1);
 
@@ -337,10 +330,10 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.stopPrank();
 
         // process the message
-        bridgeRelayToReceiver();
+        bridgeRelayToReceiver(e);
     }
 
-    function _executeBridgeProposal() internal {
+    function _executeBridgeProposal(ExecutionChain memory e, VotingChain memory v) internal {
         // ff to end of the proposal
         vm.warp(block.timestamp + 10 days);
 
@@ -356,26 +349,29 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         vm.stopPrank();
 
         // process the message
-        bridgeActionRelayToAdminXChain();
+        bridgeActionRelayToAdminXChain(v);
     }
 
-    function bridgeAdapterToOFTbridge() internal {
+    function bridgeAdapterToOFTbridge(VotingChain memory v) internal {
         verifyPackets(v.base.eid, address(v.bridge));
     }
 
-    function bridgeOFTBridgeToAdapter() internal {
+    function bridgeOFTBridgeToAdapter(ExecutionChain memory e) internal {
         verifyPackets(e.base.eid, address(e.adapter));
     }
 
-    function bridgeRelayToReceiver() internal {
+    function bridgeRelayToReceiver(ExecutionChain memory e) internal {
         verifyPackets(e.base.eid, address(e.receiver));
     }
 
-    function bridgeActionRelayToAdminXChain() internal {
+    function bridgeActionRelayToAdminXChain(VotingChain memory v) internal {
         verifyPackets(v.base.eid, address(v.adminXChain));
     }
 
-    function _createUninstallationProposal() public view returns (IDAO.Action[] memory) {
+    function _createUninstallationProposal(
+        ExecutionChain memory e,
+        VotingChain memory v
+    ) public view returns (IDAO.Action[] memory) {
         IDAO.Action[] memory innerActions = new IDAO.Action[](1);
 
         // these are executed on the voting chain
