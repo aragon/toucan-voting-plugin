@@ -63,11 +63,11 @@ To set up the ToucanVoting project, you will need [Foundry](https://getfoundry.s
 - **Foundry**: Follow the installation instructions at [Foundry](https://getfoundry.sh).
 - **Make**: Ensure you have `make` installed. Most Unix-like systems come with `make` pre-installed. On Debian-based systems, you can install it using `apt`:
   ```sh
-  sudo apt-get install build-essential
+  sudo apt install build-essential
   ```
 - **lcov**: Install `lcov` using your package manager. On Debian-based systems:
   ```sh
-  sudo apt-get install lcov
+  sudo apt install lcov
   ```
 - **genhtml**: This is typically included with `lcov`. Ensure it is available in your system.
 
