@@ -6,7 +6,7 @@
 
 ## Introduction
 
-We envision a world where governance is both accessible to all, and natively multichain. Where users need not tradeoff between economic security, and meaningful participation onchain. ToucanVoting lets your voters fly free - voting for low or no-cost across multiple chains, while still maintaining complete, trustless control of the entire system. 
+We envision a world where governance is both accessible to all, and natively multichain. Where users need not tradeoff between economic security, and meaningful participation onchain. ToucanVoting lets your voters fly free - voting for low or no-cost across multiple chains, while still maintaining complete, trustless control of the entire system.
 
 Specifically, ToucanVoting is a cross-chain governance system for DAOs in the Ethereum Ecosystem built on [Aragon OSx](https://aragon.org/aragonosx). It leverages the capabilities of LayerZero v2 to facilitate low-cost and trustless governance of DAOs across multiple chains.
 
@@ -29,7 +29,6 @@ Specifically, ToucanVoting is a cross-chain governance system for DAOs in the Et
   - [Crosschain Governance](#crosschain-governance)
 - [Restrictions and Limitations](#restrictions-and-limitations)
 
-
 ## Features and Benefits
 
 ### Flexible
@@ -38,7 +37,7 @@ Any ERC20 or ERC20Votes token can be made omnichain, allowing governance across 
 
 ### Low Cost
 
-Voters can move to chains with extremely low fees while governing mainnet DAOs. The only requirement is users bridge their tokens to the desired chain. 
+Voters can move to chains with extremely low fees while governing mainnet DAOs. The only requirement is users bridge their tokens to the desired chain.
 
 Votes are aggregated before relaying back to the main chain, allowing for thousands of votes to be compressed to a single transaction posted back to the main chain.
 
@@ -127,23 +126,24 @@ This repo uses [Aragon OSx 1.3.0 contracts](https://github.com/aragon/osx/tree/v
 
 | Component                | Permission Granted    | Target Component         | Chain           |
 | ------------------------ | --------------------- | ------------------------ | --------------- |
-| DAO.sol                  | EXECUTE_PERMISSION    | ToucanVoting.sol         | Execution Chain |
+| ToucanVoting.sol         | EXECUTE_PERMISSION    | DAO.sol                  | Execution Chain |
 | DAO.sol                  | OAPP_ADMINISTRATOR    | ToucanReceiver.sol       | Execution Chain |
 | DAO.sol                  | OAPP_ADMINISTRATOR    | GovernanceOFTAdapter.sol | Execution Chain |
 | DAO.sol                  | OAPP_ADMINISTRATOR    | ActionRelay.sol          | Execution Chain |
 | DAO.sol                  | XCHAIN_ACTION_RELAYER | ActionRelay.sol          | Execution Chain |
 | DAO.sol                  | MINT_PERMISSION       | GovernanceERC20.sol      | Execution Chain |
-| GovernanceOFTAdapter.sol | Delegates to          | ToucanReceiver           | Execution Chain |
+| GovernanceOFTAdapter.sol | Delegates to          | ToucanReceiver.sol       | Execution Chain |
 
 #### Voting Chain
 
-| Component      | Permission Granted | Target Component               | Chain        |
-| -------------- | ------------------ | ------------------------------ | ------------ |
-| DAO.sol        | OAPP_ADMINISTRATOR | AdminXChain                    | Voting Chain |
-| DAO.sol        | OAPP_ADMINISTRATOR | OFTTokenBridge                 | Voting Chain |
-| DAO.sol        | OAPP_ADMINISTRATOR | ToucanRelay                    | Voting Chain |
-| OFTTokenBridge | MINT_PERMISSION    | GovernanceERC20VotingChain.sol | Voting Chain |
-| OFTTokenBridge | BURN_PERMISSION    | GovernanceERC20VotingChain.sol | Voting Chain |
+| Component       | Permission Granted | Target Component               | Chain        |
+| --------------- | ------------------ | ------------------------------ | ------------ |
+| DAO.sol         | OAPP_ADMINISTRATOR | AdminXChain.sol                | Voting Chain |
+| DAO.sol         | OAPP_ADMINISTRATOR | OFTTokenBridge.sol             | Voting Chain |
+| DAO.sol         | OAPP_ADMINISTRATOR | OFTTokenBridge.sol             | Voting Chain |
+| AdminXChain.sol | EXECUTE_PERMISSION | ToucanRelay.sol                | Voting Chain |
+| OFTTokenBridge  | MINT_PERMISSION    | GovernanceERC20VotingChain.sol | Voting Chain |
+| OFTTokenBridge  | BURN_PERMISSION    | GovernanceERC20VotingChain.sol | Voting Chain |
 
 > Note that, as part of installation, an [Aragon Admin plugin](https://github.com/aragon/admin-plugin/) is configured during setup and later removed.
 
