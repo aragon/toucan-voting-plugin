@@ -29,7 +29,7 @@ endef
 
 # run deploy script but don't broadcast the transaction
 preview-deploy-arbitrum-sepolia-stage-0:
-	$(call deploy-script,0,VOTING,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),)
+	$(call deploy-script,0,EXECUTION,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),)
 
 preview-deploy-arbitrum-sepolia-stage-1:
 	$(call deploy-script,1,EXECUTION,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),)
@@ -45,7 +45,7 @@ preview-deploy-arbitrum-sepolia-stage-4:
 
 # deploy the contract to the arbitrum-sepolia network
 deploy-arbitrum-sepolia-stage-0:
-	$(call deploy-script,0,VOTING,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),--broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY))
+	$(call deploy-script,0,EXECUTION,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),--broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY))
 
 deploy-arbitrum-sepolia-stage-1:
 	$(call deploy-script,1,EXECUTION,https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA),--broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY))
