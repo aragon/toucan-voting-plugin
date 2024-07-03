@@ -6,7 +6,9 @@
 
 ## Introduction
 
-ToucanVoting is a cross-chain governance system for DAOs in the Ethereum Ecosystem built on [Aragon OSx](https://aragon.org/aragonosx). It leverages the capabilities of LayerZero v2 to facilitate low-cost and trustless governance of DAOs across multiple chains.
+We envision a world where governance is both accessible to all, and natively multichain. Where users need not tradeoff between economic security, and meaningful participation onchain. ToucanVoting lets your voters fly free - voting for low or no-cost across multiple chains, while still maintaining complete, trustless control of the entire system. 
+
+Specifically, ToucanVoting is a cross-chain governance system for DAOs in the Ethereum Ecosystem built on [Aragon OSx](https://aragon.org/aragonosx). It leverages the capabilities of LayerZero v2 to facilitate low-cost and trustless governance of DAOs across multiple chains.
 
 ## Features and Benefits
 
