@@ -38,19 +38,21 @@ Any ERC20 or ERC20Votes token can be made omnichain, allowing governance across 
 
 ### Low Cost
 
-Voters can move to chains with extremely low fees while governing mainnet DAOs. The only requirement is a single bridging transaction. Votes are aggregated before relaying back to the main chain, allowing for thousands of votes to be compressed to a single transaction.
+Voters can move to chains with extremely low fees while governing mainnet DAOs. The only requirement is users bridge their tokens to the desired chain. 
+
+Votes are aggregated before relaying back to the main chain, allowing for thousands of votes to be compressed to a single transaction posted back to the main chain.
 
 ### Modular
 
 Built on Aragong OSx, Toucan is simply another plugin for your DAO. It can be combined with other governance primitives, upgraded, extended or removed as your governance needs change.
 
-### Trustless Remote Governance
+### Trustless
 
 All Components across all chains remain fully controlled by the original DAO via the battle-tested Aragon permissions system, ensuring trustless and decentralized governance.
 
 ## Installing on your DAO
 
-A fully automted deployment is in the works! In the meantime please contact the Aragon team on our [discord](https://discord.gg/aragonorg) and we will get you setup with crosschain voting.
+A fully automated deployment is in the works! In the meantime please contact the Aragon team on our [discord](https://discord.gg/aragonorg) and we will get you setup with crosschain voting.
 
 ## Building Locally
 
