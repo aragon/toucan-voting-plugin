@@ -1,12 +1,12 @@
 # ToucanVoting
 
-<!-- Add image here -->
+![toucan-voting](https://github.com/aragon/toucan-voting-plugin/assets/45881807/6f6d9187-753b-4397-ae33-75c55c238157)
 
 <!-- Add demo link or video here -->
 
 ## Introduction
 
-ToucanVoting is a cross-chain governance system for DAOs built on [Aragon OSx](https://aragon.org/aragonosx). It leverages the capabilities of LayerZero v2 to facilitate low-cost and trustless governance of DAOs across multiple chains.
+ToucanVoting is a cross-chain governance system for DAOs in the Ethereum Ecosystem built on [Aragon OSx](https://aragon.org/aragonosx). It leverages the capabilities of LayerZero v2 to facilitate low-cost and trustless governance of DAOs across multiple chains.
 
 ## Features and Benefits
 
@@ -169,11 +169,9 @@ A proposal reference is composed of the following fields:
 
 ## Workflows
 
-A high level workflow can be seen below for a single voting chain
+A high level workflow can be seen below for a single voting chain. Click the image for an interactive viewer.
 
-<!-- Turn this into an image -->
-
-https://link.excalidraw.com/readonly/C0HefSwZ1NJXTpXzuT5q
+[![image](https://github.com/aragon/toucan-voting-plugin/assets/45881807/cdd74771-3ac3-4abf-8ed6-5db4c76457ea)](https://link.excalidraw.com/readonly/C0HefSwZ1NJXTpXzuT5q)
 
 ### Stages in crosschain voting
 
