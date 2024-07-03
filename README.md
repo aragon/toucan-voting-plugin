@@ -168,7 +168,7 @@ Additionaly, we wanted to avoid having DAOs bridge propsosals to all voting chai
 
 The solution is the `ProposalReference`: a unique identifier for proposals on chains other than the execution chain.
 
-This `ProposalReference` allows users to vote on without requiring the bridging of proposals. The [`ProposalRefEncoder`](./src//libs//ProposalRefEncoder.sol) library provides a solution by encoding salient information about a proposal into a single 256-bit value.
+This `ProposalReference` allows users to vote on without requiring the bridging of proposals. The [`ProposalRefEncoder`](./src//libs/ProposalRefEncoder.sol) library provides a solution by encoding salient information about a proposal into a single 256-bit value.
 
 #### Encoding Scheme
 
@@ -182,7 +182,7 @@ A proposal reference is composed of the following fields:
 
 #### Usage
 
-> For more details, refer to the [ProposalRefEncoder.sol](link-to-your-code).
+> For more details, refer to the [ProposalRefEncoder.sol](./src/libs/ProposalRefEncoder.sol).
 
 | Component      | Identifier Type                                         |
 | -------------- | ------------------------------------------------------- |
