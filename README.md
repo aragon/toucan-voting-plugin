@@ -44,7 +44,7 @@ Votes are aggregated before relaying back to the main chain, allowing for thousa
 
 ### Modular
 
-Built on Aragong OSx, Toucan is simply another plugin for your DAO. It can be combined with other governance primitives, upgraded, extended or removed as your governance needs change.
+Built on [Aragon OSx](https://aragon.org/aragonosx), Toucan is simply another plugin for your DAO. It can be combined with other governance primitives, upgraded, extended or removed as your governance needs change.
 
 ### Trustless
 
