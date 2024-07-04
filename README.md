@@ -249,11 +249,12 @@ A high level workflow can be seen below for a single voting chain. Click the ima
 1. **Single Execution Chain Support**:
 
    - Only one execution chain is supported for creating and executing proposals.
-   - **Caveat**: The DAO can change the execution chain at a later date, but this version of cross-chain voting will no longer function if that happens.
+   - Note: Toucan Voting allows the execution chain DAO to bridge actions to other chains. So while execution is _initiated_ from only one, primary chain, the DAO can control any other chain via cross-chain actions. 
 
 2. **Bridging Tokens from Multiple Chains**:
 
    - If a user already has tokens on multiple chains, they will need to bridge them back to the execution chain and then bridge via the canonical chain. This ensures all tokens are correctly registered for governance.
+   - Similarly, you cannot mint tokens on multiple chains. Minting of new tokens must be done on the execution chain. In the future we plan to add airdrop functionality.
 
 3. **Proposal Creation Limitation**:
 
