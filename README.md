@@ -187,9 +187,11 @@ A proposal reference is composed of the following fields:
 | Component      | Identifier Type                                         |
 | -------------- | ------------------------------------------------------- |
 | ToucanRelay    | Proposal References                                     |
-| ToucanReceiver | Proposal References (stores votes against Proposal IDs) |
+| ToucanReceiver | Both*                                                   |
 | ToucanVoting   | Proposal IDs                                            |
 | DAO            | Proposal IDs                                            |
+
+*The receiver listens for proposal references, validates them and then stores data against proposal IDs. You can generate proposal references from any 32bit proposal ID using the recevier's `getProposalRef` function.
 
 ## Workflows
 
