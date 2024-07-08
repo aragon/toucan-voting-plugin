@@ -15,6 +15,18 @@ coverage-report:; ./script/bash/coverage-report.sh
 install :; make allow-scripts && make coverage-report
 
 
+send-tokens :; cast send 0xcD25DAecFe1334e1879580E1762d98E22D7ad50C \
+	"transfer(address,uint256)" 0x8bF1e340055c7dE62F11229A149d3A1918de3d74 100ether \
+	--rpc-url https://optimism-sepolia.infura.io/v3/$(API_KEY_INFURA) \
+	--private-key $(PRIVATE_KEY) 
+
+bridge-tokens :; forge script BridgeAndSend \
+	--rpc-url https://arbitrum-sepolia.infura.io/v3/$(API_KEY_INFURA) \
+	--private-key $(PRIVATE_KEY) \
+	--broadcast
+
+## DEPLOY SCRIPTS
+
 define deploy-script
 	export STAGE=$(1) && \
 	export EXECUTION_OR_VOTING=$(2) && \
@@ -26,6 +38,8 @@ define deploy-script
 endef
 
 ### Arbitrum ###
+
+
 
 # run deploy script but don't broadcast the transaction
 preview-deploy-arbitrum-sepolia-stage-0:

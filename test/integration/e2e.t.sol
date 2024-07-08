@@ -101,7 +101,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         _prepareUninstallAdmin(e.base);
 
         // setup the voting chain contracts
-        _prepareSetupRelay(v);
+        _prepareSetupRelay(v, e);
         _prepareSetupAdminXChain(v);
         _prepareUninstallAdmin(v.base);
 

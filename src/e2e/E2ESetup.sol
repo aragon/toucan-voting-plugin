@@ -180,8 +180,8 @@ contract SetupExecutionChainE2E is SetupE2EBase {
 
         ToucanVotingSetup.TokenSettings memory tokenSettings = ToucanVotingSetup.TokenSettings({
             addr: address(0),
-            symbol: "TT",
-            name: "TestToken"
+            symbol: "CRAB",
+            name: "Rust Token"
         });
 
         mintSettings.receivers[0] = chain.voter;
@@ -314,7 +314,7 @@ contract SetupExecutionChainE2E is SetupE2EBase {
 }
 
 contract SetupVotingChainE2E is SetupE2EBase {
-    function _prepareSetupRelay(VotingChain memory chain) internal {
+    function _prepareSetupRelay(VotingChain memory chain, ExecutionChain memory e) internal {
         // setup the voting chain: we need 2 setup contracts for the toucanRelay and the adminXChain
         chain.relaySetup = new ToucanRelaySetup(
             new ToucanRelay(),
@@ -327,9 +327,9 @@ contract SetupVotingChainE2E is SetupE2EBase {
 
         ToucanRelaySetup.InstallationParams memory params = ToucanRelaySetup.InstallationParams({
             lzEndpoint: address(chain.base.lzEndpoint),
-            tokenName: "vTestToken",
-            tokenSymbol: "vTT",
-            dstEid: 1,
+            tokenName: "Voting Rust Token",
+            tokenSymbol: "vCRAB",
+            dstEid: e.base.eid,
             votingBridgeBuffer: 20 minutes
         });
 
@@ -430,7 +430,7 @@ contract SetupVotingChainE2E is SetupE2EBase {
             to: address(chain.bridge),
             value: 0,
             data: abi.encodeCall(
-                chain.adminXChain.setPeer,
+                chain.bridge.setPeer,
                 (executionChain.base.eid, addressToBytes32(address(executionChain.adapter)))
             )
         });
