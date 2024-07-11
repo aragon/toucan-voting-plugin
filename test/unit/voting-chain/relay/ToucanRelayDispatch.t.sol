@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {IToucanRelayMessage, ToucanRelay, MessagingFee, OptionsBuilder} from "@voting-chain/crosschain/ToucanRelay.sol";
@@ -89,7 +90,7 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
     ) public {
         vm.assume(_peerAddress != address(0));
         vm.assume(_dstEid > 0);
-        
+
         // force the fee to be 100 in native only
         _params.fee = MessagingFee(100, 0);
 
@@ -105,8 +106,13 @@ contract TestToucanRelayDispatch is ToucanRelayBaseTest {
 
         relay.setProposalState(_proposalRef, _votes);
 
-        vm.expectEmit(true, false, false, true);
-        emit VotesDispatched(_dstEid, _proposalRef, _votes);
+        vm.expectEmit(true, true, true, true);
+        emit VotesDispatched(
+            _dstEid,
+            _proposalRef,
+            _votes,
+            MessagingReceipt({guid: keccak256("guid"), nonce: 1234, fee: _params.fee})
+        );
         relay.dispatchVotes{value: 100}(_proposalRef, _params);
 
         // check the state sent was as expected

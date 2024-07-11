@@ -118,13 +118,12 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
         vm.assume(!_votes.overflows());
 
         // votes should be mintable but less than required
-        vm.assume(_votes.sum() <= type(uint224).max);
+        _votes = _boundVotes(_votes);
         vm.assume(_mint < _votes.sum());
 
         // we can divide the existing votes into two new tallies
         // there are no checks on zero voting in the view function
         Tally memory existingVotes = _votes.div(_divisor);
-        Tally memory newVotes = _votes.sub(existingVotes);
 
         // set the state
         receiver.setAggregateVotes(_proposalId, existingVotes);
@@ -135,12 +134,13 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
         vm.roll(_rollTo);
 
         // should still not be enough for the new votes
-        assertFalse(receiver.hasEnoughVotingPowerForNewVotes(_proposalId, newVotes));
+        assertFalse(receiver.hasEnoughVotingPowerForNewVotes(_proposalId, _votes));
     }
 
     function testFuzz_sufficientVotingPowerAtBlockExistingState(
         uint256 _proposalId,
         Tally memory _votes,
+        Tally memory _newVotes,
         uint32 _snapshotBlock,
         uint32 _rollTo, // bounded by ERC20Votes clock
         uint224 _mint, // bounded by ERC20Votes max delegation
@@ -153,18 +153,19 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
 
         // we will need to sum these so they can't overflow
         vm.assume(!_votes.overflows());
+        vm.assume(!_newVotes.overflows());
 
         // votes should be mintable and sufficient
-        vm.assume(_votes.sum() <= type(uint224).max);
-        vm.assume(_mint >= _votes.sum());
+        _votes = _boundVotes(_votes);
+        _newVotes = _boundVotes(_newVotes);
 
-        // we can divide the existing votes into two new tallies
-        // there are no checks on zero voting in the view function
-        Tally memory existingVotes = _votes.div(_divisor);
-        Tally memory newVotes = _votes.sub(existingVotes);
+        // the votes replace each other, meaning as long as
+        // both are <= _mint we are good
+        vm.assume(_mint >= _votes.sum());
+        vm.assume(_mint >= _newVotes.sum());
 
         // set the state
-        receiver.setAggregateVotes(_proposalId, existingVotes);
+        receiver.setAggregateVotes(_proposalId, _votes);
         plugin.setSnapshotBlock(_proposalId, _snapshotBlock);
 
         // mint and give power
@@ -172,6 +173,16 @@ contract TestToucanReceiverVotingPower is ToucanReceiverBaseTest {
         vm.roll(_rollTo);
 
         // should be enough for the new votes
-        assertTrue(receiver.hasEnoughVotingPowerForNewVotes(_proposalId, newVotes));
+        assertTrue(receiver.hasEnoughVotingPowerForNewVotes(_proposalId, _newVotes));
+    }
+
+    function _boundVotes(Tally memory _votes) internal pure returns (Tally memory) {
+        uint224 max = type(uint224).max;
+        if (_votes.sum() > max) {
+            _votes.yes = max / 3;
+            _votes.no = max / 3;
+            _votes.abstain = max / 3;
+        }
+        return _votes;
     }
 }

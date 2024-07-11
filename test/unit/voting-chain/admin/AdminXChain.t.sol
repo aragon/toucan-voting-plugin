@@ -30,9 +30,9 @@ contract AdminXChainTest is TestHelpers, IVoteContainer {
     DAO dao;
 
     event XChainExecuted(
-        uint proposalId,
-        uint256 foreignCallId,
-        uint32 srcEid,
+        uint256 indexed proposalId,
+        uint256 indexed foreignCallId,
+        uint32 indexed srcEid,
         address sender,
         uint256 failureMap
     );

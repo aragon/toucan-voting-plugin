@@ -8,7 +8,7 @@ import {IToucanRelayMessage} from "@interfaces/IToucanRelayMessage.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {MessagingParams, MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {Origin} from "@lz-oapp/interfaces/IOAppReceiver.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
@@ -124,13 +124,23 @@ contract ToucanRelay is
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /// @notice Emitted when a voter successfully casts a vote on a proposal.
-    event VoteCast(uint32 dstEid, uint256 indexed proposalRef, address voter, Tally voteOptions);
+    event VoteCast(
+        uint32 indexed dstEid,
+        uint256 indexed proposalRef,
+        address indexed voter,
+        Tally voteOptions
+    );
 
     /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
-    event VotesDispatched(uint32 dstEid, uint256 indexed proposalRef, Tally votes);
+    event VotesDispatched(
+        uint32 indexed dstEid,
+        uint256 indexed proposalRef,
+        Tally votes,
+        MessagingReceipt receipt
+    );
 
     /// @notice Emitted when the destination EID is updated.
-    event DestinationEidUpdated(uint32 dstEid);
+    event DestinationEidUpdated(uint32 indexed dstEid);
 
     /// @notice Emitted when the bridge delay buffer is updated.
     event BrigeDelayBufferUpdated(uint32 buffer);
@@ -226,7 +236,7 @@ contract ToucanRelay is
     function dispatchVotes(
         uint256 _proposalRef,
         LzSendParams memory _params
-    ) external payable nonReentrant {
+    ) external payable nonReentrant returns (MessagingReceipt memory receipt) {
         // check if we can dispatch the votes
         (bool success, ErrReason e) = canDispatch(_proposalRef);
         if (!success) revert CannotDispatch(_proposalRef, e);
@@ -245,9 +255,9 @@ contract ToucanRelay is
         address refund = refundAddress(dstEid);
 
         // dispatch the votes via the lz endpoint
-        _lzSend(dstEid, message, _params.options, _params.fee, refund);
+        receipt = _lzSend(dstEid, message, _params.options, _params.fee, refund);
 
-        emit VotesDispatched(dstEid, _proposalRef, proposalVotes);
+        emit VotesDispatched(dstEid, _proposalRef, proposalVotes, receipt);
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

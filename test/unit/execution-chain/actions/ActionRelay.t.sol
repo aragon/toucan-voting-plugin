@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {MessagingReceipt, MessagingFee} from "@execution-chain/crosschain/ActionRelay.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
 import {ActionRelay, OptionsBuilder, MessagingFee} from "@execution-chain/crosschain/ActionRelay.sol";
@@ -28,7 +29,11 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
     MockActionRelay relay;
     DAO dao;
 
-    event ActionsRelayed(uint256 callId, uint256 destinationEid);
+    event ActionsRelayed(
+        uint256 indexed callId,
+        uint256 indexed destinationEid,
+        MessagingReceipt receipt
+    );
 
     function setUp() public virtual {
         // reset timestamps and blocks
@@ -141,8 +146,12 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
             _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
         });
 
-        vm.expectEmit(false, false, false, true);
-        emit ActionsRelayed(_proposalId, _params.dstEid);
+        vm.expectEmit(true, true, false, true);
+        emit ActionsRelayed(
+            _proposalId,
+            _params.dstEid,
+            MessagingReceipt({guid: keccak256("guid"), nonce: 1234, fee: _params.fee})
+        );
         relay.relayActions{value: 100}(_proposalId, _actions, _allowFailureMap, _params);
 
         // check the state sent was as expected

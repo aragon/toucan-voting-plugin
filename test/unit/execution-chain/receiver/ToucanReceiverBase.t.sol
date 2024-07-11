@@ -17,7 +17,6 @@ import {MockToucanProposal} from "@mocks/MockToucanVoting.sol";
 
 import {deployToucanReceiver, deployMockToucanReceiver, deployMockToucanProposal} from "@utils/deployers.sol";
 
-/// @dev single chain testing for the relay
 contract ToucanReceiverBaseTest is TestHelpers, IVoteContainer, IToucanReceiverEvents {
     GovernanceERC20 token;
     MockLzEndpointMinimal lzEndpoint;

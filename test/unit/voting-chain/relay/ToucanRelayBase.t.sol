@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {IOAppCore} from "@lz-oapp/OAppCore.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
+import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
 import {GovernanceERC20VotingChain} from "@voting-chain/token/GovernanceERC20VotingChain.sol";
 import {ToucanRelay} from "@voting-chain/crosschain/ToucanRelay.sol";
@@ -24,8 +25,21 @@ contract ToucanRelayBaseTest is TestHelpers, IVoteContainer {
     MockToucanRelay relay;
     DAO dao;
 
-    event VoteCast(uint32 dstEid, uint256 indexed proposalRef, address voter, Tally voteOptions);
-    event VotesDispatched(uint32 dstEid, uint256 indexed proposalRef, Tally votes);
+    /// @notice Emitted when a voter successfully casts a vote on a proposal.
+    event VoteCast(
+        uint32 indexed dstEid,
+        uint256 indexed proposalRef,
+        address indexed voter,
+        Tally voteOptions
+    );
+
+    /// @notice Emitted when anyone dispatches the votes for a proposal to the execution chain.
+    event VotesDispatched(
+        uint32 indexed dstEid,
+        uint256 indexed proposalRef,
+        Tally votes,
+        MessagingReceipt receipt
+    );
 
     function setUp() public virtual {
         // reset timestamps and blocks

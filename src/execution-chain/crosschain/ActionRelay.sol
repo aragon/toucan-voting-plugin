@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -35,7 +36,11 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     /// @notice Emitted when actions have been successfully relayed to another chain.
     /// @param callId A unique identifier for the relayed actions, such as a proposal ID.
     /// @param destinationEid The LayerZero endpoint ID of the destination chain.
-    event ActionsRelayed(uint256 callId, uint256 destinationEid);
+    event ActionsRelayed(
+        uint256 indexed callId,
+        uint256 indexed destinationEid,
+        MessagingReceipt receipt
+    );
 
     constructor() {
         _disableInitializers();
@@ -94,10 +99,10 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
         IDAO.Action[] memory _actions,
         uint256 _allowFailureMap,
         LzSendParams memory _params
-    ) external payable auth(XCHAIN_ACTION_RELAYER_ID) {
+    ) external payable auth(XCHAIN_ACTION_RELAYER_ID) returns (MessagingReceipt memory receipt) {
         bytes memory message = abi.encode(_callId, _actions, _allowFailureMap);
 
-        _lzSend({
+        receipt = _lzSend({
             _dstEid: _params.dstEid,
             _message: message,
             _options: _params.options,
@@ -105,7 +110,7 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
             _refundAddress: refundAddress(_params.dstEid)
         });
 
-        emit ActionsRelayed(_callId, _params.dstEid);
+        emit ActionsRelayed(_callId, _params.dstEid, receipt);
     }
 
     /// @notice Returns the address of the implementation contract in the [proxy storage slot](https://eips.ethereum.org/EIPS/eip-1967) slot the [UUPS proxy](https://eips.ethereum.org/EIPS/eip-1822) is pointing to.

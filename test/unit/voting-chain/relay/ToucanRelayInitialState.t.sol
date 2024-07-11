@@ -26,7 +26,7 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
 
     // TODO reentrancy gov token
 
-    event DestinationEidUpdated(uint32 dstEid);
+    event DestinationEidUpdated(uint32 indexed dstEid);
     event BrigeDelayBufferUpdated(uint32 buffer);
 
     function test_cannotCallImplementation() public {
@@ -117,7 +117,7 @@ contract TestToucanRelayInitialState is ToucanRelayBaseTest {
         vm.assume(_notThis != address(this));
         vm.assume(_dstEid > 0);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, false, false, true);
         emit DestinationEidUpdated(_dstEid);
         relay.setDstEid(_dstEid);
 

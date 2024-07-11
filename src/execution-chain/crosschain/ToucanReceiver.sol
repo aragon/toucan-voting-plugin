@@ -22,25 +22,29 @@ import {SweeperUpgradeable} from "@utils/SweeperUpgradeable.sol";
 /// @dev Separation of events makes for easier testing.
 interface IToucanReceiverEvents {
     /// @notice Emitted when the voting plugin is updated.
-    event NewVotingPluginSet(address plugin, address caller);
+    event NewVotingPluginSet(address indexed plugin, address indexed caller);
 
     /// @notice Emitted when votes are received from the ToucanRelay and the local state updated.
     /// @dev Does not necessarily mean the votes have been submitted to the voting plugin.
     event VotesReceived(
-        uint256 proposalId,
-        uint256 votingChainId,
-        address plugin,
+        uint256 indexed proposalId,
+        uint256 indexed votingChainId,
+        address indexed plugin,
         IVoteContainer.Tally votes
     );
 
     /// @notice Emitted when votes are successfully submitted to the voting plugin.
-    event SubmitVoteSuccess(uint256 proposalId, address plugin, IVoteContainer.Tally votes);
+    event SubmitVoteSuccess(
+        uint256 indexed proposalId,
+        address indexed plugin,
+        IVoteContainer.Tally votes
+    );
 
     /// @notice Emitted when a vote is successfully received from the ToucanRelay but cannot be submitted to the plugin.
     event SubmitVoteFailed(
-        uint256 proposalId,
-        uint256 votingChainId,
-        address plugin,
+        uint256 indexed proposalId,
+        uint256 indexed votingChainId,
+        address indexed plugin,
         IVoteContainer.Tally votes,
         bytes revertData
     );
@@ -335,12 +339,8 @@ contract ToucanReceiver is
         // skip further checks if there is no voting power
         if (votingPowerAtStart == 0) return false;
 
-        Tally memory currentAggregate = _votes[votingPlugin][_proposalId].aggregateVotes;
-
-        uint256 additionalVotes = _tally.sum();
-        uint256 currentVotes = currentAggregate.sum();
-
-        if (currentVotes + additionalVotes > votingPowerAtStart) return false;
+        // ensure the new votes don't exceed the voting power at the snapshot block
+        if (_tally.sum() > votingPowerAtStart) return false;
         else return true;
     }
 
