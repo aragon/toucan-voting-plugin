@@ -92,18 +92,20 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         ExecutionChain memory e = setupExecutionChain();
         VotingChain memory v = setupVotingChain();
 
+        // multisig requires that you have one block between
+        // changing settings and proposal creation
+        vm.roll(2);
+
         // deploy layerZero: this is cross chain
         _deployLayerZero(e.base, v.base);
 
         // setup the execution chain contracts
         _prepareSetupToucanVoting(e);
         _prepareSetupReceiver(e);
-        _prepareUninstallAdmin(e.base);
 
         // setup the voting chain contracts
         _prepareSetupRelay(v, e);
         _prepareSetupAdminXChain(v);
-        _prepareUninstallAdmin(v.base);
 
         // apply the installations and set the peers
 
@@ -144,6 +146,27 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
             }),
             "xchainadmin should not have the permission"
         );
+
+        // multisig should be installed
+        assertTrue(
+            v.base.dao.isGranted({
+                _who: address(v.base.multisig),
+                _where: address(v.base.dao),
+                _permissionId: v.base.dao.EXECUTE_PERMISSION_ID(),
+                _data: ""
+            }),
+            "multisig should have the permission on voting chain"
+        );
+
+        assertTrue(
+            e.base.dao.isGranted({
+                _who: address(e.base.multisig),
+                _where: address(e.base.dao),
+                _permissionId: e.base.dao.EXECUTE_PERMISSION_ID(),
+                _data: ""
+            }),
+            "multisig should have the permission on execution chain"
+        );
     }
 
     function setupExecutionChain() public returns (ExecutionChain memory e) {
@@ -153,7 +176,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         e.voter = eVoter;
 
         _deployOSX(e.base);
-        _deployDAOAndAdmin(e.base);
+        _deployDAOAndMSig(e.base);
     }
 
     function setupVotingChain() public returns (VotingChain memory v) {
@@ -163,7 +186,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         v.voter = vVoter0;
 
         _deployOSX(v.base);
-        _deployDAOAndAdmin(v.base);
+        _deployDAOAndMSig(v.base);
     }
 
     function _applyInstallationsSetPeersRevokeAdmin(
@@ -175,10 +198,14 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         // execute the actions
         vm.startPrank(chain.base.deployer);
         {
-            chain.base.admin.executeProposal({
+            chain.base.multisig.createProposal({
                 _metadata: "",
                 _actions: actions,
-                _allowFailureMap: 0
+                _allowFailureMap: 0,
+                _approveProposal: true,
+                _tryExecution: true,
+                _startDate: 0,
+                _endDate: uint64(block.timestamp + 1)
             });
         }
         vm.stopPrank();
@@ -193,10 +220,14 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         // execute the actions
         vm.startPrank(chain.base.deployer);
         {
-            chain.base.admin.executeProposal({
+            chain.base.multisig.createProposal({
                 _metadata: "",
                 _actions: actions,
-                _allowFailureMap: 0
+                _allowFailureMap: 0,
+                _approveProposal: true,
+                _tryExecution: true,
+                _startDate: 0,
+                _endDate: uint64(block.timestamp + 1)
             });
         }
         vm.stopPrank();

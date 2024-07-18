@@ -53,14 +53,19 @@ contract BridgeAndSend is Script, ISetup {
     address constant ALSO_ME = 0x35DFF23Cf68ad92021Ebe1FE043De6b77435E5e9;
     uint256 mint = 1_000_000_000 ether;
 
-    uint256 DEPLOYMENT_ID = 3;
+    // uint256 DEPLOYMENT_ID = 4;
+    uint256 DEPLOYMENT_ID = 2; // arb - zksync
 
-    ToucanDeployRegistry registryArbitrum =
-        ToucanDeployRegistry(0xfA8Df779f6bCC0aEc166F3DAa608B0674224e6cf);
-    ToucanDeployRegistry registryOptimism =
+    // ToucanDeployRegistry registryExec =
+    // ToucanDeployRegistry(0xfA8Df779f6bCC0aEc166F3DAa608B0674224e6cf);
+    // ToucanDeployRegistry registryOptimism =
+    // ToucanDeployRegistry(0x9a16A85f40E74A225370c5F604feEdaD86ed7e71);
+
+    // ZkSync
+    ToucanDeployRegistry registryExec =
         ToucanDeployRegistry(0x9a16A85f40E74A225370c5F604feEdaD86ed7e71);
 
-    uint32 EID_VOTING_CHAIN = 40232;
+    uint32 EID_VOTING_CHAIN = 30165;
 
     modifier broadcast() {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -72,33 +77,33 @@ contract BridgeAndSend is Script, ISetup {
     }
 
     function run() public broadcast {
-        if (DEPLOYMENT_ID == 0) revert("DEPLOYMENT_ID not set");
-        // get the contracts
-        (, ExecutionChain memory e) = registryArbitrum.deployments(DEPLOYMENT_ID);
+        // if (DEPLOYMENT_ID == 0) revert("DEPLOYMENT_ID not set");
+        // // get the contracts
+        (, ExecutionChain memory e) = registryExec.deployments(DEPLOYMENT_ID);
 
-        // bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(250000, 0);
-        // SendParam memory sendParams = SendParam({
-        //     dstEid: EID_VOTING_CHAIN,
-        //     to: addressToBytes32(address(ME)),
-        //     amountLD: 10_000 ether,
-        //     minAmountLD: 10_000 ether,
-        //     extraOptions: options,
-        //     composeMsg: bytes(""),
-        //     oftCmd: bytes("")
-        // });
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(250000, 0);
+        SendParam memory sendParams = SendParam({
+            dstEid: EID_VOTING_CHAIN,
+            to: addressToBytes32(address(ME)),
+            amountLD: 10_000 ether,
+            minAmountLD: 10_000 ether,
+            extraOptions: options,
+            composeMsg: bytes(""),
+            oftCmd: bytes("")
+        });
 
-        // // fetch a quote
-        // MessagingFee memory msgFee = e.adapter.quoteSend(sendParams, false);
+        // fetch a quote
+        MessagingFee memory msgFee = e.adapter.quoteSend(sendParams, false);
 
-        // // send the message
-        // e.token.approve(address(e.adapter), 10_000 ether);
-        // e.adapter.send{value: msgFee.nativeFee}(sendParams, msgFee, address(this));
+        // send the message
+        e.token.approve(address(e.adapter), 10_000 ether);
+        e.adapter.send{value: msgFee.nativeFee}(sendParams, msgFee, address(this));
 
         // // send to carlos as well
         // sendParams.to = addressToBytes32(address(JUAR));
         // msgFee = e.adapter.quoteSend(sendParams, false);
         // e.token.approve(address(e.adapter), 10_000 ether);
         // e.adapter.send{value: msgFee.nativeFee}(sendParams, msgFee, address(this));
-        e.token.transfer(address(ALSO_ME), 10_000 ether);
+        // e.token.transfer(address(JUAR), 10_000 ether);
     }
 }

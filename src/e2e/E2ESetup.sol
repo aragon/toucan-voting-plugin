@@ -14,6 +14,7 @@ import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Admin, AdminSetup} from "@aragon/admin/AdminSetup.sol";
+import {Multisig, MultisigSetup} from "@aragon/multisig/MultisigSetup.sol";
 
 // external test utils
 import "forge-std/console2.sol";
@@ -55,8 +56,8 @@ interface ISetup {
         // deployer
         address deployer;
         // we need admin to access the DAO
-        AdminSetup adminSetup;
-        Admin admin;
+        MultisigSetup multisigSetup;
+        Multisig multisig;
         PermissionLib.MultiTargetPermission[] adminUninstallPermissions;
     }
 
@@ -103,40 +104,29 @@ contract SetupE2EBase is IVoteContainer, ISetup {
     using TallyMath for Tally;
 
     function _deployOSX(ChainBase memory base) internal {
-        // deploy the mock PSP with the admin plugin
-        base.adminSetup = new AdminSetup();
-        base.psp = new MockPluginSetupProcessor(address(base.adminSetup));
+        // deploy the mock PSP with the multisig  plugin
+        base.multisigSetup = new MultisigSetup();
+        base.psp = new MockPluginSetupProcessor(address(base.multisigSetup));
         base.daoFactory = new MockDAOFactory(base.psp);
     }
 
-    function _deployDAOAndAdmin(ChainBase memory base) internal {
-        // use the OSx DAO factory with the Admin Plugin
-        bytes memory data = abi.encode(base.deployer);
+    function _deployDAOAndMSig(ChainBase memory base) internal {
+        // use the OSx DAO factory with the Plugin
+        address[] memory members = new address[](1);
+        members[0] = base.deployer;
+
+        // encode a 1/1 multisig that can be adjusted later
+        bytes memory data = abi.encode(
+            members,
+            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1})
+        );
+
         base.dao = base.daoFactory.createDao(_mockDAOSettings(), _mockPluginSettings(data));
 
         // nonce 0 is something?
         // nonce 1 is implementation contract
-        // nonce 2 is the admin contract behind the proxy
-        base.admin = Admin(computeAddress(address(base.adminSetup), 2));
-    }
-
-    function _prepareUninstallAdmin(ChainBase memory base) internal {
-        // psp will use the admin setup in next call
-        base.psp.queueSetup(address(base.adminSetup));
-
-        IPluginSetup.SetupPayload memory payload = IPluginSetup.SetupPayload({
-            plugin: address(base.admin),
-            currentHelpers: new address[](0),
-            data: new bytes(0)
-        });
-
-        // prepare the uninstallation
-        PermissionLib.MultiTargetPermission[] memory permissions = base.psp.prepareUninstallation(
-            address(base.dao),
-            _mockPrepareUninstallationParams(payload)
-        );
-
-        base.adminUninstallPermissions = permissions;
+        // nonce 2 is the msig contract behind the proxy
+        base.multisig = Multisig(computeAddress(address(base.multisigSetup), 2));
     }
 }
 
@@ -174,7 +164,7 @@ contract SetupExecutionChainE2E is SetupE2EBase {
             votingMode: IToucanVoting.VotingMode.VoteReplacement,
             supportThreshold: 1e5,
             minParticipation: 1e5,
-            minDuration: 1 days,
+            minDuration: 2 hours,
             minProposerVotingPower: 1 ether
         });
 
@@ -236,7 +226,7 @@ contract SetupExecutionChainE2E is SetupE2EBase {
         ExecutionChain memory chain,
         VotingChain memory votingChain
     ) internal view returns (IDAO.Action[] memory) {
-        IDAO.Action[] memory actions = new IDAO.Action[](6);
+        IDAO.Action[] memory actions = new IDAO.Action[](5);
 
         // action 0: apply the tokenVoting installation
         actions[0] = IDAO.Action({
@@ -289,22 +279,6 @@ contract SetupExecutionChainE2E is SetupE2EBase {
             data: abi.encodeCall(
                 chain.adapter.setPeer,
                 (votingChain.base.eid, addressToBytes32(address(votingChain.bridge)))
-            )
-        });
-
-        // action 5: uninstall the admin plugin
-        actions[5] = IDAO.Action({
-            to: address(chain.base.psp),
-            value: 0,
-            data: abi.encodeCall(
-                chain.base.psp.applyUninstallation,
-                (
-                    address(chain.base.dao),
-                    _mockApplyUninstallationParams(
-                        address(chain.base.admin),
-                        chain.base.adminUninstallPermissions
-                    )
-                )
             )
         });
 
@@ -376,7 +350,7 @@ contract SetupVotingChainE2E is SetupE2EBase {
         VotingChain memory chain,
         ExecutionChain memory executionChain
     ) internal view returns (IDAO.Action[] memory) {
-        IDAO.Action[] memory actions = new IDAO.Action[](6);
+        IDAO.Action[] memory actions = new IDAO.Action[](5);
 
         // action 0: apply the toucanRelay installation
         actions[0] = IDAO.Action({
@@ -432,22 +406,6 @@ contract SetupVotingChainE2E is SetupE2EBase {
             data: abi.encodeCall(
                 chain.bridge.setPeer,
                 (executionChain.base.eid, addressToBytes32(address(executionChain.adapter)))
-            )
-        });
-
-        // action 5: uninstall the admin plugin
-        actions[5] = IDAO.Action({
-            to: address(chain.base.psp),
-            value: 0,
-            data: abi.encodeCall(
-                chain.base.psp.applyUninstallation,
-                (
-                    address(chain.base.dao),
-                    _mockApplyUninstallationParams(
-                        address(chain.base.admin),
-                        chain.base.adminUninstallPermissions
-                    )
-                )
             )
         });
 

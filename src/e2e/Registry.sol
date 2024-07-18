@@ -86,8 +86,8 @@ contract ToucanDeployRegistry is ISetup {
             deployments[id].executionChain.base.psp = executionChain.base.psp;
             deployments[id].executionChain.base.daoFactory = executionChain.base.daoFactory;
             deployments[id].executionChain.base.deployer = executionChain.base.deployer;
-            deployments[id].executionChain.base.adminSetup = executionChain.base.adminSetup;
-            deployments[id].executionChain.base.admin = executionChain.base.admin;
+            deployments[id].executionChain.base.multisigSetup = executionChain.base.multisigSetup;
+            deployments[id].executionChain.base.multisig = executionChain.base.multisig;
 
             // loop through permissions to set them
             for (uint256 i = 0; i < executionChain.base.adminUninstallPermissions.length; i++) {
@@ -142,8 +142,8 @@ contract ToucanDeployRegistry is ISetup {
             deployments[id].votingChain.base.psp = votingChain.base.psp;
             deployments[id].votingChain.base.daoFactory = votingChain.base.daoFactory;
             deployments[id].votingChain.base.deployer = votingChain.base.deployer;
-            deployments[id].votingChain.base.adminSetup = votingChain.base.adminSetup;
-            deployments[id].votingChain.base.admin = votingChain.base.admin;
+            deployments[id].votingChain.base.multisigSetup = votingChain.base.multisigSetup;
+            deployments[id].votingChain.base.multisig = votingChain.base.multisig;
 
             // loop through permissions to set them
             for (uint256 i = 0; i < votingChain.base.adminUninstallPermissions.length; i++) {

@@ -59,6 +59,9 @@ contract MockDAOFactory {
     /// @notice Thrown if `PluginSettings` array is empty, and no plugin is provided.
     error NoPluginProvided();
 
+    /// @notice lifted from dao registry
+    event DAORegistered(address indexed dao, address indexed creator, string subdomain);
+
     /// @notice The constructor setting the registry and plugin setup processor and creating the base contracts for the factory.
     // / @param _registry The DAO registry to register the DAO by its name.
     /// @param _pluginSetupProcessor The address of PluginSetupProcessor.
@@ -95,6 +98,7 @@ contract MockDAOFactory {
         // MOCK: SKIP
         // // Register DAO.
         // daoRegistry.register(createdDao, msg.sender, _daoSettings.subdomain);
+        emit DAORegistered(address(createdDao), msg.sender, _daoSettings.subdomain);
 
         // Get Permission IDs
         bytes32 rootPermissionID = createdDao.ROOT_PERMISSION_ID();

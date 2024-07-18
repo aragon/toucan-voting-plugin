@@ -1,10 +1,11 @@
 {
-  "name": "@aragon/osx-plugin-template-foundry",
-  "description": "",
-  "version": "1.0.0",
+  "name": "toucan-contracts",
+  "description": "Crosschain voting and governance contracts for Aragon OSx",
+  "version": "0.0.1-alpha",
+  "license": "AGPL-3.0-only",
   "author": {
     "name": "aragon",
-    "url": "https://github.com/Aragon"
+    "url": "https://github.com/aragon/toucan-voting-plugin"
   },
   "keywords": [
     "blockchain",
@@ -18,7 +19,7 @@
     "dao",
     "daobox"
   ],
-  "private": true,
+  "private": false,
   "scripts": {
     "clean": "rm -rf cache out",
     "build": "forge build",

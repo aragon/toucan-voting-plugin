@@ -54,24 +54,34 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     uint256 mint = 1_000_000_000 ether;
 
     // increment this each deployment: not great solution but fine for now
-    uint256 DEPLOYMENT_ID = 3;
+    // uint256 DEPLOYMENT_ID = 5; // last deploy on arbsep - opsep
+
+    uint256 DEPLOYMENT_ID = 2; // arb - zksync
 
     // these should be singletons per network
-    ToucanDeployRegistry registryArbitrum =
-        ToucanDeployRegistry(0xfA8Df779f6bCC0aEc166F3DAa608B0674224e6cf);
-    ToucanDeployRegistry registryOptimism =
+    // arbitrum sepolia
+    // ToucanDeployRegistry registryExec =
+    //     ToucanDeployRegistry(0xfA8Df779f6bCC0aEc166F3DAa608B0674224e6cf);
+
+    // optimism sepolia
+    ToucanDeployRegistry registryVot =
+        ToucanDeployRegistry(0x9a16A85f40E74A225370c5F604feEdaD86ed7e71);
+
+    // // Arbitrum one
+    ToucanDeployRegistry registryExec =
         ToucanDeployRegistry(0x9a16A85f40E74A225370c5F604feEdaD86ed7e71);
 
     // CONTRACTS NEEDED
-    // Voting Chain
-    address TOUCAN_RELAY = 0x65991B62B5067c1B4941E6F6A97add0e45280a3A;
-    address payable ADMIN_XCHAIN = payable(0xaA256bCaF9ef49A26f4F5DE5A8aBf7095EA11617);
-    address BRIDGE = 0x7B0913Bb7D4B4C174A03baBD9172fa96Fe52C279;
+    // Voting Chain - zkSync
 
-    // Execution Chain
-    address payable RECEIVER = payable(0xA52bEC62C3CA39d999778D671B5024CB7ef7E0a0);
-    address ACTION_RELAY = 0xF4B9Fc72B402a822AC6bbA7845349bB4f62D8e19;
-    address ADAPTER = 0xF104E7C74a3350e73B02A55375bABbE5a70a1447;
+    address TOUCAN_RELAY = 0x81b354B610E6F5E117f42Dae7e1F654440ACc7c1;
+    address payable ADMIN_XCHAIN = payable(0x7E10952B1eB3cfdEe715D335C028545b4E23C8Aa);
+    address BRIDGE = 0xAB1b5e2B7feF10231d6B1B60893af0C70fBAB7a0;
+
+    // Execution Chain - arbitrum
+    address payable RECEIVER = payable(0xb79249F645CdF89cbEA665Da3fdcde8fd34708cF);
+    address ACTION_RELAY = 0x1d4Ec65D3F762BE9c3d2daA78Dd69abcc2094E06;
+    address ADAPTER = 0x8Bc2Fd21043f6a00d75728807c181d6EC11fbc46;
 
     modifier broadcast() {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -84,28 +94,44 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
 
     modifier requiresRegistry(bool isOnExecutionChain) {
         if (isOnExecutionChain) {
-            require(address(registryArbitrum) != address(0), "Registry not found");
+            require(address(registryExec) != address(0), "Registry not found");
         } else {
-            require(address(registryOptimism) != address(0), "Registry not found");
+            require(address(registryVot) != address(0), "Registry not found");
         }
         _;
     }
 
     function setupExecutionChain() public view returns (ExecutionChain memory e) {
-        e.base.chainName = "ArbitrumSepolia";
-        e.base.eid = 40231;
+        e.base.chainName = "Arbitrum";
+        e.base.eid = 30110;
         e.base.deployer = deployer;
-        e.base.lzEndpoint = 0x6EDCE65403992e310A62460808c4b910D972f10f;
+        e.base.lzEndpoint = 0x1a44076050125825900e736c501f859c50fE728c;
         e.voter = deployer;
     }
 
+    // function setupExecutionChain() public view returns (ExecutionChain memory e) {
+    //     e.base.chainName = "Arbitrum Sepolia";
+    //     e.base.eid = 40231;
+    //     e.base.deployer = deployer;
+    //     e.base.lzEndpoint = 0x6EDCE65403992e310A62460808c4b910D972f10f;
+    //     e.voter = deployer;
+    // }
+
     function setupVotingChain() public view returns (VotingChain memory v) {
-        v.base.chainName = "OptimismSepolia";
-        v.base.eid = 40232;
+        v.base.chainName = "ZkSync Era";
+        v.base.eid = 30165;
         v.base.deployer = deployer;
-        v.base.lzEndpoint = 0x6EDCE65403992e310A62460808c4b910D972f10f;
+        v.base.lzEndpoint = 0xd07C30aF3Ff30D96BDc9c6044958230Eb797DDBF;
         v.voter = deployer;
     }
+
+    // function setupVotingChain() public view returns (VotingChain memory v) {
+    //     v.base.chainName = "Optimism Sepolia";
+    //     v.base.eid = 40232;
+    //     v.base.deployer = deployer;
+    //     v.base.lzEndpoint = 0x6EDCE65403992e310A62460808c4b910D972f10f;
+    //     v.voter = deployer;
+    // }
 
     function _isOnExecutionChain() internal view returns (bool) {
         string memory result = vm.envString("EXECUTION_OR_VOTING");
@@ -182,62 +208,60 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     }
 
     function deployRegistryExecutionChain() public {
-        if (address(registryArbitrum) == address(0)) {
+        if (address(registryExec) == address(0)) {
             console2.log("REGISTRY NOT FOUND, creating new one");
-            registryArbitrum = new ToucanDeployRegistry();
-            console2.log("REGISTRY: %s", address(registryArbitrum));
+            registryExec = new ToucanDeployRegistry();
+            console2.log("REGISTRY: %s", address(registryExec));
         } else {
-            console2.log("REGISTRY FOUND: %s", address(registryArbitrum));
+            console2.log("REGISTRY FOUND: %s", address(registryExec));
         }
     }
 
     function deployRegistryVotingChain() public {
-        if (address(registryOptimism) == address(0)) {
+        if (address(registryVot) == address(0)) {
             console2.log("REGISTRY NOT FOUND, creating new one");
-            registryOptimism = new ToucanDeployRegistry();
-            console2.log("REGISTRY: %s", address(registryOptimism));
+            registryVot = new ToucanDeployRegistry();
+            console2.log("REGISTRY: %s", address(registryVot));
         } else {
-            console2.log("REGISTRY FOUND: %s", address(registryOptimism));
+            console2.log("REGISTRY FOUND: %s", address(registryVot));
         }
     }
 
     function initExecutionChain(ExecutionChain memory e) public requiresRegistry(true) {
-        if (address(registryArbitrum) == address(0)) {
+        if (address(registryExec) == address(0)) {
             console2.log("REGISTRY NOT FOUND, creating new one");
-            registryArbitrum = new ToucanDeployRegistry();
-            console2.log("REGISTRY: %s", address(registryArbitrum));
+            registryExec = new ToucanDeployRegistry();
+            console2.log("REGISTRY: %s", address(registryExec));
         }
 
         _deployOSX(e.base);
-        _deployDAOAndAdmin(e.base);
+        _deployDAOAndMSig(e.base);
         _prepareSetupToucanVoting(e);
         _prepareSetupReceiver(e);
-        _prepareUninstallAdmin(e.base);
 
-        registryArbitrum.writeExecutionChain(DEPLOYMENT_ID, e);
+        registryExec.writeExecutionChain(DEPLOYMENT_ID, e);
     }
 
     function initVotingChain(VotingChain memory v) public requiresRegistry(false) {
-        if (address(registryOptimism) == address(0)) {
+        if (address(registryVot) == address(0)) {
             console2.log("REGISTRY NOT FOUND, creating new one");
-            registryOptimism = new ToucanDeployRegistry();
-            console2.log("REGISTRY: %s", address(registryOptimism));
+            registryVot = new ToucanDeployRegistry();
+            console2.log("REGISTRY: %s", address(registryVot));
         }
 
         // grab the basic execution chain
         ExecutionChain memory ec = setupExecutionChain();
 
         _deployOSX(v.base);
-        _deployDAOAndAdmin(v.base);
+        _deployDAOAndMSig(v.base);
         _prepareSetupRelay(v, ec);
         _prepareSetupAdminXChain(v);
-        _prepareUninstallAdmin(v.base);
 
-        registryOptimism.writeVotingChain(DEPLOYMENT_ID, v);
+        registryVot.writeVotingChain(DEPLOYMENT_ID, v);
     }
 
     function logAddressesForVotingChainExecutionChain() public view requiresRegistry(true) {
-        (, ExecutionChain memory ec) = registryArbitrum.deployments(DEPLOYMENT_ID);
+        (, ExecutionChain memory ec) = registryExec.deployments(DEPLOYMENT_ID);
 
         console2.log("Receiver: %s", address(ec.receiver));
         console2.log("ActionRelay: %s", address(ec.actionRelay));
@@ -245,7 +269,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     }
 
     function logAddressesForExecutionChainVotingchain() public view requiresRegistry(false) {
-        (VotingChain memory vc, ) = registryOptimism.deployments(DEPLOYMENT_ID);
+        (VotingChain memory vc, ) = registryVot.deployments(DEPLOYMENT_ID);
 
         console2.log("Relay: %s", address(vc.relay));
         console2.log("AdminXChain: %s", address(vc.adminXChain));
@@ -269,7 +293,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         vc.adminXChain = AdminXChain(adminXChain);
         vc.bridge = OFTTokenBridge(bridge);
 
-        registryArbitrum.writeVotingChain(id, vc);
+        registryExec.writeVotingChain(id, vc);
     }
 
     // stage 2b: set the required contract addresses FROM the execution chain
@@ -289,28 +313,24 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         ec.actionRelay = ActionRelay(actionRelay);
         ec.adapter = GovernanceOFTAdapter(adapter);
 
-        registryOptimism.writeExecutionChain(id, ec);
+        registryVot.writeExecutionChain(id, ec);
     }
 
     /// Stage 3a, with all the required contract addresses set, we can now
     /// connect peers and revoke admin
     function applyPermissionsExecutionChain() public requiresRegistry(true) {
-        (VotingChain memory vc, ExecutionChain memory ec) = registryArbitrum.deployments(
-            DEPLOYMENT_ID
-        );
+        (VotingChain memory vc, ExecutionChain memory ec) = registryExec.deployments(DEPLOYMENT_ID);
         _checkRequiredData(vc);
 
-        _applyInstallationsSetPeersRevokeAdmin(ec, vc);
+        _applyInstallationsSetPeers(ec, vc);
     }
 
     /// Stage 3b, with all the required contract addresses set, we can now
     /// connect peers and revoke admin
     function applyPermissionsVotingChain() public requiresRegistry(false) {
-        (VotingChain memory vc, ExecutionChain memory ec) = registryOptimism.deployments(
-            DEPLOYMENT_ID
-        );
+        (VotingChain memory vc, ExecutionChain memory ec) = registryVot.deployments(DEPLOYMENT_ID);
         _checkRequiredData(ec);
-        _applyInstallationsSetPeersRevokeAdmin(vc, ec);
+        _applyInstallationsSetPeers(vc, ec);
     }
 
     function _checkRequiredData(VotingChain memory v) internal pure {
@@ -330,29 +350,37 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     }
 
     // apply installation on the execution chain
-    function _applyInstallationsSetPeersRevokeAdmin(
-        ExecutionChain memory e,
-        VotingChain memory v
-    ) internal {
+    function _applyInstallationsSetPeers(ExecutionChain memory e, VotingChain memory v) internal {
         IDAO.Action[] memory actions = _executionActions(e, v);
 
-        e.base.admin.executeProposal({_metadata: "", _actions: actions, _allowFailureMap: 0});
+        e.base.multisig.createProposal({
+            _metadata: "",
+            _actions: actions,
+            _allowFailureMap: 0,
+            _approveProposal: true,
+            _tryExecution: true,
+            _startDate: 0,
+            _endDate: uint64(block.timestamp + 30 minutes)
+        });
     }
 
     // apply installation on the voting chain
-    function _applyInstallationsSetPeersRevokeAdmin(
-        VotingChain memory v,
-        ExecutionChain memory e
-    ) internal {
+    function _applyInstallationsSetPeers(VotingChain memory v, ExecutionChain memory e) internal {
         IDAO.Action[] memory actions = _votingActions(v, e);
 
-        v.base.admin.executeProposal({_metadata: "", _actions: actions, _allowFailureMap: 0});
+        v.base.multisig.createProposal({
+            _metadata: "",
+            _actions: actions,
+            _allowFailureMap: 0,
+            _approveProposal: true,
+            _tryExecution: true,
+            _startDate: 0,
+            _endDate: uint64(block.timestamp + 30 minutes)
+        });
     }
 
     function logRegistryExecution() public view requiresRegistry(true) {
-        (VotingChain memory v, ExecutionChain memory e) = registryArbitrum.deployments(
-            DEPLOYMENT_ID
-        );
+        (VotingChain memory v, ExecutionChain memory e) = registryExec.deployments(DEPLOYMENT_ID);
 
         console2.log("ExecutionChain:");
         console2.log("  chainName: %s", e.base.chainName);
@@ -367,6 +395,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         console2.log("  actionRelay: %s", address(e.actionRelay));
         console2.log("  adapter: %s", address(e.adapter));
         console2.log("  token: %s", address(e.token));
+        console2.log("  multisig: %s", address(e.base.multisig));
 
         console2.log("VotingChain Data:");
         console2.log("  chainName: %s", v.base.chainName);
@@ -377,9 +406,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     }
 
     function logRegistryVoting() public view requiresRegistry(false) {
-        (VotingChain memory v, ExecutionChain memory e) = registryOptimism.deployments(
-            DEPLOYMENT_ID
-        );
+        (VotingChain memory v, ExecutionChain memory e) = registryVot.deployments(DEPLOYMENT_ID);
 
         console2.log("VotingChain:");
         console2.log("  chainName: %s", v.base.chainName);
@@ -393,6 +420,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         console2.log("  adminXChain: %s", address(v.adminXChain));
         console2.log("  bridge: %s", address(v.bridge));
         console2.log("  token: %s", address(v.token));
+        console2.log("  multisig: %s", address(v.base.multisig));
 
         console2.log("ExecutionChain Data:");
         console2.log("  chainName: %s", e.base.chainName);
