@@ -30,3 +30,6 @@ url = https://github.com/foundry-rs/forge-std
 branch = "v1.3.0"
 path = lib/osx
 url = https://github.com/aragon/osx
+[submodule "lib/optimism"]
+	path = lib/optimism
+	url = https://github.com/ethereum-optimism/optimism
