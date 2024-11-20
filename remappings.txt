@@ -36,3 +36,7 @@ solidity-bytes-utils/=lib/solidity-bytes-utils/
 @execution-chain/=src/execution-chain/
 @utils/=src/utils/
 @helpers/=test/helpers/
+
+@eth-optimism/contracts-bedrock/=lib/optimism/packages/contracts-bedrock/
+
+@hashi/contracts/=src/hashi/
