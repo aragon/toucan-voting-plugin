@@ -19,7 +19,7 @@ contract ToucanVotingTestBase is TestHelpers, IVoteContainer {
     DAO dao;
 
     // constants
-    uint8 public constant STANDARD_VOTING_MODE = 0;
+    uint8 public constant VOTE_REPLACEMENT_VOTING_MODE = 2;
     uint32 public constant SUPPORT_THRESHOLD = 0;
     uint32 public constant MIN_PARTICIPATION = 0;
     uint32 public constant MIN_DURATION = 3600;
@@ -85,7 +85,7 @@ contract ToucanVotingTestBase is TestHelpers, IVoteContainer {
     function _defaultVotingSettings() internal pure returns (IToucanVoting.VotingSettings memory) {
         return
             _votingSettings(
-                STANDARD_VOTING_MODE,
+                VOTE_REPLACEMENT_VOTING_MODE,
                 SUPPORT_THRESHOLD,
                 MIN_PARTICIPATION,
                 MIN_DURATION,
@@ -98,7 +98,7 @@ contract ToucanVotingTestBase is TestHelpers, IVoteContainer {
     ) internal pure returns (IToucanVoting.VotingSettings memory) {
         return
             IToucanVoting.VotingSettings({
-                votingMode: IToucanVoting.VotingMode(_settings.votingMode % 3),
+                votingMode: IToucanVoting.VotingMode(VOTE_REPLACEMENT_VOTING_MODE),
                 supportThreshold: _settings.supportThreshold,
                 minParticipation: _settings.minParticipation,
                 minDuration: _settings.minDuration,

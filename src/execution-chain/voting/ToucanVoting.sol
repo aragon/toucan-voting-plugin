@@ -90,6 +90,9 @@ contract ToucanVoting is
     /// @param sender The sender address.
     error ProposalCreationForbidden(address sender);
 
+    /// @notice Thrown if the voting mode is not VoteReplacement.
+    error VotingModeNotAllowed();
+
     /// @notice Thrown if an account is not allowed to cast a vote. This can be because the vote
     /// - has not started,
     /// - has ended,
@@ -207,6 +210,10 @@ contract ToucanVoting is
                 limit: RATIO_BASE - 1,
                 actual: _votingSettings.supportThreshold
             });
+        }
+
+        if (_votingSettings.votingMode != VotingMode.VoteReplacement) {
+            revert VotingModeNotAllowed();
         }
 
         // Require the minimum participation value to be in the interval [0, 10^6],
