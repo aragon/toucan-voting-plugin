@@ -206,8 +206,6 @@ contract SetOAppConf is Script, ISetup, IVoteContainer {
     function run() public broadcast {
         (, ExecutionChain memory e) = registryExec.deployments(DEPLOYMENT_ID);
 
-        address srcOApp = address(e.adapter);
-
         OAppConfChain memory arbitrum = OAppConfChain({
             sendLib: 0x975bcD720be66659e3EB3C0e4F1866a3020E493A,
             eid: 30110,
