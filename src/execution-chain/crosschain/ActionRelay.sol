@@ -142,7 +142,7 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
 
         receipt = _lzSend({
             _dstEid: action.dstEid,
-            _message: action.message,
+            _message: abi.encode(action.message, msg.value),
             _options: _params.options,
             _fee: _params.fee,
             _refundAddress: action.refundAddress

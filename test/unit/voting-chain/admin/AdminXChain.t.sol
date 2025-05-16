@@ -91,7 +91,8 @@ contract AdminXChainTest is TestHelpers, IVoteContainer {
         vm.assume(_origin.sender != _peer);
 
         // encode a simple message
-        bytes memory _message = abi.encode(0, new IDAO.Action[](0), 0);
+        bytes memory _proposalMessage = abi.encode(0, new IDAO.Action[](0), 0);
+        bytes memory _message = abi.encode(_proposalMessage, 0);
 
         // revert 1 if the sender is not the endpoint
         vm.expectRevert(

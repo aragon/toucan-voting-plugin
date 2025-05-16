@@ -99,11 +99,15 @@ contract AdminXChain is
         address /* _executor */,
         bytes calldata /* _extraData */
     ) internal override {
+        (bytes memory proposalData, uint256 value) = abi.decode(_message, (bytes, uint256));
+        address sender = bytes32ToAddress(_origin.sender);
+
+        require(msg.value >= value, "Insufficient value");
+
         (uint256 callId, IDAO.Action[] memory actions, uint256 allowFailureMap) = abi.decode(
-            _message,
+            proposalData,
             (uint256, IDAO.Action[], uint256)
         );
-        address sender = bytes32ToAddress(_origin.sender);
 
         // store the action metadata against the newly generated proposalId, ensuring it is unique
         uint proposalId = _createProposalId();
