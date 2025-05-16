@@ -18,8 +18,21 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     using OptionsBuilder for bytes;
     using SafeCast for uint256;
 
+    /// @notice Mapping of actions queued to be relayed.
+    mapping(uint256 => QueuedActionRelayParams) public actionsMap;
+
     /// @notice Holders of this role are allowed to relay actions to another chain.
     bytes32 public constant XCHAIN_ACTION_RELAYER_ID = keccak256("XCHAIN_ACTION_RELAYER");
+
+    /// @notice Actions ready to be relayed to another chain.
+    /// @param dstEid The LayerZero endpoint ID of the execution chain.
+    /// @param message The encoded message to be sent to the destination chain.
+    /// @param refundAddress The address that will receive the refund if the transaction fails.
+    struct QueuedActionRelayParams {
+        uint32 dstEid;
+        bytes message;
+        address refundAddress;
+    }
 
     /// @notice Additional Layer Zero params required to send a cross chain message.
     /// @param dstEid The LayerZero endpoint ID of the execution chain.
@@ -27,7 +40,6 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     /// @param fee The messaging fee required to send the message, this is sent to LayerZero.
     /// @param options Additional options required to send the message, these are encoded as bytes.
     struct LzSendParams {
-        uint32 dstEid;
         uint128 gasLimit;
         MessagingFee fee;
         bytes options;
@@ -41,6 +53,12 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
         uint256 indexed destinationEid,
         MessagingReceipt receipt
     );
+
+    /// @notice Emitted when actions are queued for relaying to another chain.
+    /// @param callId A unique identifier for the relayed actions, such as a proposal ID.
+    /// @param destinationEid The LayerZero endpoint ID of the destination chain.
+    /// @param message The encoded message to be sent to the destination chain.
+    event ActionsQueued(uint256 indexed callId, uint256 indexed destinationEid, bytes message);
 
     constructor() {
         _disableInitializers();
@@ -64,53 +82,73 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
 
     /// @notice Quote the messaging fee required to relay actions to another chain.
     /// @param _callId The unique identifier for the relayed actions, such as a proposal ID.
-    /// @param _actions The actions to relay to the destination chain, including value, target and calldata.
-    /// @param _allowFailureMap A bitmap of actions that are allowed to fail.
-    /// @param _dstEid The LayerZero endpoint ID of the destination chain.
     /// @param _gasLimit The additional gas needed on the destination chain to process the message, surplus will be refunded.
     function quote(
         uint256 _callId,
-        IDAO.Action[] memory _actions,
-        uint256 _allowFailureMap,
-        uint32 _dstEid,
         uint128 _gasLimit
     ) external view returns (LzSendParams memory params) {
-        bytes memory message = abi.encode(_callId, _actions, _allowFailureMap);
+        QueuedActionRelayParams memory action = actionsMap[_callId];
+
+        require(action.message.length > 0, "ActionRelay: no message to relay");
+
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption({
             _gas: _gasLimit,
             _value: 0
         });
         MessagingFee memory fee = _quote({
-            _dstEid: _dstEid,
-            _message: message,
+            _dstEid: action.dstEid,
+            _message: action.message,
             _options: options,
             _payInLzToken: false
         });
-        return LzSendParams({dstEid: _dstEid, gasLimit: _gasLimit, fee: fee, options: options});
+        return LzSendParams({gasLimit: _gasLimit, fee: fee, options: options});
     }
 
     /// @notice Relay actions to another chain. Requires the sender to be authorized and the peer OApp to be set.
     /// @param _callId The unique identifier for the relayed actions, such as a proposal ID.
     /// @param _actions The actions to relay to the destination chain, including value, target and calldata.
     /// @param _allowFailureMap A bitmap of actions that are allowed to fail.
-    /// @param _params Additional Layer Zero params required to send a cross chain message, use the `quote` function to get these.
-    function relayActions(
+    /// @param _dstEid The LayerZero endpoint ID of the destination chain.
+    function queueRelayActions(
         uint256 _callId,
+        uint32 _dstEid,
         IDAO.Action[] memory _actions,
-        uint256 _allowFailureMap,
-        LzSendParams memory _params
-    ) external payable auth(XCHAIN_ACTION_RELAYER_ID) returns (MessagingReceipt memory receipt) {
+        uint256 _allowFailureMap
+    ) public auth(XCHAIN_ACTION_RELAYER_ID) {
         bytes memory message = abi.encode(_callId, _actions, _allowFailureMap);
+        _queueRelayActions(_callId, _dstEid, message);
+    }
 
-        receipt = _lzSend({
-            _dstEid: _params.dstEid,
-            _message: message,
-            _options: _params.options,
-            _fee: _params.fee,
-            _refundAddress: refundAddress(_params.dstEid)
+    function _queueRelayActions(uint256 _callId, uint32 _dstEid, bytes memory _message) internal {
+        actionsMap[_callId] = QueuedActionRelayParams({
+            dstEid: _dstEid,
+            message: _message,
+            refundAddress: refundAddress(_dstEid)
         });
 
-        emit ActionsRelayed(_callId, _params.dstEid, receipt);
+        emit ActionsQueued(_callId, _dstEid, _message);
+    }
+
+    /// @notice Relay actions to another chain. Requires the sender to be authorized and the peer OApp to be set.
+    /// @param _callId The unique identifier for the relayed actions, such as a proposal ID.
+    /// @param _params The LayerZero parameters required to send the message.
+    function executeRelayActions(
+        uint256 _callId,
+        LzSendParams calldata _params
+    ) public payable returns (MessagingReceipt memory receipt) {
+        QueuedActionRelayParams memory action = actionsMap[_callId];
+
+        require(action.message.length > 0, "ActionRelay: no message to relay");
+
+        receipt = _lzSend({
+            _dstEid: action.dstEid,
+            _message: action.message,
+            _options: _params.options,
+            _fee: _params.fee,
+            _refundAddress: action.refundAddress
+        });
+
+        emit ActionsRelayed(_callId, action.dstEid, receipt);
     }
 
     /// @notice Returns the address of the implementation contract in the [proxy storage slot](https://eips.ethereum.org/EIPS/eip-1967) slot the [UUPS proxy](https://eips.ethereum.org/EIPS/eip-1822) is pointing to.
