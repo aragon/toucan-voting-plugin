@@ -187,6 +187,23 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
         relay.quote(0, 0);
     }
 
+    function testCantReQueueRelayActions() public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
+        });
+
+        vm.startPrank(address(dao));
+        {
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+
+            vm.expectRevert("ActionRelay: already queued");
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+        }
+        vm.stopPrank();
+    }
+
     function testCantExecuteEmptyRelayActions() public {
         dao.grant({
             _who: address(dao),

@@ -121,6 +121,8 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     }
 
     function _queueRelayActions(uint256 _callId, uint32 _dstEid, bytes memory _message) internal {
+        require(actionsMap[_callId].message.length == 0, "ActionRelay: already queued");
+
         actionsMap[_callId] = QueuedActionRelayParams({
             dstEid: _dstEid,
             message: _message,
