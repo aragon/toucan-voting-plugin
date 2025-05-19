@@ -209,7 +209,7 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
         );
     }
 
-    function testCanReExecuteRelayActions() public {
+    function testCantReExecuteRelayActions() public {
         dao.grant({
             _who: address(dao),
             _where: address(relay),
@@ -228,6 +228,8 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
 
         vm.deal(address(dao), params.fee.nativeFee * 2);
         relay.executeRelayActions{value: params.fee.nativeFee}(0, params);
+
+        vm.expectRevert("ActionRelay: already executed");
         relay.executeRelayActions{value: params.fee.nativeFee}(0, params);
     }
 

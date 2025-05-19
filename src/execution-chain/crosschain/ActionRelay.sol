@@ -32,6 +32,7 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
         uint32 dstEid;
         bytes message;
         address refundAddress;
+        bool executed;
     }
 
     /// @notice Additional Layer Zero params required to send a cross chain message.
@@ -123,7 +124,8 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
         actionsMap[_callId] = QueuedActionRelayParams({
             dstEid: _dstEid,
             message: _message,
-            refundAddress: refundAddress(_dstEid)
+            refundAddress: refundAddress(_dstEid),
+            executed: false
         });
 
         emit ActionsQueued(_callId, _dstEid, _message);
@@ -137,6 +139,9 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
         LzSendParams calldata _params
     ) public payable returns (MessagingReceipt memory receipt) {
         QueuedActionRelayParams memory action = actionsMap[_callId];
+        require(!action.executed, "ActionRelay: already executed");
+
+        actionsMap[_callId].executed = true;
 
         require(action.message.length > 0, "ActionRelay: no message to relay");
 
