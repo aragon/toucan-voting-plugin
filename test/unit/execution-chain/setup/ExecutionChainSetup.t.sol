@@ -40,6 +40,7 @@ contract TestExecutionChainOSx is TestHelpers {
     address remoteXchainAdmin = address(1);
     address remoteRelay = address(2);
     address remoteBridge = address(3);
+    address executor = address(4);
 
     // dao
     DAO dao;
@@ -186,7 +187,7 @@ contract TestExecutionChainOSx is TestHelpers {
         mockPSP.queueSetup(address(receiverSetup));
 
         // prepare the installation
-        bytes memory data = abi.encode(address(lzEndpoint), address(voting));
+        bytes memory data = abi.encode(address(lzEndpoint), address(voting), executor);
 
         (
             address receiverPluginAddress,
@@ -329,7 +330,19 @@ contract TestExecutionChainOSx is TestHelpers {
                 _data: ""
             }),
             true,
-            "DAO should have XChain execute on xchain relay"
+            "DAO should have XChain action relayer on xchain relay"
+        );
+
+        // dao should have XChain execute on xchain relay
+        assertEq(
+            dao.hasPermission({
+                _who: address(executor),
+                _where: address(actionRelay),
+                _permissionId: actionRelay.XCHAIN_ACTION_EXECUTOR_ID(),
+                _data: ""
+            }),
+            true,
+            "Executor should have XChain executor on xchain relay"
         );
 
         // dao should be sweeper on the receiver

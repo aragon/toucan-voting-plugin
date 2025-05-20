@@ -69,6 +69,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     using OptionsBuilder for bytes;
 
     address deployer = address(0x420);
+    address executor = address(0x88);
 
     address eVoter = address(0x69);
     address vVoter0 = address(0x96);
@@ -174,6 +175,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         e.base.chainid = 80085;
         e.base.deployer = deployer;
         e.voter = eVoter;
+        e.executor = executor;
 
         _deployOSX(e.base);
         _deployDAOAndMSig(e.base);
@@ -376,15 +378,17 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
             assertTrue(success, "should have sent the DAO some cash");
 
             e.voting.execute(proposalId);
-
-            ActionRelay.LzSendParams memory params = e.actionRelay.quote(
-                proposalId,
-                GAS_XCHAIN_PROPOSAL
-            );
-
-            e.actionRelay.executeRelayActions{value: params.fee.nativeFee}(proposalId, params);
         }
         vm.stopPrank();
+
+        ActionRelay.LzSendParams memory params = e.actionRelay.quote(
+            proposalId,
+            GAS_XCHAIN_PROPOSAL
+        );
+
+        vm.deal(address(e.executor), params.fee.nativeFee);
+        vm.prank(e.executor);
+        e.actionRelay.executeRelayActions{value: params.fee.nativeFee}(proposalId, params);
 
         // process the message
         bridgeActionRelayToAdminXChain(v);

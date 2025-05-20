@@ -11,10 +11,12 @@ import {OptionsBuilder} from "@lz-oapp/libs/OptionsBuilder.sol";
 import {OAppSenderUpgradeable, MessagingFee} from "@oapp-upgradeable/aragon-oapp/OAppSenderUpgradeable.sol";
 import {bytes32ToAddress} from "@utils/converters.sol";
 
+import {IActionRelay} from "@execution-chain/crosschain/IActionRelay.sol";
+
 /// @title ActionRelay
 /// @author Aragon
 /// @notice A LayerZero-compatible OApp that allows for sending arbitrary action data across chains.
-contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
+contract ActionRelay is IActionRelay, OAppSenderUpgradeable, UUPSUpgradeable {
     using OptionsBuilder for bytes;
     using SafeCast for uint256;
 
@@ -23,43 +25,7 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
 
     /// @notice Holders of this role are allowed to relay actions to another chain.
     bytes32 public constant XCHAIN_ACTION_RELAYER_ID = keccak256("XCHAIN_ACTION_RELAYER");
-
-    /// @notice Actions ready to be relayed to another chain.
-    /// @param dstEid The LayerZero endpoint ID of the execution chain.
-    /// @param message The encoded message to be sent to the destination chain.
-    /// @param refundAddress The address that will receive the refund if the transaction fails.
-    struct QueuedActionRelayParams {
-        uint32 dstEid;
-        bytes message;
-        address refundAddress;
-        bool executed;
-    }
-
-    /// @notice Additional Layer Zero params required to send a cross chain message.
-    /// @param dstEid The LayerZero endpoint ID of the execution chain.
-    /// @param gasLimit The additional gas needed on the execution chain to process the message, surplus will be refunded.
-    /// @param fee The messaging fee required to send the message, this is sent to LayerZero.
-    /// @param options Additional options required to send the message, these are encoded as bytes.
-    struct LzSendParams {
-        uint128 gasLimit;
-        MessagingFee fee;
-        bytes options;
-    }
-
-    /// @notice Emitted when actions have been successfully relayed to another chain.
-    /// @param callId A unique identifier for the relayed actions, such as a proposal ID.
-    /// @param destinationEid The LayerZero endpoint ID of the destination chain.
-    event ActionsRelayed(
-        uint256 indexed callId,
-        uint256 indexed destinationEid,
-        MessagingReceipt receipt
-    );
-
-    /// @notice Emitted when actions are queued for relaying to another chain.
-    /// @param callId A unique identifier for the relayed actions, such as a proposal ID.
-    /// @param destinationEid The LayerZero endpoint ID of the destination chain.
-    /// @param message The encoded message to be sent to the destination chain.
-    event ActionsQueued(uint256 indexed callId, uint256 indexed destinationEid, bytes message);
+    bytes32 public constant XCHAIN_ACTION_EXECUTOR_ID = keccak256("XCHAIN_ACTION_EXECUTOR");
 
     constructor() {
         _disableInitializers();
@@ -90,7 +56,9 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     ) external view returns (LzSendParams memory params) {
         QueuedActionRelayParams memory action = actionsMap[_callId];
 
-        require(action.message.length > 0, "ActionRelay: no message to relay");
+        if (!actionsMap[_callId].queued) {
+            revert ActionNotQueued();
+        }
 
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption({
             _gas: _gasLimit,
@@ -121,13 +89,20 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     }
 
     function _queueRelayActions(uint256 _callId, uint32 _dstEid, bytes memory _message) internal {
-        require(actionsMap[_callId].message.length == 0, "ActionRelay: already queued");
+        if (actionsMap[_callId].queued) {
+            revert ActionAlreadyQueued();
+        }
+
+        if (_message.length == 0) {
+            revert ActionDoesNotContainMessage();
+        }
 
         actionsMap[_callId] = QueuedActionRelayParams({
             dstEid: _dstEid,
             message: _message,
             refundAddress: refundAddress(_dstEid),
-            executed: false
+            executed: false,
+            queued: true
         });
 
         emit ActionsQueued(_callId, _dstEid, _message);
@@ -139,13 +114,16 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     function executeRelayActions(
         uint256 _callId,
         LzSendParams calldata _params
-    ) public payable returns (MessagingReceipt memory receipt) {
+    ) public payable auth(XCHAIN_ACTION_EXECUTOR_ID) returns (MessagingReceipt memory receipt) {
         QueuedActionRelayParams memory action = actionsMap[_callId];
-        require(!action.executed, "ActionRelay: already executed");
+        if (!actionsMap[_callId].queued) {
+            revert ActionNotQueued();
+        }
+        if (action.executed) {
+            revert ActionAlreadyExecuted();
+        }
 
         actionsMap[_callId].executed = true;
-
-        require(action.message.length > 0, "ActionRelay: no message to relay");
 
         receipt = _lzSend({
             _dstEid: action.dstEid,
@@ -167,5 +145,5 @@ contract ActionRelay is OAppSenderUpgradeable, UUPSUpgradeable {
     /// @notice Internal method authorizing the upgrade of the contract via the [upgradeability mechanism for UUPS proxies](https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable) (see [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822)).
     function _authorizeUpgrade(address) internal virtual override auth(OAPP_ADMINISTRATOR_ID) {}
 
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }
