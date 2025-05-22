@@ -141,7 +141,7 @@ contract TestToucanVotingCreateProposal is ToucanVotingTestBase {
 
         assertEq(open, true);
         assertEq(executed, false);
-        assertEq(uint8(parameters.votingMode), uint8(IToucanVoting.VotingMode.Standard));
+        assertEq(uint8(parameters.votingMode), uint8(IToucanVoting.VotingMode.VoteReplacement));
         assertEq(parameters.supportThreshold, SUPPORT_THRESHOLD);
         assertEq(parameters.minVotingPower, _applyRatioCeiled(1 ether, voting.minParticipation()));
         assertEq(parameters.snapshotBlock, block.number - 1);

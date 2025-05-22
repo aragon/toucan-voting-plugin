@@ -124,15 +124,16 @@ This repo uses [Aragon OSx 1.3.0 contracts](https://github.com/aragon/osx/tree/v
 
 #### Execution Chain
 
-| Component                | Permission Granted    | Target Component         | Chain           |
-| ------------------------ | --------------------- | ------------------------ | --------------- |
-| ToucanVoting.sol         | EXECUTE_PERMISSION    | DAO.sol                  | Execution Chain |
-| DAO.sol                  | OAPP_ADMINISTRATOR    | ToucanReceiver.sol       | Execution Chain |
-| DAO.sol                  | OAPP_ADMINISTRATOR    | GovernanceOFTAdapter.sol | Execution Chain |
-| DAO.sol                  | OAPP_ADMINISTRATOR    | ActionRelay.sol          | Execution Chain |
-| DAO.sol                  | XCHAIN_ACTION_RELAYER | ActionRelay.sol          | Execution Chain |
-| DAO.sol                  | MINT_PERMISSION       | GovernanceERC20.sol      | Execution Chain |
-| GovernanceOFTAdapter.sol | Delegates to          | ToucanReceiver.sol       | Execution Chain |
+| Component                | Permission Granted       | Target Component         | Chain           |
+| ------------------------ | ------------------------ | ------------------------ | --------------- |
+| ToucanVoting.sol         | EXECUTE_PERMISSION       | DAO.sol                  | Execution Chain |
+| DAO.sol                  | OAPP_ADMINISTRATOR       | ToucanReceiver.sol       | Execution Chain |
+| DAO.sol                  | OAPP_ADMINISTRATOR       | GovernanceOFTAdapter.sol | Execution Chain |
+| DAO.sol                  | OAPP_ADMINISTRATOR       | ActionRelay.sol          | Execution Chain |
+| DAO.sol                  | XCHAIN_ACTION_RELAYER    | ActionRelay.sol          | Execution Chain |
+| DAO.sol                  | XCHAIN_EXECUTION_RELAYER | ActionRelay.sol          | Execution Chain |
+| DAO.sol                  | MINT_PERMISSION          | GovernanceERC20.sol      | Execution Chain |
+| GovernanceOFTAdapter.sol | Delegates to             | ToucanReceiver.sol       | Execution Chain |
 
 #### Voting Chain
 
@@ -235,6 +236,8 @@ A high level workflow can be seen below for a single voting chain. Click the ima
 
   - Optionally, if the DAO needs to manage another chain, encode an action into the proposal for the DAO to call the `ActionRelay.sol` contract.
   - `ActionRelay.sol` takes the action(s) and sends them to `AdminXChain.sol`, which has EXECUTE permission on the voting chain DAO.
+  - For the actions to be executed, the DAO must first call `queueRelayActions` on `ActionRelay.sol`, which will queue the actions to be executed on the voting chain.
+  - A designated `executor` (an address with XCHAIN_EXECUTION_RELAYER permission) can then call `executeRelayActions` on `ActionRelay.sol`, which will execute the queued actions on the voting chain.
 
 - **Admin Control**:
 

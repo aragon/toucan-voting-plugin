@@ -90,6 +90,9 @@ contract ToucanVoting is
     /// @param sender The sender address.
     error ProposalCreationForbidden(address sender);
 
+    /// @notice Thrown if the voting mode is not VoteReplacement.
+    error VotingModeNotAllowed();
+
     /// @notice Thrown if an account is not allowed to cast a vote. This can be because the vote
     /// - has not started,
     /// - has ended,
@@ -209,6 +212,10 @@ contract ToucanVoting is
             });
         }
 
+        if (_votingSettings.votingMode != VotingMode.VoteReplacement) {
+            revert VotingModeNotAllowed();
+        }
+
         // Require the minimum participation value to be in the interval [0, 10^6],
         // because `>=` comparision is used in the participation criterion.
         if (_votingSettings.minParticipation > RATIO_BASE) {
@@ -294,7 +301,7 @@ contract ToucanVoting is
         if (totalVotingPower_ == 0) revert NoVotingPower();
 
         // Check the user's voting power
-        if (!hasEnoughVotingPower(_msgSender())) {
+        if (!hasEnoughVotingPower(_msgSender(), snapshotBlock.timestamp)) {
             revert ProposalCreationForbidden(_msgSender());
         }
 
@@ -559,16 +566,13 @@ contract ToucanVoting is
     }
 
     /// @notice Check that the address owns enough tokens or has enough voting power from being a delegatee.
-    function hasEnoughVotingPower(address _who) public view returns (bool) {
+    function hasEnoughVotingPower(address _who, uint32 timestamp) public view returns (bool) {
         uint256 minProposerVotingPower_ = minProposerVotingPower();
 
         if (minProposerVotingPower_ != 0) {
             // Because of the checks in `ToucanVotingSetup`, we can assume that `votingToken`
             // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-            if (
-                votingToken.getVotes(_who) < minProposerVotingPower_ &&
-                IERC20Upgradeable(address(votingToken)).balanceOf(_who) < minProposerVotingPower_
-            ) {
+            if (votingToken.getPastVotes(_who, timestamp) < minProposerVotingPower_) {
                 return false;
             }
         }

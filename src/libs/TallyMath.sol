@@ -7,6 +7,8 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 /// @author Aragon
 /// @notice Simple math utilities for structs containing yes, no, and abstain votes.
 library TallyMath {
+    error DivisionByZero();
+
     /// @return Whether two tallies are equal for all pairwise values.
     function eq(
         IVoteContainer.Tally memory a,
@@ -48,6 +50,10 @@ library TallyMath {
         IVoteContainer.Tally memory a,
         uint256 divisor
     ) internal pure returns (IVoteContainer.Tally memory) {
+        // Prevent division by zero
+        if (divisor == 0) {
+            revert DivisionByZero();
+        }
         return
             IVoteContainer.Tally({
                 yes: a.yes / divisor,

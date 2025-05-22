@@ -88,7 +88,7 @@ contract AdminXChainTest is TestHelpers, IVoteContainer {
     ) public {
         vm.assume(_sender != address(lzEndpoint));
         vm.assume(_origin.srcEid != _eid);
-        vm.assume(_origin.sender != _peer);
+        vm.assume(_origin.sender != _peer && _peer != bytes32(0));
 
         // encode a simple message
         bytes memory _message = abi.encode(0, new IDAO.Action[](0), 0);

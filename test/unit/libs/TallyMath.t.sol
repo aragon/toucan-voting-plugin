@@ -5,6 +5,16 @@ import "forge-std/Test.sol";
 import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {TallyMath, OverflowChecker} from "@libs/TallyMath.sol";
 
+/// foundry v1: need to wrap to test reverts as otherwise too high up the callstack
+contract WrappedLib {
+    function div(
+        IVoteContainer.Tally memory tally,
+        uint256 divisor
+    ) public pure returns (IVoteContainer.Tally memory) {
+        return TallyMath.div(tally, divisor);
+    }
+}
+
 contract TallyMathTest is Test, IVoteContainer {
     using TallyMath for Tally;
     using OverflowChecker for Tally;
@@ -55,8 +65,15 @@ contract TallyMathTest is Test, IVoteContainer {
     function testFuzz_div(uint a, uint b, uint c, uint divisor) public {
         Tally memory tally = Tally({yes: a, no: b, abstain: c});
 
-        if (divisor == 0) vm.expectRevert();
-        Tally memory div = tally.div(divisor);
+        WrappedLib lib = new WrappedLib();
+
+        if (divisor == 0) {
+            vm.expectRevert(TallyMath.DivisionByZero.selector);
+        }
+        Tally memory div = lib.div(tally, divisor);
+        if (divisor == 0) {
+            return;
+        }
 
         assertTrue(div.yes == a / divisor);
         assertTrue(div.no == b / divisor);

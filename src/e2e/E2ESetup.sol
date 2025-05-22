@@ -94,6 +94,7 @@ interface ISetup {
         PermissionLib.MultiTargetPermission[] votingPermissions;
         // agents
         address voter;
+        address executor;
     }
 }
 
@@ -204,7 +205,11 @@ contract SetupExecutionChainE2E is SetupE2EBase {
         chain.base.psp.queueSetup(address(chain.receiverSetup));
 
         // prepare the installation
-        bytes memory data = abi.encode(address(chain.base.lzEndpoint), address(chain.voting));
+        bytes memory data = abi.encode(
+            address(chain.base.lzEndpoint),
+            address(chain.voting),
+            chain.executor
+        );
 
         (
             address receiverPluginAddress,

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.17;
 
+import {console2 as console} from "forge-std/console2.sol";
+
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
@@ -23,7 +25,9 @@ contract TestToucanVotingPower is ToucanVotingTestBase {
         settings.minProposerVotingPower = 0;
         voting.updateVotingSettings(settings);
 
-        assertTrue(voting.hasEnoughVotingPower(_who));
+        vm.roll(1);
+
+        assertTrue(voting.hasEnoughVotingPower(_who, uint32(block.number - 1)));
     }
 
     function testFuzz_insufficientVotingPower(
@@ -44,7 +48,7 @@ contract TestToucanVotingPower is ToucanVotingTestBase {
 
         vm.roll(2);
 
-        assertFalse(voting.hasEnoughVotingPower(_who));
+        assertFalse(voting.hasEnoughVotingPower(_who, uint32(block.number - 1)));
     }
 
     function testFuzz_insufficientBalance(
@@ -63,7 +67,9 @@ contract TestToucanVotingPower is ToucanVotingTestBase {
 
         token.mint(address(_who), _tokenQty);
 
-        assertFalse(voting.hasEnoughVotingPower(_who));
+        vm.roll(1);
+
+        assertFalse(voting.hasEnoughVotingPower(_who, uint32(block.number - 1)));
     }
 
     function testFuzz_insufficientBalanceSufficientVotingPower(
@@ -83,7 +89,9 @@ contract TestToucanVotingPower is ToucanVotingTestBase {
         token.mint(address(this), _minVotingPower);
         token.delegate(_who);
 
-        assertTrue(voting.hasEnoughVotingPower(_who));
+        vm.roll(1);
+
+        assertTrue(voting.hasEnoughVotingPower(_who, uint32(block.number - 1)));
     }
 
     function testFuzz_sufficientBalance(
@@ -101,6 +109,8 @@ contract TestToucanVotingPower is ToucanVotingTestBase {
 
         token.mint(address(_who), _tokenQty);
 
-        assertTrue(voting.hasEnoughVotingPower(_who));
+        vm.roll(1);
+
+        assertTrue(voting.hasEnoughVotingPower(_who, uint32(block.number - 1)));
     }
 }

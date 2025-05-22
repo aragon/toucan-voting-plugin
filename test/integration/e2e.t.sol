@@ -69,6 +69,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
     using OptionsBuilder for bytes;
 
     address deployer = address(0x420);
+    address executor = address(0x88);
 
     address eVoter = address(0x69);
     address vVoter0 = address(0x96);
@@ -174,6 +175,7 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         e.base.chainid = 80085;
         e.base.deployer = deployer;
         e.voter = eVoter;
+        e.executor = executor;
 
         _deployOSX(e.base);
         _deployDAOAndMSig(e.base);
@@ -379,6 +381,15 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         }
         vm.stopPrank();
 
+        ActionRelay.LzSendParams memory params = e.actionRelay.quote(
+            proposalId,
+            GAS_XCHAIN_PROPOSAL
+        );
+
+        vm.deal(address(e.executor), params.fee.nativeFee);
+        vm.prank(e.executor);
+        e.actionRelay.executeRelayActions{value: params.fee.nativeFee}(proposalId, params);
+
         // process the message
         bridgeActionRelayToAdminXChain(v);
     }
@@ -419,15 +430,6 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
             value: 0
         });
 
-        // fetch a quote for all this
-        ActionRelay.LzSendParams memory params = e.actionRelay.quote(
-            e.voting.proposalCount(), // proposal id that will be created
-            innerActions,
-            0, // allowFailureMap
-            v.base.eid,
-            GAS_XCHAIN_PROPOSAL
-        );
-
         // now we can create the execute action
         IDAO.Action[] memory actions = new IDAO.Action[](1);
 
@@ -436,18 +438,18 @@ contract TestE2EFull is SetupExecutionChainE2E, SetupVotingChainE2E, LzTestHelpe
         actions[0] = IDAO.Action({
             to: address(e.actionRelay),
             data: abi.encodeCall(
-                e.actionRelay.relayActions,
+                e.actionRelay.queueRelayActions,
                 (
                     e.voting.proposalCount(),
+                    v.base.eid,
                     innerActions,
-                    0, // allowFailureMap
-                    params
+                    0 // allowFailureMap
                 )
             ),
             // this is super important, it's not a zero value
             // transfer because the layer zero endpoint will
             // expect a fee from the DAO
-            value: params.fee.nativeFee
+            value: 0
         });
 
         return actions;

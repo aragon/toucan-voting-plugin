@@ -115,12 +115,12 @@ contract TestToucanReceiverSetup is TestHelpers {
 
     // invalid plugin reverts prepinstallation
     function test_invalidPluginRevertsInstallation() public {
-        bytes memory data = abi.encode(address(0), address(1));
+        bytes memory data = abi.encode(address(0), address(1), address(2));
         vm.expectRevert();
         setup.prepareInstallation(address(0), data);
 
         MockVotingPlugin plugin = new MockVotingPlugin();
-        data = abi.encode(address(plugin), address(plugin));
+        data = abi.encode(address(plugin), address(plugin), address(2));
         vm.expectRevert(abi.encodeWithSelector(ToucanReceiverSetup.InvalidInterface.selector));
         setup.prepareInstallation(address(0), data);
     }
@@ -129,8 +129,9 @@ contract TestToucanReceiverSetup is TestHelpers {
     function test_prepareInstallation() public {
         GovernanceERC20 token = deployToken();
         ToucanVoting voting = deployToucanVoting(dao, address(token));
+        address executor = address(0x1234);
 
-        bytes memory data = abi.encode(address(lzEndpoint), address(voting));
+        bytes memory data = abi.encode(address(lzEndpoint), address(voting), executor);
 
         (address plugin, IPluginSetup.PreparedSetupData memory preparedData) = setup
             .prepareInstallation(address(dao), data);
@@ -144,6 +145,7 @@ contract TestToucanReceiverSetup is TestHelpers {
 
         ActionRelay actionRelay = ActionRelay(preparedData.helpers[1]);
         assertEq(actionRelay.XCHAIN_ACTION_RELAYER_ID(), keccak256("XCHAIN_ACTION_RELAYER"));
+        assertEq(actionRelay.XCHAIN_ACTION_EXECUTOR_ID(), keccak256("XCHAIN_ACTION_EXECUTOR"));
 
         // apply permissions
         dao.applyMultiTargetPermissions(preparedData.permissions);
@@ -162,6 +164,17 @@ contract TestToucanReceiverSetup is TestHelpers {
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.XCHAIN_ACTION_RELAYER_ID(),
+                _data: ""
+            }),
+            "DAO should have XChain execute on xchain relay"
+        );
+
+        // dao should have XChain execute on xchain relay
+        assertTrue(
+            dao.hasPermission({
+                _who: address(executor),
+                _where: address(actionRelay),
+                _permissionId: actionRelay.XCHAIN_ACTION_EXECUTOR_ID(),
                 _data: ""
             }),
             "DAO should have XChain execute on xchain relay"
@@ -237,7 +250,7 @@ contract TestToucanReceiverSetup is TestHelpers {
     }
 
     function test_FuzzCorrectHelpers(IPluginSetup.SetupPayload memory payload) public {
-        vm.assume(payload.currentHelpers.length != 2);
+        vm.assume(payload.currentHelpers.length != 3);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -251,7 +264,9 @@ contract TestToucanReceiverSetup is TestHelpers {
     function test_prepareUninstallation() public {
         GovernanceERC20 token = deployToken();
         ToucanVoting voting = deployToucanVoting(dao, address(token));
-        bytes memory data = abi.encode(address(lzEndpoint), address(voting));
+        address executor = address(0x1234);
+
+        bytes memory data = abi.encode(address(lzEndpoint), address(voting), executor);
         (address plugin, IPluginSetup.PreparedSetupData memory preparedData) = setup
             .prepareInstallation(address(dao), data);
 
@@ -280,6 +295,16 @@ contract TestToucanReceiverSetup is TestHelpers {
                 _who: address(dao),
                 _where: address(actionRelay),
                 _permissionId: actionRelay.XCHAIN_ACTION_RELAYER_ID(),
+                _data: ""
+            }),
+            "DAO should have XChain execute on xchain relay"
+        );
+
+        assertFalse(
+            dao.hasPermission({
+                _who: address(executor),
+                _where: address(actionRelay),
+                _permissionId: actionRelay.XCHAIN_ACTION_EXECUTOR_ID(),
                 _data: ""
             }),
             "DAO should have XChain execute on xchain relay"

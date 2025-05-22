@@ -82,7 +82,10 @@ contract ToucanReceiverSetup is PluginSetup {
         address _dao,
         bytes calldata _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
-        (address lzEndpoint, address _votingPlugin) = abi.decode(_data, (address, address));
+        (address lzEndpoint, address _votingPlugin, address executor) = abi.decode(
+            _data,
+            (address, address, address)
+        );
 
         // check the voting plugin and fetch the associated token
         ToucanVoting votingPlugin = validateVotingPlugin(_votingPlugin);
@@ -107,12 +110,14 @@ contract ToucanReceiverSetup is PluginSetup {
             payable(plugin),
             adapter,
             actionRelay,
+            executor,
             PermissionLib.Operation.Grant
         );
 
-        address[] memory helpers = new address[](2);
+        address[] memory helpers = new address[](3);
         helpers[0] = adapter;
         helpers[1] = actionRelay;
+        helpers[2] = executor;
 
         preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
@@ -144,18 +149,20 @@ contract ToucanReceiverSetup is PluginSetup {
         SetupPayload calldata _payload
     ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
         // check the helpers length
-        if (_payload.currentHelpers.length != 2) {
+        if (_payload.currentHelpers.length != 3) {
             revert WrongHelpersArrayLength(_payload.currentHelpers.length);
         }
 
         address adapter = _payload.currentHelpers[0];
         address actionRelay = _payload.currentHelpers[1];
+        address executor = _payload.currentHelpers[2];
 
         permissions = getPermissions(
             _dao,
             payable(_payload.plugin),
             adapter,
             actionRelay,
+            executor,
             PermissionLib.Operation.Revoke
         );
     }
@@ -171,10 +178,11 @@ contract ToucanReceiverSetup is PluginSetup {
         address payable _plugin,
         address _adapter,
         address _actionRelay,
+        address executor,
         PermissionLib.Operation _grantOrRevoke
     ) public view returns (PermissionLib.MultiTargetPermission[] memory) {
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](5);
+            memory permissions = new PermissionLib.MultiTargetPermission[](6);
 
         // Set the permissions for the plugin
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -219,6 +227,14 @@ contract ToucanReceiverSetup is PluginSetup {
             condition: PermissionLib.NO_CONDITION,
             who: _dao,
             where: _plugin
+        });
+
+        permissions[5] = PermissionLib.MultiTargetPermission({
+            operation: _grantOrRevoke,
+            permissionId: ActionRelay(_actionRelay).XCHAIN_ACTION_EXECUTOR_ID(),
+            condition: PermissionLib.NO_CONDITION,
+            who: executor,
+            where: _actionRelay
         });
 
         return permissions;

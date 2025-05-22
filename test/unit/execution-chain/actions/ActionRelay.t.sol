@@ -7,6 +7,7 @@ import {IVoteContainer} from "@interfaces/IVoteContainer.sol";
 import {MessagingReceipt, MessagingFee} from "@execution-chain/crosschain/ActionRelay.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 
+import {IActionRelay} from "@execution-chain/crosschain/IActionRelay.sol";
 import {ActionRelay, OptionsBuilder, MessagingFee} from "@execution-chain/crosschain/ActionRelay.sol";
 import {ProposalRefEncoder} from "@libs/ProposalRefEncoder.sol";
 
@@ -80,9 +81,20 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
         uint128 _gasLimit,
         IDAO.Action[] memory _actions,
         uint _allowFailureMap
-    ) public view {
-        ActionRelay.LzSendParams memory expectedParams = ActionRelay.LzSendParams({
-            dstEid: _dstEid,
+    ) public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
+        });
+
+        vm.startPrank(address(dao));
+        {
+            relay.queueRelayActions(_proposalId, _dstEid, _actions, _allowFailureMap);
+        }
+        vm.stopPrank();
+
+        IActionRelay.LzSendParams memory expectedParams = IActionRelay.LzSendParams({
             gasLimit: _gasLimit,
             fee: MessagingFee(100, 0),
             options: OptionsBuilder.newOptions().addExecutorLzReceiveOption({
@@ -91,13 +103,7 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
             })
         });
 
-        ActionRelay.LzSendParams memory params = relay.quote(
-            _proposalId,
-            _actions,
-            _allowFailureMap,
-            _dstEid,
-            _gasLimit
-        );
+        ActionRelay.LzSendParams memory params = relay.quote(_proposalId, _gasLimit);
 
         assertEq(keccak256(abi.encode(params)), keccak256(abi.encode(expectedParams)));
     }
@@ -120,15 +126,14 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
             relay.XCHAIN_ACTION_RELAYER_ID()
         );
 
-        ActionRelay.LzSendParams memory params;
-
         vm.expectRevert(revertData);
         vm.prank(_unauth);
-        relay.relayActions(0, new IDAO.Action[](0), 0, params);
+        relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
     }
 
     function testFuzz_emitsEventOnRelay(
         uint _proposalId,
+        uint32 _dstEid,
         ActionRelay.LzSendParams memory _params,
         IDAO.Action[] memory _actions,
         uint _allowFailureMap,
@@ -137,7 +142,7 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
         vm.assume(_peerAddress != address(0));
         // force the fee to be 100 in native only
         _params.fee = MessagingFee(100, 0);
-        relay.setPeer(_params.dstEid, addressToBytes32(_peerAddress));
+        relay.setPeer(_dstEid, addressToBytes32(_peerAddress));
 
         // give this address the relay permission
         dao.grant({
@@ -145,26 +150,139 @@ contract ActionRelayTest is TestHelpers, IVoteContainer {
             _where: address(relay),
             _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
         });
+        dao.grant({
+            _who: address(this),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_EXECUTOR_ID()
+        });
+
+        relay.queueRelayActions(_proposalId, _dstEid, _actions, _allowFailureMap);
+
+        ActionRelay.LzSendParams memory params = relay.quote(_proposalId, 0);
 
         vm.expectEmit(true, true, false, true);
         emit ActionsRelayed(
             _proposalId,
-            _params.dstEid,
+            _dstEid,
             MessagingReceipt({guid: keccak256("guid"), nonce: 1234, fee: _params.fee})
         );
-        relay.relayActions{value: 100}(_proposalId, _actions, _allowFailureMap, _params);
+        relay.executeRelayActions{value: params.fee.nativeFee}(_proposalId, _params);
 
         // check the state sent was as expected
         MockActionRelay.LzSendReceived memory receipt = MockActionRelay(address(relay))
             .getLzSendReceived();
 
-        assertEq(receipt.dstEid, _params.dstEid);
+        assertEq(receipt.dstEid, _dstEid);
         assertEq(keccak256(abi.encode(receipt.fee)), keccak256(abi.encode(_params.fee)));
-        assertEq(receipt.refundAddress, relay.refundAddress(_params.dstEid));
+        assertEq(receipt.refundAddress, relay.refundAddress(_dstEid));
         assertEq(receipt.options, _params.options);
 
         bytes memory expectedMessage = abi.encode(_proposalId, _actions, _allowFailureMap);
         assertEq(keccak256(receipt.message), keccak256(expectedMessage));
+    }
+
+    function testCantQuoteUninitializedRelayActions() public {
+        vm.expectRevert(IActionRelay.ActionNotQueued.selector);
+        vm.prank(address(dao));
+        relay.quote(0, 0);
+    }
+
+    function testCantReQueueRelayActions() public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
+        });
+
+        vm.startPrank(address(dao));
+        {
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+
+            vm.expectRevert(IActionRelay.ActionAlreadyQueued.selector);
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+        }
+        vm.stopPrank();
+    }
+
+    function testCantExecuteEmptyRelayActions() public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_EXECUTOR_ID()
+        });
+
+        vm.expectRevert(IActionRelay.ActionNotQueued.selector);
+        vm.prank(address(dao));
+        relay.executeRelayActions(
+            0,
+            IActionRelay.LzSendParams({
+                gasLimit: 0,
+                fee: MessagingFee(0, 0),
+                options: OptionsBuilder.newOptions().addExecutorLzReceiveOption({
+                    _gas: 0,
+                    _value: 0
+                })
+            })
+        );
+    }
+
+    function testCantExecuteWithoutPermission() public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
+        });
+
+        relay.setPeer(0, addressToBytes32(address(0x1)));
+
+        vm.startPrank(address(dao));
+        {
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+
+            ActionRelay.LzSendParams memory params = relay.quote(0, 0);
+
+            vm.deal(address(dao), params.fee.nativeFee);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    DaoUnauthorized.selector,
+                    address(dao),
+                    address(relay),
+                    address(dao),
+                    relay.XCHAIN_ACTION_EXECUTOR_ID()
+                )
+            );
+            relay.executeRelayActions{value: params.fee.nativeFee}(0, params);
+        }
+        vm.stopPrank();
+    }
+
+    function testCantReExecuteRelayActions() public {
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_RELAYER_ID()
+        });
+        dao.grant({
+            _who: address(dao),
+            _where: address(relay),
+            _permissionId: relay.XCHAIN_ACTION_EXECUTOR_ID()
+        });
+
+        relay.setPeer(0, addressToBytes32(address(0x1)));
+
+        vm.startPrank(address(dao));
+        {
+            relay.queueRelayActions(0, 0, new IDAO.Action[](0), 0);
+
+            ActionRelay.LzSendParams memory params = relay.quote(0, 0);
+
+            vm.deal(address(dao), params.fee.nativeFee * 2);
+            relay.executeRelayActions{value: params.fee.nativeFee}(0, params);
+
+            vm.expectRevert(IActionRelay.ActionAlreadyExecuted.selector);
+            relay.executeRelayActions{value: params.fee.nativeFee}(0, params);
+        }
+        vm.stopPrank();
     }
 
     function test_canUUPSUpgrade() public {
