@@ -83,6 +83,8 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
     address ACTION_RELAY = 0x1d4Ec65D3F762BE9c3d2daA78Dd69abcc2094E06;
     address ADAPTER = 0x8Bc2Fd21043f6a00d75728807c181d6EC11fbc46;
 
+    address EXECUTOR = deployer;
+
     modifier broadcast() {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         deployer = vm.addr(deployerPrivateKey);
@@ -107,6 +109,7 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         e.base.deployer = deployer;
         e.base.lzEndpoint = 0x1a44076050125825900e736c501f859c50fE728c;
         e.voter = deployer;
+        e.executor = EXECUTOR;
     }
 
     // function setupExecutionChain() public view returns (ExecutionChain memory e) {
@@ -387,6 +390,8 @@ contract DeployE2E is Script, SetupExecutionChainE2E, SetupVotingChainE2E {
         console2.log("  eid: %s", e.base.eid);
         console2.log("  lzEndpoint: %s", e.base.lzEndpoint);
         console2.log("  deployer: %s", e.base.deployer);
+        console2.log("  voter: %s", e.voter);
+        console2.log("  executor: %s", e.executor);
 
         console2.log("DAO and Contracts");
         console2.log("  dao: %s", address(e.base.dao));
